@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
+
 #[derive(Debug)]
 pub struct Trajectory {
     coords: Vec<Coord3D>,
@@ -247,11 +248,13 @@ fn get_common_time_span(trj_a: &Trajectory, trj_b: &Trajectory) -> Option<(f64, 
 }
 
 fn interpolate(t: f64, p: &Coord3D, q: &Coord3D) -> Coord3D {
-    let dx = (q.x - p.x) / (q.t - p.t);
-    let dy = (q.y - p.y) / (q.t - p.t);
+    // It must hold that p.t <= t <= q.t
+    let dx = q.x - p.x;
+    let dy = q.y - p.y;
+    let s = (t - p.t) / (q.t - p.t);
     Coord3D {
-        x: p.x + (q.t - t) * dx,
-        y: p.y + (q.t - t) * dy,
+        x: p.x + dx * s,
+        y: p.y + dy * s,
         t,
     }
 }
