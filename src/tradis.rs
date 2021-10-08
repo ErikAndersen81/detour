@@ -1,6 +1,19 @@
 use crate::trajectory::{get_common_time_span, Coord2D, Line2D, Trajectory};
 
-pub fn proj_dist(trj_a: &Trajectory, trj_b: &Trajectory, axis: usize) -> f64 {
+pub fn distance(trj_a: &Trajectory, trj_b: &Trajectory) -> Option<f64> {
+    // Returns TraDis of two trajectories.
+    let span = get_common_time_span(trj_a, trj_b);
+    match span {
+        Some((start, end)) => {
+            let trj_a = trj_a.trim(start, end);
+            let trj_b = trj_b.trim(start, end);
+            Some(proj_dist(&trj_a, &trj_b, 0) + proj_dist(&trj_a, &trj_b, 1))
+        }
+        None => None,
+    }
+}
+
+fn proj_dist(trj_a: &Trajectory, trj_b: &Trajectory, axis: usize) -> f64 {
     // Note: Trajectories must be trimmed before calling
     let mut events = get_event_queue(trj_a, trj_b, axis);
     let mut points: [Coord2D; 2] = [events.pop().unwrap().0, events.pop().unwrap().0];
@@ -30,19 +43,6 @@ pub fn proj_dist(trj_a: &Trajectory, trj_b: &Trajectory, axis: usize) -> f64 {
         }
     }
     area
-}
-
-pub fn distance(trj_a: &Trajectory, trj_b: &Trajectory) -> Option<f64> {
-    // Returns TraDis of two trajectories.
-    let span = get_common_time_span(trj_a, trj_b);
-    match span {
-        Some((start, end)) => {
-            let trj_a = trj_a.trim(start, end);
-            let trj_b = trj_b.trim(start, end);
-            Some(proj_dist(&trj_a, &trj_b, 0) + proj_dist(&trj_a, &trj_b, 1))
-        }
-        None => None,
-    }
 }
 
 fn get_event_queue(trj_a: &Trajectory, trj_b: &Trajectory, axis: usize) -> Vec<(Coord2D, bool)> {
