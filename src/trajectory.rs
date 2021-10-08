@@ -1,9 +1,10 @@
+use crate::tradis::interpolate;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
 #[derive(Debug)]
 pub struct Trajectory {
-    coords: Vec<Coord3D>,
+    pub coords: Vec<Coord3D>,
 }
 
 impl std::ops::Index<usize> for Trajectory {
@@ -20,7 +21,7 @@ impl std::ops::IndexMut<usize> for Trajectory {
 }
 
 impl Trajectory {
-    fn trim(&self, start: f64, end: f64) -> Trajectory {
+    pub fn trim(&self, start: f64, end: f64) -> Trajectory {
         let trj: &Vec<Coord3D> = &self.coords;
         let mut start_idx: usize = 0;
         let mut end_idx: usize = trj.len() - 1;
@@ -59,7 +60,7 @@ impl Trajectory {
         }
     }
 
-    fn get_projection(&self, axis: usize) -> Vec<Coord2D> {
+    pub fn get_projection(&self, axis: usize) -> Vec<Coord2D> {
         self.coords
             .iter()
             .map(|c: &Coord3D| c.project(axis))
@@ -122,112 +123,17 @@ impl Coord3D {
 }
 
 #[derive(Debug, Clone)]
-struct Coord2D {
-    x: f64,
-    y: f64,
+pub struct Coord2D {
+    pub x: f64,
+    pub y: f64,
 }
 
-struct Line2D<'a> {
-    start: &'a Coord2D,
-    end: &'a Coord2D,
+pub struct Line2D<'a> {
+    pub start: &'a Coord2D,
+    pub end: &'a Coord2D,
 }
 
-fn proj_dist(trj_a: &Trajectory, trj_b: &Trajectory, axis: usize) -> f64 {
-    // Note: Trajectories must be trimmed before calling
-    let mut events = get_event_queue(trj_a, trj_b, axis);
-    let mut points: [Coord2D; 2] = [events.pop().unwrap().0, events.pop().unwrap().0];
-    let mut intersect_flag = false;
-    let mut area = 0.0;
-    while !events.is_empty() {
-        if intersect_flag {
-            // previous event was an intersection point
-            intersect_flag = false;
-            let tmp = events.pop().unwrap().0;
-            points[1] = events.pop().unwrap().0;
-            area += calc_area(&points[0], &points[1], &tmp);
-            points[0] = tmp;
-        } else {
-            let event = events.pop().unwrap();
-            if event.1 {
-                // event is an intersection point
-                intersect_flag = true;
-                area += calc_area(&points[0], &points[1], &(event.0));
-                points[0] = event.0;
-            } else {
-                // normal point
-                area += calc_area(&points[0], &points[1], &(event.0));
-                points[0] = points[1].clone();
-                points[1] = event.0;
-            }
-        }
-    }
-    area
-}
-
-pub fn distance(trj_a: &Trajectory, trj_b: &Trajectory) -> Option<f64> {
-    // Returns TraDis of two trajectories.
-    let span = get_common_time_span(trj_a, trj_b);
-    match span {
-        Some((start, end)) => {
-            let trj_a = trj_a.trim(start, end);
-            let trj_b = trj_b.trim(start, end);
-            Some(proj_dist(&trj_a, &trj_b, 0) + proj_dist(&trj_a, &trj_b, 1))
-        }
-        None => None,
-    }
-}
-
-fn get_event_queue(trj_a: &Trajectory, trj_b: &Trajectory, axis: usize) -> Vec<(Coord2D, bool)> {
-    let coords_a = trj_a.get_projection(axis);
-    let coords_b = trj_b.get_projection(axis);
-    let mut events: Vec<(Coord2D, bool)> = Vec::new();
-    let (mut i, mut j): (usize, usize) = (1, 1);
-    while (i < trj_a.len()) & (j < trj_b.len()) {
-        let a1 = &coords_a[i - 1];
-        let a2 = &coords_a[i];
-        let b1 = &coords_b[j - 1];
-        let b2 = &coords_b[j];
-        let line_a = Line2D { start: a1, end: a2 };
-        let line_b = Line2D { start: b1, end: b2 };
-        let inc_i;
-        let (fst, snd): (Coord2D, Coord2D);
-        if a1.y < b1.y {
-            fst = a1.clone();
-            snd = b1.clone();
-            i = if i == trj_a.len() { i } else { i + 1 };
-            inc_i = true;
-        } else {
-            fst = b1.clone();
-            snd = a1.clone();
-            j = if j == trj_b.len() { j } else { j + 1 };
-            inc_i = false;
-        };
-        let ints = intersection_point(&line_a, &line_b);
-        if let Some(ints) = ints {
-            if inc_i {
-                j = if j == trj_b.len() { j } else { j + 1 };
-            } else {
-                i = if i == trj_a.len() { i } else { i + 1 };
-            }
-            events.push((fst, false));
-            events.push((snd, false));
-            events.push((ints, true));
-        } else {
-            events.push((fst, false));
-        }
-    }
-    let end_a = &coords_a[i - 1];
-    let end_b = &coords_b[j - 1];
-    events.push((end_a.clone(), false));
-    events.push((end_b.clone(), false));
-    events
-}
-
-fn calc_area(p: &Coord2D, q: &Coord2D, r: &Coord2D) -> f64 {
-    0.5 * (p.x * (q.y - r.y) + q.x * (r.y - p.y) + r.x * (p.y - q.y)).abs()
-}
-
-fn get_common_time_span(trj_a: &Trajectory, trj_b: &Trajectory) -> Option<(f64, f64)> {
+pub fn get_common_time_span(trj_a: &Trajectory, trj_b: &Trajectory) -> Option<(f64, f64)> {
     let a_len = trj_a.len() - 1;
     let b_len = trj_b.len() - 1;
     let start: f64 = if trj_a[0].t > trj_b[0].t {
@@ -247,46 +153,9 @@ fn get_common_time_span(trj_a: &Trajectory, trj_b: &Trajectory) -> Option<(f64, 
     }
 }
 
-fn interpolate(t: f64, p: &Coord3D, q: &Coord3D) -> Coord3D {
-    // It must hold that p.t <= t <= q.t
-    let dx = q.x - p.x;
-    let dy = q.y - p.y;
-    let s = (t - p.t) / (q.t - p.t);
-    Coord3D {
-        x: p.x + dx * s,
-        y: p.y + dy * s,
-        t,
-    }
-}
-
-fn intersection_point(p: &Line2D, q: &Line2D) -> Option<Coord2D> {
-    let (x1, y1, x2, y2) = (p.start.x, p.start.y, p.end.x, p.end.y);
-    let (x3, y3, x4, y4) = (q.start.x, q.start.y, q.end.x, q.end.y);
-    let denom: f64 = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-    let t: f64 = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
-    let u: f64 = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
-    if (0.0..=1.0).contains(&t) {
-        return Some(Coord2D {
-            x: x1 + t * (x2 - x1),
-            y: y1 + t * (y2 - y1),
-        });
-    } else if (0.0..=1.0).contains(&u) {
-        return Some(Coord2D {
-            x: x3 + u * (x4 - x3),
-            y: y3 + u * (y4 - y3),
-        });
-    };
-    None
-}
-
-//////////////////
-// Test Section //
-//////////////////
-
 #[cfg(test)]
-mod tradis_test {
+mod trajectory_test {
     use super::*;
-
     const TRJ_A: [[f64; 3]; 68] = [
         [5.567963400000, 1.254953400000, 1.631162641494],
         [5.567959600000, 1.254969400000, 1.631162648677],
@@ -422,122 +291,6 @@ mod tradis_test {
     ];
 
     #[test]
-    fn distance_symmetry() {
-        let trj_a: Trajectory = Trajectory::from_array((&TRJ_A).to_vec());
-        let trj_b: Trajectory = Trajectory::from_array((&TRJ_B).to_vec());
-        let dist1 = distance(&trj_a, &trj_b).unwrap();
-        let dist2 = distance(&trj_b, &trj_a).unwrap();
-        assert!((dist1 - dist2).abs() < 0.000000001);
-    }
-
-    #[test]
-    fn get_event_queue_test() {
-        let trj_a: Trajectory = Trajectory::from_array((&TRJ_A).to_vec());
-        let trj_b: Trajectory = Trajectory::from_array((&TRJ_B).to_vec());
-        let (start, end) = get_common_time_span(&trj_a, &trj_b).unwrap();
-        let trj_a = trj_a.trim(start, end);
-        let trj_b = trj_b.trim(start, end);
-        let q = get_event_queue(&trj_a, &trj_b, 0);
-        let ys = q.iter().map(|p| p.0.y).collect::<Vec<f64>>();
-        print!("{:?}", ys);
-    }
-
-    #[test]
-    fn intersect_simple() {
-        let p1 = Coord2D { x: 0.0, y: 0.0 };
-        let p2 = Coord2D { x: 2.0, y: 2.0 };
-        let q1 = Coord2D { x: 2.0, y: 0.0 };
-        let q2 = Coord2D { x: 0.0, y: 2.0 };
-        let r = intersection_point(
-            &Line2D {
-                start: &p1,
-                end: &p2,
-            },
-            &Line2D {
-                start: &q1,
-                end: &q2,
-            },
-        );
-        let r = r.unwrap();
-        assert_eq!((r.x, r.y), (1.0, 1.0))
-    }
-
-    #[test]
-    fn intersect_on_line() {
-        let p1 = Coord2D { x: 0.0, y: 0.0 };
-        let p2 = Coord2D { x: 2.0, y: 2.0 };
-        let q1 = Coord2D { x: 2.0, y: 0.0 };
-        let q2 = Coord2D { x: 1.0, y: 1.0 };
-        let r = intersection_point(
-            &Line2D {
-                start: &p1,
-                end: &p2,
-            },
-            &Line2D {
-                start: &q1,
-                end: &q2,
-            },
-        );
-        let r = r.unwrap();
-        assert_eq!((r.x, r.y), (1.0, 1.0))
-    }
-
-    #[test]
-    fn intersect_parallel() {
-        let p1 = Coord2D { x: 0.0, y: 0.0 };
-        let p2 = Coord2D { x: 0.0, y: 2.0 };
-        let q1 = Coord2D { x: 2.0, y: 0.0 };
-        let q2 = Coord2D { x: 2.0, y: 2.0 };
-        let r = intersection_point(
-            &Line2D {
-                start: &p1,
-                end: &p2,
-            },
-            &Line2D {
-                start: &q1,
-                end: &q2,
-            },
-        );
-        assert!(Option::is_none(&r))
-    }
-
-    #[test]
-    fn interpolation_simple() {
-        let p: Coord3D = Coord3D::from_array([0.0, 0.0, 0.0]);
-        let q: Coord3D = Coord3D::from_array([2.0, 2.0, 2.0]);
-        let ans: Coord3D = Coord3D::from_array([1.0, 1.0, 1.0]);
-        let res = interpolate(1.0, &p, &q);
-        assert_eq!((res.x, res.y, res.t), (ans.x, ans.y, ans.t));
-    }
-
-    #[test]
-    fn interpolation_simple2() {
-        let p: Coord3D = Coord3D::from_array([0.0, 0.0, 0.0]);
-        let q: Coord3D = Coord3D::from_array([1.0, 1.0, 1.0]);
-        let ans: Coord3D = Coord3D::from_array([0.5, 0.5, 0.5]);
-        let res = interpolate(0.5, &q, &p);
-        assert_eq!((res.x, res.y, res.t), (ans.x, ans.y, ans.t));
-    }
-
-    #[test]
-    fn interpolation_offset() {
-        let p: Coord3D = Coord3D::from_array([2.0, 2.0, 2.0]);
-        let q: Coord3D = Coord3D::from_array([4.0, 4.0, 4.0]);
-        let ans: Coord3D = Coord3D::from_array([3.0, 3.0, 3.0]);
-        let res = interpolate(3.0, &p, &q);
-        assert_eq!((res.x, res.y, res.t), (ans.x, ans.y, ans.t));
-    }
-
-    #[test]
-    fn interpolation_single_dim() {
-        let p: Coord3D = Coord3D::from_array([2.0, 2.0, 2.0]);
-        let q: Coord3D = Coord3D::from_array([4.0, 2.0, 4.0]);
-        let ans: Coord3D = Coord3D::from_array([3.0, 2.0, 3.0]);
-        let res = interpolate(3.0, &p, &q);
-        assert_eq!((res.x, res.y, res.t), (ans.x, ans.y, ans.t));
-    }
-
-    #[test]
     fn common_time_span_end() {
         let real_end: f64 = 1.631163301207;
         let trj_a: Trajectory = Trajectory::from_array((&TRJ_A).to_vec());
@@ -578,21 +331,5 @@ mod tradis_test {
             (new_start - real_start).abs() + (new_end - real_end).abs() < 0.000000001,
             "Wrong end time"
         )
-    }
-
-    #[test]
-    fn area_simple() {
-        let p = Coord2D { x: 0.0, y: 0.0 };
-        let q = Coord2D { x: 1.0, y: 0.0 };
-        let r = Coord2D { x: 0.0, y: 1.0 };
-        assert!((calc_area(&p, &q, &r) - 0.5).abs() < 0.0001);
-    }
-
-    #[test]
-    fn area_simple2() {
-        let p = Coord2D { x: 1.0, y: 1.0 };
-        let q = Coord2D { x: 2.0, y: 1.0 };
-        let r = Coord2D { x: 1.0, y: 2.0 };
-        assert!((calc_area(&p, &q, &r) - 0.5).abs() < 0.0001);
     }
 }

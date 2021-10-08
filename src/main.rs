@@ -3,10 +3,10 @@ use geo::prelude::HaversineDistance;
 use regex::Regex;
 use std::io::{BufReader, Read};
 use std::iter::FromIterator;
-use trajectory::Trajectory;
+mod tradis;
 mod trajectory;
+use crate::trajectory::Trajectory;
 use std::env;
-
 const WINDOW_SIZE: usize = 6; // number of points to consider when filtering spike noise
                               // If the average velocity of WINDOWS_SIZE points is less than MIN_VELOCITY km/h the trj is cut.
 const MIN_VELOCITY: f64 = 2.5;
