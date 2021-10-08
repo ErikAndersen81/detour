@@ -1,4 +1,4 @@
-use crate::trajectory::{get_common_time_span, Coord2D, Coord3D, Line2D, Trajectory};
+use crate::trajectory::{get_common_time_span, Coord2D, Line2D, Trajectory};
 
 pub fn proj_dist(trj_a: &Trajectory, trj_b: &Trajectory, axis: usize) -> f64 {
     // Note: Trajectories must be trimmed before calling
@@ -93,18 +93,6 @@ fn get_event_queue(trj_a: &Trajectory, trj_b: &Trajectory, axis: usize) -> Vec<(
 
 fn calc_area(p: &Coord2D, q: &Coord2D, r: &Coord2D) -> f64 {
     0.5 * (p.x * (q.y - r.y) + q.x * (r.y - p.y) + r.x * (p.y - q.y)).abs()
-}
-
-pub fn interpolate(t: f64, p: &Coord3D, q: &Coord3D) -> Coord3D {
-    // It must hold that p.t <= t <= q.t
-    let dx = q.x - p.x;
-    let dy = q.y - p.y;
-    let s = (t - p.t) / (q.t - p.t);
-    Coord3D {
-        x: p.x + dx * s,
-        y: p.y + dy * s,
-        t,
-    }
 }
 
 fn intersection_point(p: &Line2D, q: &Line2D) -> Option<Coord2D> {
@@ -347,42 +335,6 @@ mod tradis_test {
             },
         );
         assert!(Option::is_none(&r))
-    }
-
-    #[test]
-    fn interpolation_simple() {
-        let p: Coord3D = Coord3D::from_array([0.0, 0.0, 0.0]);
-        let q: Coord3D = Coord3D::from_array([2.0, 2.0, 2.0]);
-        let ans: Coord3D = Coord3D::from_array([1.0, 1.0, 1.0]);
-        let res = interpolate(1.0, &p, &q);
-        assert_eq!((res.x, res.y, res.t), (ans.x, ans.y, ans.t));
-    }
-
-    #[test]
-    fn interpolation_simple2() {
-        let p: Coord3D = Coord3D::from_array([0.0, 0.0, 0.0]);
-        let q: Coord3D = Coord3D::from_array([1.0, 1.0, 1.0]);
-        let ans: Coord3D = Coord3D::from_array([0.5, 0.5, 0.5]);
-        let res = interpolate(0.5, &q, &p);
-        assert_eq!((res.x, res.y, res.t), (ans.x, ans.y, ans.t));
-    }
-
-    #[test]
-    fn interpolation_offset() {
-        let p: Coord3D = Coord3D::from_array([2.0, 2.0, 2.0]);
-        let q: Coord3D = Coord3D::from_array([4.0, 4.0, 4.0]);
-        let ans: Coord3D = Coord3D::from_array([3.0, 3.0, 3.0]);
-        let res = interpolate(3.0, &p, &q);
-        assert_eq!((res.x, res.y, res.t), (ans.x, ans.y, ans.t));
-    }
-
-    #[test]
-    fn interpolation_single_dim() {
-        let p: Coord3D = Coord3D::from_array([2.0, 2.0, 2.0]);
-        let q: Coord3D = Coord3D::from_array([4.0, 2.0, 4.0]);
-        let ans: Coord3D = Coord3D::from_array([3.0, 2.0, 3.0]);
-        let res = interpolate(3.0, &p, &q);
-        assert_eq!((res.x, res.y, res.t), (ans.x, ans.y, ans.t));
     }
 
     #[test]

@@ -1,4 +1,3 @@
-use crate::tradis::interpolate;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
@@ -150,6 +149,18 @@ pub fn get_common_time_span(trj_a: &Trajectory, trj_b: &Trajectory) -> Option<(f
         None
     } else {
         Some((start, end))
+    }
+}
+
+pub fn interpolate(t: f64, p: &Coord3D, q: &Coord3D) -> Coord3D {
+    // It must hold that p.t <= t <= q.t
+    let dx = q.x - p.x;
+    let dy = q.y - p.y;
+    let s = (t - p.t) / (q.t - p.t);
+    Coord3D {
+        x: p.x + dx * s,
+        y: p.y + dy * s,
+        t,
     }
 }
 
@@ -331,5 +342,41 @@ mod trajectory_test {
             (new_start - real_start).abs() + (new_end - real_end).abs() < 0.000000001,
             "Wrong end time"
         )
+    }
+
+    #[test]
+    fn interpolation_simple() {
+        let p: Coord3D = Coord3D::from_array([0.0, 0.0, 0.0]);
+        let q: Coord3D = Coord3D::from_array([2.0, 2.0, 2.0]);
+        let ans: Coord3D = Coord3D::from_array([1.0, 1.0, 1.0]);
+        let res = interpolate(1.0, &p, &q);
+        assert_eq!((res.x, res.y, res.t), (ans.x, ans.y, ans.t));
+    }
+
+    #[test]
+    fn interpolation_simple2() {
+        let p: Coord3D = Coord3D::from_array([0.0, 0.0, 0.0]);
+        let q: Coord3D = Coord3D::from_array([1.0, 1.0, 1.0]);
+        let ans: Coord3D = Coord3D::from_array([0.5, 0.5, 0.5]);
+        let res = interpolate(0.5, &q, &p);
+        assert_eq!((res.x, res.y, res.t), (ans.x, ans.y, ans.t));
+    }
+
+    #[test]
+    fn interpolation_offset() {
+        let p: Coord3D = Coord3D::from_array([2.0, 2.0, 2.0]);
+        let q: Coord3D = Coord3D::from_array([4.0, 4.0, 4.0]);
+        let ans: Coord3D = Coord3D::from_array([3.0, 3.0, 3.0]);
+        let res = interpolate(3.0, &p, &q);
+        assert_eq!((res.x, res.y, res.t), (ans.x, ans.y, ans.t));
+    }
+
+    #[test]
+    fn interpolation_single_dim() {
+        let p: Coord3D = Coord3D::from_array([2.0, 2.0, 2.0]);
+        let q: Coord3D = Coord3D::from_array([4.0, 2.0, 4.0]);
+        let ans: Coord3D = Coord3D::from_array([3.0, 2.0, 3.0]);
+        let res = interpolate(3.0, &p, &q);
+        assert_eq!((res.x, res.y, res.t), (ans.x, ans.y, ans.t));
     }
 }
