@@ -7,8 +7,7 @@ mod trajectorybuilder;
 use std::env;
 
 const WINDOW_SIZE: usize = 6; // number of points to consider when filtering spike noise
-                              // If the average velocity of WINDOWS_SIZE points is less than MIN_VELOCITY km/h the trj is cut.
-const MIN_VELOCITY: f64 = 2.5;
+const MIN_VELOCITY: f64 = 2.5; // If the average velocity of WINDOWS_SIZE points is less than MIN_VELOCITY km/h the trj is cut.
 
 fn main() -> std::io::Result<()> {
     // Lets us specify output directory, for debugging.
