@@ -1,16 +1,19 @@
 use crate::trajectory::Trajectory;
-use crate::{MIN_VELOCITY, WINDOW_SIZE};
 use geo::prelude::HaversineDistance;
 use std::iter::FromIterator;
 
 pub struct TrajectoryBuilder {
     trj: Vec<[f64; 3]>,
     window: Vec<[f64; 3]>,
+    window_size: usize,
+    min_velocity: f64,
 }
 
 impl TrajectoryBuilder {
-    pub fn new() -> TrajectoryBuilder {
+    pub fn new(window_size: usize, min_velocity: f64) -> TrajectoryBuilder {
         TrajectoryBuilder {
+            window_size,
+            min_velocity,
             trj: Vec::new(),
             window: Vec::new(),
         }
@@ -22,20 +25,24 @@ impl TrajectoryBuilder {
 
     pub fn handle_next(&mut self, next: [f64; 3]) -> Option<Trajectory> {
         self.window.push(next);
-        if self.window.len() < WINDOW_SIZE {
+        if self.window.len() < self.window_size {
             return None;
         }
         let trj: Vec<[f64; 3]> = get_convex_hull_trj(self.window.clone());
-        let trj: Vec<[f64; 3]> = remove_spikes(trj);
-        if ((&trj).len() >= 3) && (avg_velocity((&trj).clone()) < MIN_VELOCITY) {
-            let trj = self.get_trajectory();
+        let spikes: Vec<[f64; 3]> = get_spikes(trj);
+        let trj: Vec<[f64; 3]> = remove_spikes(self.window.clone(), spikes);
+        if (trj.len() >= 3) && (avg_velocity(trj.clone()) < self.min_velocity) {
+            // Append the first coordinate in the window before sending back trj.
+            self.trj.push(self.window[0]);
+            let trj: Trajectory = self.get_trajectory();
             self.window = Vec::new();
             self.trj = Vec::new();
             return Some(trj);
         }
-        if trj.len() == WINDOW_SIZE {
-            let coord = trj[0];
-            let window = Vec::from_iter(trj[1..((&trj).len() - 1)].iter().cloned());
+        if trj.len() == self.window_size {
+            // Window is full -> write to trajectory
+            let coord: [f64; 3] = trj[0];
+            let window: Vec<[f64; 3]> = Vec::from_iter(trj[1..((&trj).len() - 1)].iter().cloned());
             self.trj.push(coord);
             self.window = window;
         } else {
@@ -68,19 +75,43 @@ fn get_convex_hull_trj(points: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
         .collect::<Vec<[f64; 3]>>()
 }
 
-fn remove_spikes(trj: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
-    let mut spikeless_trj: Vec<[f64; 3]> = Vec::new();
+fn remove_spikes(trj: Vec<[f64; 3]>, spikes: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
+    fn same_point(p: &[f64; 3], q: &[f64; 3]) -> bool {
+        // Equality of floats is intentional: they must be copies!
+        (p[0] == q[0]) && (p[1] == q[1])
+    }
+    let mut spikeless: Vec<[f64; 3]> = Vec::new();
+    let mut i: usize = 0;
+    let mut j: usize = 0;
+    while i < spikes.len() {
+        let p = spikes[i];
+        let q = trj[j];
+        if same_point(&p, &q) {
+            i += 1;
+            j += 1;
+        } else {
+            j += 1;
+            spikeless.push(q);
+        }
+    }
+    while j < trj.len() {
+        spikeless.push(trj[j]);
+        j += 1;
+    }
+    spikeless
+}
+
+fn get_spikes(trj: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
+    let mut spikes: Vec<[f64; 3]> = Vec::new();
     fn is_spike(p: &[f64; 3], q: &[f64; 3], r: &[f64; 3]) -> bool {
         (get_distance(p, q) > get_distance(p, r)) | (get_distance(q, r) > get_distance(p, r))
     }
-    spikeless_trj.push(trj[0]);
     for i in 1..trj.len() - 1 {
-        if !is_spike(&trj[i - 1], &trj[i], &trj[i + 1]) {
-            spikeless_trj.push(trj[i])
+        if is_spike(&trj[i - 1], &trj[i], &trj[i + 1]) {
+            spikes.push(trj[i])
         }
     }
-    spikeless_trj.push(trj[trj.len() - 1]);
-    spikeless_trj
+    spikes
 }
 
 fn get_velocity(from: &[f64; 3], to: &[f64; 3]) -> f64 {
@@ -119,9 +150,11 @@ mod trajectory_builder_test {
 
     #[test]
     fn velocity_test() {
-        // According to google these two points are approximately 2 km apart
-        // Thus spending 15 minutes (900000 ms) on the travel would give
-        // around 8 km/h
+        /*
+        According to google these two points are approximately 2 km apart
+        Thus spending 15 minutes (900000 ms) on the travel would give
+        around 8 km/h
+        */
         let from = &[10.128126551731393, 55.39057912238903, 0.];
         let to = &[10.159840991123847, 55.386813002794774, 900000.];
         let vel = 8.;
@@ -130,10 +163,12 @@ mod trajectory_builder_test {
 
     #[test]
     fn avg_velocity_test() {
-        // According to google these two points are approximately 2 km apart
-        // Travelling back and forth five times gives 10 km.
-        // Spending 1 hr (3 600 000 ms) in total gives an average
-        // speed of 10 km/h
+        /*
+        According to google these two points are approximately 2 km apart
+        Travelling back and forth five times gives 10 km.
+        Spending 1 hr (3 600 000 ms) in total gives an average
+        speed of 10 km/h
+        */
         let window = vec![
             [10.128126551731393, 55.39057912238903, 0.],
             [10.159840991123847, 55.386813002794774, 678000.],
