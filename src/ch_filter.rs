@@ -6,6 +6,25 @@ pub struct CHFilter<I: Iterator<Item = [f64; 3]>> {
     window_size: usize,
 }
 
+impl<I: Iterator<Item = [f64; 3]>> Iterator for CHFilter<I> {
+    type Item = [f64; 3];
+    fn next(&mut self) -> std::option::Option<[f64; 3]> {
+        while self.window.len() < self.window_size {
+            let point = self.stream.next();
+            if let Some(point) = point {
+                self.window.push(point);
+            } else {
+                // Nothing to read from stream. Reflect this in return
+                return None;
+            }
+            let trj = get_convex_hull_trj(self.window.clone());
+            let spikes: Vec<[f64; 3]> = get_spikes(trj);
+            self.window = remove_spikes(self.window.clone(), spikes);
+        }
+        Some(self.window.remove(0))
+    }
+}
+
 impl<I: Iterator<Item = [f64; 3]>> CHFilter<I> {
     pub fn new(window_size: usize, stream: I) -> CHFilter<I> {
         CHFilter {
@@ -13,30 +32,6 @@ impl<I: Iterator<Item = [f64; 3]>> CHFilter<I> {
             window: Vec::new(),
             window_size,
         }
-    }
-
-    pub fn next(&mut self) -> Option<[f64; 3]> {
-        let mut trj: Vec<[f64; 3]> = Vec::new();
-        while trj.len() < self.window_size {
-            print!("1");
-            // Fill the window
-            while self.window.len() < self.window_size {
-                print!("2");
-                let point: Option<[f64; 3]> = self.stream.next();
-                if let Some(point) = point {
-                    self.window.push(point);
-                } else {
-                    // Nothing to read from stream. Reflect this in return
-                    return None;
-                }
-            }
-            // Create the convex hull and filter the spikes
-            trj = get_convex_hull_trj(self.window.clone());
-            let spikes: Vec<[f64; 3]> = get_spikes(trj);
-            trj = remove_spikes(self.window.clone(), spikes);
-        }
-        self.window = trj;
-        Some(self.window.remove(0))
     }
 }
 
