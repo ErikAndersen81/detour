@@ -1,13 +1,14 @@
 use ch_filter::CHFilter;
 use chrono::NaiveDate;
+use motion_detector::MotionDetector;
 use regex::Regex;
 use std::io::{BufReader, Read};
 mod ch_filter;
+mod motion_detector;
 mod tradis;
 mod trajectory;
-use std::env;
 
-const MIN_VELOCITY: f64 = 2.5; // If the average velocity of WINDOWS_SIZE points is less than MIN_VELOCITY km/h the trj is cut.
+// const MIN_VELOCITY: f64 = 2.5; // If the average velocity of WINDOWS_SIZE points is less than MIN_VELOCITY km/h the trj is cut.
 
 fn main() -> std::io::Result<()> {
     // WINDOW_SIZE is the number of points to consider when filtering spike noise
@@ -17,21 +18,26 @@ fn main() -> std::io::Result<()> {
         .unwrap();
     // Lets us specify output directory, for debugging.
     // ideally output should be to a ReTraTree-like database, not separate csv-files.
-    let args: Vec<String> = env::args().collect();
+    // let args: Vec<String> = env::args().collect();
     // The buffered reader could be read from something other than stdin e.g. a tcp-socket.
     let mut buf_reader = BufReader::new(std::io::stdin());
     let mut contents = String::new();
     buf_reader.read_to_string(&mut contents)?;
-    println!("file length {}", contents.len());
     // More parsers are probably needed, for now we only accept gpx
-    let trj_stream: Vec<[f64; 3]> = parse_gpx(contents);
-    let mut filtered = CHFilter::new(window_size, trj_stream.into_iter());
-    let mut count = 0;
-    while let Some(pt) = filtered.next() {
-        count += 1;
-        print!("0 {:?}", pt);
+    let stream: Vec<[f64; 3]> = parse_gpx(contents);
+    let stream = CHFilter::new(window_size, stream.into_iter());
+    // build the motion detector
+    let timespan: f64 = 120000.; // set span to 2 minutes
+    let min_velocity: f64 = 2.5; // stopped moving at 2.5 km/h
+    let eps: f64 = 0.5; // set epsilon to .5 km/h, i.e., moving at 2.5 + 0.5 = 3 km/h
+    let mut md = MotionDetector::new(timespan, min_velocity, eps);
+    for pt in stream {
+        if md.is_moving(pt) {
+            print!("-");
+        } else {
+            print!(".");
+        }
     }
-    println!("\ncount:{}", count);
     Ok(())
 }
 
