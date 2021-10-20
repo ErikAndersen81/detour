@@ -7,7 +7,7 @@ pub struct MotionDetector {
     tmp_ivls: Vec<f64>,       // Temporal intervals in timespan
     spt_ivls: Vec<f64>,       // Spatial intervals (in meters) in timespan
     ref_pt: Option<[f64; 3]>, // Reference point for calculating intervals
-    is_moving: bool,          // Current motion state.
+    is_moving: Option<bool>,  // Current motion state.
 }
 
 impl MotionDetector {
@@ -19,13 +19,16 @@ impl MotionDetector {
             tmp_ivls: Vec::new(),
             spt_ivls: Vec::new(),
             ref_pt: None,
-            is_moving: false,
+            is_moving: None,
         }
     }
 
-    pub fn is_moving(&mut self, point: [f64; 3]) -> bool {
+    pub fn is_moving(&mut self, point: [f64; 3]) -> Option<bool> {
+        // Returns None until timespan has been exceeded once
+        // then Some(is_moving)
         if let Some(from) = self.ref_pt {
             let dist: f64 = get_distance(&from, &point);
+            self.ref_pt = Some(point);
             let span: f64 = point[2] - from[2];
             self.spt_ivls.push(dist);
             self.tmp_ivls.push(span);
@@ -43,14 +46,26 @@ impl MotionDetector {
                 let span: f64 = self.tmp_ivls.clone().into_iter().sum();
                 let hr: f64 = span / 3600000.0;
                 let km: f64 = dist / 1000.0;
-                if self.is_moving && (self.min_velocity > (km / hr)) {
-                    self.is_moving = false;
-                } else if (!self.is_moving) && ((self.min_velocity + self.eps) < (km / hr)) {
-                    self.is_moving = true;
+                match self.is_moving {
+                    None => {
+                        if self.min_velocity > (km / hr) {
+                            self.is_moving = Some(false);
+                        } else {
+                            self.is_moving = Some(true);
+                        }
+                    }
+                    Some(true) if self.min_velocity > (km / hr) => {
+                        self.is_moving = Some(false);
+                    }
+                    Some(false) if (self.min_velocity + self.eps) < (km / hr) => {
+                        self.is_moving = Some(true);
+                    }
+                    _ => {}
                 }
             }
+        } else {
+            self.ref_pt = Some(point);
         }
-        self.ref_pt = Some(point);
         self.is_moving
     }
 }

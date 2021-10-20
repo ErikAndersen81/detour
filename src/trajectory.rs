@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Trajectory {
     pub coords: Vec<Coord3D>,
 }
@@ -82,7 +82,7 @@ impl Trajectory {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Coord3D {
     pub x: f64,
     pub y: f64,
