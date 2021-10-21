@@ -54,7 +54,7 @@ fn get_convex_hull_trj(points: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
     }
     points
         .into_iter()
-        .filter(|p| is_extreme(p, &extreme_pts))
+        .filter(|p: &[f64; 3]| is_extreme(p, &extreme_pts))
         .collect::<Vec<[f64; 3]>>()
 }
 

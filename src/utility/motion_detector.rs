@@ -24,8 +24,10 @@ impl MotionDetector {
     }
 
     pub fn is_moving(&mut self, point: [f64; 3]) -> Option<bool> {
-        // Returns None until timespan has been exceeded once
-        // then Some(is_moving)
+        /*
+        Returns None until timespan has been exceeded once
+        then Some(is_moving)
+        */
         if let Some(from) = self.ref_pt {
             let dist: f64 = get_distance(&from, &point);
             self.ref_pt = Some(point);
