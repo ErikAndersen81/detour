@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use chrono::NaiveDate;
 use regex::Regex;
 
@@ -21,4 +23,62 @@ pub fn parse_gpx(gpx: String) -> Vec<[f64; 3]> {
     }
     println!("parsed {} coords", trj.len());
     trj
+}
+
+pub struct Config {
+    pub window_size: usize,
+    pub minimum_velocity: f64,
+    pub epsilon_velocity: f64,
+    pub timespan: f64,
+}
+
+enum ConfigKeys {
+    WindowSize,
+    MinimumVelocity,
+    EpsilonVelocity,
+    Timespan,
+}
+
+impl FromStr for ConfigKeys {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<ConfigKeys, ()> {
+        match s {
+            "window_size" => Ok(ConfigKeys::WindowSize),
+            "minimum_velocity" => Ok(ConfigKeys::MinimumVelocity),
+            "epsilon_velocity" => Ok(ConfigKeys::EpsilonVelocity),
+            "timespan" => Ok(ConfigKeys::Timespan),
+            _ => Err(()),
+        }
+    }
+}
+
+pub fn parse_config(config: String) -> Config {
+    let mut default_config: Config = Config {
+        window_size: 5,
+        minimum_velocity: 2.5,
+        epsilon_velocity: 0.5,
+        timespan: 120000.0,
+    };
+
+    fn handle_line(line: &str, config: &mut Config) {
+        let key_val = line.split('=').collect::<Vec<&str>>();
+        match ConfigKeys::from_str(key_val[0]) {
+            Ok(ConfigKeys::WindowSize) => config.window_size = key_val[1].parse::<usize>().unwrap(),
+            Ok(ConfigKeys::MinimumVelocity) => {
+                config.minimum_velocity = key_val[1].parse::<f64>().unwrap()
+            }
+            Ok(ConfigKeys::EpsilonVelocity) => {
+                config.epsilon_velocity = key_val[1].parse::<f64>().unwrap()
+            }
+            Ok(ConfigKeys::Timespan) => config.timespan = key_val[1].parse::<f64>().unwrap(),
+            Err(_) => {
+                panic!("Mismatched config key: {}", key_val[0])
+            }
+        }
+    }
+    config
+        .lines()
+        .for_each(|line: &str| handle_line(line, &mut default_config));
+    default_config
 }
