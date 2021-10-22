@@ -1,4 +1,4 @@
-use geo::prelude::HaversineDistance;
+use super::get_distance;
 
 pub struct CHFilter<I: Iterator<Item = [f64; 3]>> {
     stream: I,
@@ -59,8 +59,9 @@ fn get_convex_hull_trj(points: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
 }
 
 fn remove_spikes(trj: Vec<[f64; 3]>, spikes: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
+    #[allow(clippy::float_cmp)]
     fn same_point(p: &[f64; 3], q: &[f64; 3]) -> bool {
-        // Equality of floats is intentional: they must be copies!
+        // Floating point comparison is intentional: Coordinates must be exact copies!
         (p[0] == q[0]) && (p[1] == q[1])
     }
     let mut spikeless: Vec<[f64; 3]> = Vec::new();
@@ -97,25 +98,9 @@ fn get_spikes(trj: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
     spikes
 }
 
-fn get_distance(from: &[f64; 3], to: &[f64; 3]) -> f64 {
-    // Returns haversine distance in meters
-    let start = geo::point!(x: from[0],y: from[1]);
-    let end = geo::point!(x:to[0], y:to[1]);
-    start.haversine_distance(&end)
-}
-
 #[cfg(test)]
 mod trajectory_builder_test {
     use super::*;
-    #[test]
-    fn distance_test() {
-        // According to google these two points are approximately 2 km apart
-        let from = &[10.128126551731393, 55.39057912238903, 0.];
-        let to = &[10.159840991123847, 55.386813002794774, 1.];
-        let google_distance = 2000.;
-        assert!((get_distance(from, to) - google_distance).abs() < 50.);
-    }
-
     #[test]
     fn test_convexhull_track() {
         // Colinear points are also removed, as they should be!
