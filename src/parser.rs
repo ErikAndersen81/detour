@@ -20,7 +20,6 @@ pub fn parse_gpx(gpx: String) -> Vec<[f64; 3]> {
             .timestamp_millis() as f64;
         trj.push([lon, lat, time]); // Note we have x=lon, y=lat, z=time(ms)
     }
-    println!("parsed {} coords", trj.len());
     trj
 }
 
