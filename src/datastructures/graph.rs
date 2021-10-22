@@ -14,7 +14,7 @@ mod vertex;
 
 pub struct Graph {
     root: Vec<Vertex>,
-}v
+}
 
 impl Graph {
     pub fn new(stream: Vec<[f64; 3]>, mut md: MotionDetector) -> Graph {
