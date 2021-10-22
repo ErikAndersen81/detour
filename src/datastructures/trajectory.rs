@@ -26,18 +26,16 @@ impl Trajectory {
         let trj: &Vec<Coord3D> = &self.coords;
         let mut start_idx: usize = 0;
         let mut end_idx: usize = trj.len() - 1;
-        let mut new_start: Coord3D = trj[start_idx].clone();
-        let mut new_end: Coord3D = trj[end_idx].clone();
-        let mut point_p: Coord3D;
-        let mut point_q: Coord3D;
+        let mut new_start: Coord3D = trj[start_idx];
+        let mut new_end: Coord3D = trj[end_idx];
         for i in 0..(trj.len() - 1) {
-            point_p = trj[i].clone();
-            point_q = trj[i + 1].clone();
+            let point_p = trj[i];
+            let point_q = trj[i + 1];
             if (point_p.t..point_q.t).contains(&start) {
                 new_start = interpolate(start, &point_p, &point_q);
                 start_idx = i;
             };
-            if (point_p.t < end) & (end < point_q.t) {
+            if (point_p.t..point_q.t).contains(&end) {
                 new_end = interpolate(end, &point_p, &point_q);
                 end_idx = i + 1;
             };
@@ -77,6 +75,7 @@ impl Trajectory {
         Trajectory { coords }
     }
 
+    #[allow(dead_code)]
     pub fn to_array(&self) -> Vec<[f64; 3]> {
         self.coords
             .iter()
@@ -106,6 +105,8 @@ impl Coord3D {
             t: a[2],
         }
     }
+
+    #[allow(dead_code)]
     pub fn to_array(c: &Coord3D) -> [f64; 3] {
         [c.x, c.y, c.t]
     }
