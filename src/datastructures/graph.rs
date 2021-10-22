@@ -1,13 +1,20 @@
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+};
+
 use super::Trajectory;
 use crate::utility::MotionDetector;
 use edge::Edge;
+use pathbuilder::PathBuilder;
 use vertex::Vertex;
 mod edge;
+mod pathbuilder;
 mod vertex;
 
 pub struct Graph {
     root: Vec<Vertex>,
-}
+}v
 
 impl Graph {
     pub fn new(stream: Vec<[f64; 3]>, mut md: MotionDetector) -> Graph {
@@ -34,70 +41,33 @@ impl Graph {
             vertex.print_bbox();
         }
     }
-}
 
-struct PathBuilder {
-    vertices: Vec<Vertex>,
-    trjs: Vec<Trajectory>,
-    building_vtx: bool,
-    pts: Vec<[f64; 3]>,
-}
-
-impl PathBuilder {
-    pub fn new(pts: Vec<[f64; 3]>) -> PathBuilder {
-        let vertices: Vec<Vertex> = Vec::new();
-        let trjs: Vec<Trajectory> = Vec::new();
-        PathBuilder {
-            vertices,
-            trjs,
-            building_vtx: true,
-            pts,
-        }
-    }
-
-    pub fn add_pt(&mut self, pt: [f64; 3], is_moving: bool) {
-        if is_moving {
-            self.add_to_trj(pt);
-        } else {
-            self.add_to_vertex(pt);
-        }
-    }
-
-    fn add_to_vertex(&mut self, pt: [f64; 3]) {
-        if self.building_vtx {
-            self.pts.push(pt);
-        } else {
-            // Finish building trajectory
-            self.trjs.push(Trajectory::from_array(self.pts.clone()));
-            self.pts = vec![pt];
-            self.building_vtx = true;
-        }
-    }
-
-    fn add_to_trj(&mut self, pt: [f64; 3]) {
-        if !self.building_vtx {
-            self.pts.push(pt);
-        } else {
-            // Finish building vertex
-            let vertex = Vertex::new(self.pts.clone());
-            self.vertices.push(vertex);
-            self.pts = vec![pt];
-            self.building_vtx = false;
-        }
-    }
-
-    pub fn get_path(&self) -> Graph {
-        let mut graph = Graph { root: Vec::new() };
-        for i in 0..self.trjs.len() {
-            let mut from: Vertex = self.vertices[i].clone();
-            let to: Vertex = self.vertices[i + 1].clone();
-            let trj: Trajectory = self.trjs[i].clone();
-            let edge = Edge { to, trj };
-            from.edges.push(edge);
-            if i == 0 {
-                graph.root.push(from)
+    fn get_vertices(&self) -> Vec<Vertex> {
+        let mut vertices: Vec<Vertex> = self.root.clone();
+        let mut n_vertices: usize = vertices.len();
+        loop {
+            vertices = vertices
+                .iter()
+                .flat_map(|vertex| vertex.get_children())
+                .collect();
+            if vertices.len() == n_vertices {
+                break;
             }
+            n_vertices = vertices.len();
         }
-        graph
+        vertices
+    }
+
+    pub fn to_csv(&self, filename: String) -> std::io::Result<()> {
+        let f = File::create(filename.clone())?;
+        let mut f: BufWriter<File> = BufWriter::new(f);
+        writeln!(f, "id,x1,y1,t1,x2,y2,t2")?;
+        for (idx, vertex) in self.get_vertices().into_iter().enumerate() {
+            let [x1, y1, t1, x2, y2, t2] = vertex.get_bbox();
+            writeln!(f, "{},{},{},{},{},{},{}", idx, x1, y1, t1, x2, y2, t2)
+                .expect("Unable to write!");
+            vertex.edges_to_csv(filename.clone(), idx);
+        }
+        Ok(())
     }
 }
