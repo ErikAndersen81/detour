@@ -30,7 +30,7 @@ impl Trajectory {
         let mut new_end: Coord3D = trj[end_idx].clone();
         let mut point_p: Coord3D;
         let mut point_q: Coord3D;
-        for i in (0..(trj.len() - 1)) {
+        for i in 0..(trj.len() - 1) {
             point_p = trj[i].clone();
             point_q = trj[i + 1].clone();
             if (point_p.t..point_q.t).contains(&start) {
@@ -52,13 +52,14 @@ impl Trajectory {
         self.coords.len()
     }
 
-    pub fn to_csv(&self, filename: String) {
-        let f = File::create(filename).expect("Cannot create file.");
+    pub fn to_csv(&self, filename: String) -> std::io::Result<()> {
+        let f = File::create(filename)?;
         let mut f = BufWriter::new(f);
-        writeln!(f, "lon,lat,time").expect("Error writing to file.");
+        writeln!(f, "lon,lat,time")?;
         for c in &self.coords {
-            write!(f, "{}", c).expect("Error writing to file.");
+            write!(f, "{}", c)?;
         }
+        Ok(())
     }
 
     pub fn get_projection(&self, axis: usize) -> Vec<Coord2D> {
