@@ -1,7 +1,6 @@
-use std::str::FromStr;
-
 use chrono::NaiveDate;
 use regex::Regex;
+use std::str::FromStr;
 
 pub fn parse_gpx(gpx: String) -> Vec<[f64; 3]> {
     let mut trj: Vec<[f64; 3]> = Vec::new();
