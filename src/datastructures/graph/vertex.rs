@@ -19,6 +19,7 @@ impl Vertex {
         self.bbox.is_in(pt)
     }
 
+    #[allow(dead_code)]
     pub fn get_children(&self) -> Vec<Vertex> {
         self.edges
             .clone()
