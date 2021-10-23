@@ -45,8 +45,7 @@ impl PathBuilder {
             self.pts.push(pt);
         } else {
             // Finish building vertex
-            let vertex = Vertex::new(self.pts.clone());
-            self.vertices.push(vertex);
+            self.vertices.push(Vertex::new(self.pts.clone()));
             self.pts = vec![pt];
             self.building_vtx = false;
         }
@@ -55,18 +54,24 @@ impl PathBuilder {
     fn finalize_path(&mut self) -> Result<(), PathBuilderError> {
         if self.building_vtx {
             // Finish building vertex
-            let vertex = Vertex::new(self.pts.clone());
-            self.vertices.push(vertex);
+            self.vertices.push(Vertex::new(self.pts.clone()));
             Ok(())
         } else {
+            // We shouldn't end in the middle of a trajectory
+            // so we construct a degenerate Bbox of the
+            // last point, use the rest for a trajectory
+            // and return an Error
+            let vertex = Vertex::new(vec![self.pts.pop().unwrap()]);
+            self.vertices.push(vertex);
+            self.trjs.push(Trajectory::from_array(self.pts.clone()));
             Err(PathBuilderError)
         }
     }
 
-    pub fn get_path(&mut self) -> Result<Graph, PathBuilderError> {
-        self.finalize_path()?;
+    pub fn get_path(&mut self) -> Graph {
+        self.finalize_path().expect("Warning: Path ended during the construction of a trajectory. Degenerate vertex inserted.");
         let mut graph: Graph = Graph { root: Vec::new() };
-        let root = Box::new(self.vertices[0].clone());
+        let root = self.vertices[0].clone();
         graph.root.push(root);
         let mut edges: Vec<Edge> = Vec::new();
         for i in 0..self.trjs.len() {
@@ -80,7 +85,7 @@ impl PathBuilder {
             curr_vertex.edges = vec![edge.clone()];
             curr_vertex = &mut curr_vertex.edges[0].to;
         }
-        Ok(graph)
+        graph
     }
 }
 
