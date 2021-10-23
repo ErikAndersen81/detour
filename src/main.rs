@@ -5,14 +5,16 @@ mod datastructures;
 mod parser;
 mod utility;
 
-fn main() -> std::io::Result<()> {
+fn main() {
     let config = std::fs::read_to_string("config.cfg");
     let config = parser::parse_config(config.unwrap());
 
     // The buffered reader could be read from something other than stdin e.g. a tcp-socket.
     let mut buf_reader = BufReader::new(std::io::stdin());
     let mut contents = String::new();
-    buf_reader.read_to_string(&mut contents)?;
+    buf_reader
+        .read_to_string(&mut contents)
+        .expect("can't read from stdin");
     // More parsers are probably needed, for now we only accept gpx
     let stream: Vec<[f64; 3]> = parser::parse_gpx(contents);
     let stream: CHFilter<std::vec::IntoIter<[f64; 3]>> =
@@ -24,7 +26,8 @@ fn main() -> std::io::Result<()> {
         config.epsilon_velocity,
     );
     let stream: Vec<[f64; 3]> = stream.collect::<Vec<[f64; 3]>>();
-    let graph = Graph::new(stream, md);
-    graph.show_vertices();
-    Ok(())
+    let graph = Graph::new(stream, md).expect("Error when building graph");
+    graph
+        .to_csv(String::from("out.csv"))
+        .expect("Something went wrong!!");
 }
