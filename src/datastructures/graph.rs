@@ -13,7 +13,7 @@ mod pathbuilder;
 mod vertex;
 
 pub struct Graph {
-    root: Vec<Box<Vertex>>,
+    root: Vec<Vertex>,
 }
 
 impl Graph {
@@ -44,7 +44,6 @@ impl Graph {
         self.root
             .clone()
             .into_iter()
-            .map(|v| *v)
             .flat_map(|v| v.recursive_get_children())
             .collect::<Vec<Vertex>>()
     }
