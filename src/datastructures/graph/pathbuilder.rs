@@ -65,16 +65,20 @@ impl PathBuilder {
 
     pub fn get_path(&mut self) -> Result<Graph, PathBuilderError> {
         self.finalize_path()?;
-        let mut graph = Graph { root: Vec::new() };
+        let mut graph: Graph = Graph { root: Vec::new() };
+        let root = Box::new(self.vertices[0].clone());
+        graph.root.push(root);
+        let mut edges: Vec<Edge> = Vec::new();
         for i in 0..self.trjs.len() {
-            let mut from: Vertex = self.vertices[i].clone();
-            let to: Vertex = self.vertices[i + 1].clone();
-            let trj: Trajectory = self.trjs[i].clone();
-            let edge = Edge { to, trj };
-            from.edges.push(edge);
-            if i == 0 {
-                graph.root.push(from)
-            }
+            let to = Box::new(self.vertices[i + 1].clone());
+            let trj: Trajectory = self.trjs[i].to_owned();
+            let edge: Edge = Edge { to, trj };
+            edges.push(edge);
+        }
+        let mut curr_vertex = &mut graph.root[0];
+        for edge in edges {
+            curr_vertex.edges = vec![edge.clone()];
+            curr_vertex = &mut curr_vertex.edges[0].to;
         }
         Ok(graph)
     }
@@ -163,6 +167,10 @@ mod pathbuilder_test {
         pb.add_pt([1., 1., 7.], false);
         let result = pb.get_path();
         assert!(result.is_ok());
-        assert!(result.unwrap().root.len() == 1)
+        let path = result.unwrap();
+        assert_eq!(path.root.len(), 1);
+        assert_eq!(path.root[0].edges.len(), 1);
+        assert_eq!(path.root[0].edges[0].to.edges.len(), 1);
+        assert_eq!(path.get_vertices().len(), 4);
     }
 }
