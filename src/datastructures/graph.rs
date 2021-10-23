@@ -6,18 +6,18 @@ use std::{
 use super::Trajectory;
 use crate::utility::MotionDetector;
 use edge::Edge;
-use pathbuilder::PathBuilder;
+use pathbuilder::{PathBuilder, PathBuilderError};
 use vertex::Vertex;
 mod edge;
 mod pathbuilder;
 mod vertex;
 
 pub struct Graph {
-    root: Vec<Vertex>,
+    root: Vec<Box<Vertex>>,
 }
 
 impl Graph {
-    pub fn new(stream: Vec<[f64; 3]>, mut md: MotionDetector) -> Graph {
+    pub fn new(stream: Vec<[f64; 3]>, mut md: MotionDetector) -> Result<Graph, PathBuilderError> {
         let mut pts: Vec<[f64; 3]> = Vec::new();
         let mut stream = stream.into_iter();
         let mut pt: [f64; 3] = stream.next().unwrap();
@@ -29,33 +29,24 @@ impl Graph {
         }
         let mut builder = PathBuilder::new(pts);
         stream.for_each(|pt| builder.add_pt(pt, md.is_moving(pt).unwrap()));
-        builder.get_path()
+        let graph = builder.get_path()?;
+        Ok(graph)
     }
 
+    #[allow(dead_code)]
     pub fn show_vertices(&self) {
-        // For now, we only show a single path of the graph
-        let mut vertex = &self.root[0];
-        vertex.print_bbox();
-        while !(vertex.edges.is_empty()) {
-            vertex = &(vertex.edges[0].to);
-            vertex.print_bbox();
-        }
+        todo!();
     }
 
     fn get_vertices(&self) -> Vec<Vertex> {
-        let mut vertices: Vec<Vertex> = self.root.clone();
-        let mut n_vertices: usize = vertices.len();
-        loop {
-            vertices = vertices
-                .iter()
-                .flat_map(|vertex| vertex.get_children())
-                .collect();
-            if vertices.len() == n_vertices {
-                break;
-            }
-            n_vertices = vertices.len();
-        }
-        vertices
+        // This function has an issue:
+        // A vertex is returned once for every edge pointing to it. (except root vertices)
+        self.root
+            .clone()
+            .into_iter()
+            .map(|v| *v)
+            .flat_map(|v| v.recursive_get_children())
+            .collect::<Vec<Vertex>>()
     }
 
     pub fn to_csv(&self, filename: String) -> std::io::Result<()> {
