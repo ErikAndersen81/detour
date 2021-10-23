@@ -6,7 +6,7 @@ use std::{
 use super::Trajectory;
 use crate::utility::MotionDetector;
 use edge::Edge;
-use pathbuilder::{PathBuilder, PathBuilderError};
+use pathbuilder::PathBuilder;
 use vertex::Vertex;
 mod edge;
 mod pathbuilder;
@@ -17,7 +17,7 @@ pub struct Graph {
 }
 
 impl Graph {
-    pub fn new(stream: Vec<[f64; 3]>, mut md: MotionDetector) -> Result<Graph, PathBuilderError> {
+    pub fn new(stream: Vec<[f64; 3]>, mut md: MotionDetector) -> Graph {
         let mut pts: Vec<[f64; 3]> = Vec::new();
         let mut stream = stream.into_iter();
         let mut pt: [f64; 3] = stream.next().unwrap();
@@ -29,8 +29,7 @@ impl Graph {
         }
         let mut builder = PathBuilder::new(pts);
         stream.for_each(|pt| builder.add_pt(pt, md.is_moving(pt).unwrap()));
-        let graph = builder.get_path()?;
-        Ok(graph)
+        builder.get_path()
     }
 
     #[allow(dead_code)]
