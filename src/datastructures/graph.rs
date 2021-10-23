@@ -48,14 +48,14 @@ impl Graph {
     }
 
     pub fn to_csv(&self, filename: String) -> std::io::Result<()> {
-        let f = File::create(filename.clone())?;
+        let f = File::create(filename)?;
         let mut f: BufWriter<File> = BufWriter::new(f);
         writeln!(f, "id,x1,y1,t1,x2,y2,t2")?;
         for (idx, vertex) in self.get_vertices().into_iter().enumerate() {
             let [x1, y1, t1, x2, y2, t2] = vertex.get_bbox();
             writeln!(f, "{},{},{},{},{},{},{}", idx, x1, y1, t1, x2, y2, t2)
                 .expect("Unable to write!");
-            vertex.edges_to_csv(filename.clone(), idx);
+            vertex.edges_to_csv(idx);
         }
         Ok(())
     }
