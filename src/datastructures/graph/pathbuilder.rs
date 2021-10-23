@@ -10,18 +10,25 @@ pub struct PathBuilder {
 }
 
 impl PathBuilder {
-    pub fn new(pts: Vec<[f64; 3]>) -> PathBuilder {
-        let vertices: Vec<Vertex> = Vec::new();
+    pub fn new(pts: Vec<[f64; 3]>, building_vtx: bool) -> PathBuilder {
+        let mut vertices: Vec<Vertex> = Vec::new();
         let trjs: Vec<Trajectory> = Vec::new();
+        if !building_vtx {
+            println!("Warning: Path does not start with a vertex. Inserting degenerated vertex.");
+            let point = pts[0];
+            let vertex = Vertex::new(vec![point]);
+            vertices.push(vertex);
+        }
         PathBuilder {
             vertices,
             trjs,
-            building_vtx: true,
+            building_vtx,
             pts,
         }
     }
 
     pub fn add_pt(&mut self, pt: [f64; 3], is_moving: bool) {
+        self.pts.push(pt);
         if is_moving {
             self.add_to_trj(pt);
         } else {
@@ -30,9 +37,7 @@ impl PathBuilder {
     }
 
     fn add_to_vertex(&mut self, pt: [f64; 3]) {
-        if self.building_vtx {
-            self.pts.push(pt);
-        } else {
+        if !self.building_vtx {
             // Finish building trajectory
             self.trjs.push(Trajectory::from_array(self.pts.clone()));
             self.pts = vec![pt];
@@ -41,9 +46,7 @@ impl PathBuilder {
     }
 
     fn add_to_trj(&mut self, pt: [f64; 3]) {
-        if !self.building_vtx {
-            self.pts.push(pt);
-        } else {
+        if self.building_vtx {
             // Finish building vertex
             self.vertices.push(Vertex::new(self.pts.clone()));
             self.pts = vec![pt];
@@ -61,10 +64,12 @@ impl PathBuilder {
             // so we construct a degenerate Bbox of the
             // last point, use the rest for a trajectory
             // and return an Error
-            let point = self.pts[self.pts.len() - 1];
-            let vertex = Vertex::new(vec![point]);
-            self.vertices.push(vertex);
-            self.trjs.push(Trajectory::from_array(self.pts.clone()));
+            if self.pts.len() > 2 {
+                let point = self.pts[self.pts.len() - 1];
+                let vertex = Vertex::new(vec![point]);
+                self.vertices.push(vertex);
+                self.trjs.push(Trajectory::from_array(self.pts.clone()));
+            }
             Err(PathBuilderError)
         }
     }
@@ -107,14 +112,14 @@ mod pathbuilder_test {
     #[test]
     fn new_test() {
         let points = vec![[0.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
-        let pb = PathBuilder::new(points.clone());
+        let pb = PathBuilder::new(points.clone(), true);
         assert!(pb.pts == points)
     }
 
     #[test]
     fn add_point_moving_test() {
         let points = vec![[0.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
-        let mut pb = PathBuilder::new(points);
+        let mut pb = PathBuilder::new(points, true);
         pb.add_pt([1., 1., 2.], true);
         assert!(pb.pts == vec!([1., 1., 2.]));
         assert!(!pb.building_vtx);
@@ -124,7 +129,7 @@ mod pathbuilder_test {
     #[test]
     fn add_point_alternate_moving_test() {
         let points = vec![[0.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
-        let mut pb = PathBuilder::new(points);
+        let mut pb = PathBuilder::new(points, true);
         pb.add_pt([1., 1., 2.], true);
         pb.add_pt([2., 1., 3.], false);
         pb.add_pt([3., 1., 4.], true);
@@ -137,7 +142,7 @@ mod pathbuilder_test {
     #[test]
     fn failing_finalize_path_test() {
         let points = vec![[0.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
-        let mut pb = PathBuilder::new(points);
+        let mut pb = PathBuilder::new(points, true);
         pb.add_pt([1., 1., 2.], true);
         pb.add_pt([2., 1., 3.], false);
         pb.add_pt([3., 1., 4.], true);
@@ -150,7 +155,7 @@ mod pathbuilder_test {
     #[test]
     fn finalize_path_test() {
         let points = vec![[0.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
-        let mut pb = PathBuilder::new(points);
+        let mut pb = PathBuilder::new(points, true);
         pb.add_pt([1., 1., 2.], true);
         pb.add_pt([2., 1., 3.], false);
         pb.add_pt([3., 1., 4.], true);
@@ -165,7 +170,7 @@ mod pathbuilder_test {
     #[test]
     fn get_path_test() {
         let points = vec![[0.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
-        let mut pb = PathBuilder::new(points);
+        let mut pb = PathBuilder::new(points, true);
         pb.add_pt([1., 1., 2.], true);
         pb.add_pt([2., 1., 3.], false);
         pb.add_pt([3., 1., 4.], true);
