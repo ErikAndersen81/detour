@@ -61,7 +61,8 @@ impl PathBuilder {
             // so we construct a degenerate Bbox of the
             // last point, use the rest for a trajectory
             // and return an Error
-            let vertex = Vertex::new(vec![self.pts.pop().unwrap()]);
+            let point = self.pts[self.pts.len() - 1];
+            let vertex = Vertex::new(vec![point]);
             self.vertices.push(vertex);
             self.trjs.push(Trajectory::from_array(self.pts.clone()));
             Err(PathBuilderError)
