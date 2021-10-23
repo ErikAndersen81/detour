@@ -26,8 +26,8 @@ fn main() {
         config.epsilon_velocity,
     );
     let stream: Vec<[f64; 3]> = stream.collect::<Vec<[f64; 3]>>();
-    let graph = Graph::new(stream, md).expect("Error when building graph");
+    let graph = Graph::new(stream, md);
     graph
         .to_csv(String::from("out.csv"))
-        .expect("Something went wrong!!");
+        .expect("Could not write to csv!");
 }
