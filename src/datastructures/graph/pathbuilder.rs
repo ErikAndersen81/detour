@@ -69,7 +69,8 @@ impl PathBuilder {
     }
 
     pub fn get_path(&mut self) -> Graph {
-        self.finalize_path().expect("Warning: Path ended during the construction of a trajectory. Degenerate vertex inserted.");
+        self.finalize_path()
+            .unwrap_or_else(|err| println!("{}", err));
         let mut graph: Graph = Graph { root: Vec::new() };
         let root = self.vertices[0].clone();
         graph.root.push(root);
@@ -94,7 +95,7 @@ pub struct PathBuilderError;
 
 impl fmt::Display for PathBuilderError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Paths must end with a stop.")
+        write!(f, "Warning: Path ended during the construction of a trajectory. Degenerate vertex inserted.")
     }
 }
 
