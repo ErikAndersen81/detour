@@ -14,15 +14,55 @@ impl Vertex {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_in(&self, pt: &[f64; 3]) -> bool {
         self.bbox.is_in(pt)
     }
 
+    pub fn get_children(&self) -> Vec<Vertex> {
+        self.edges
+            .clone()
+            .into_iter()
+            .map(|e| *e.to)
+            .collect::<Vec<Vertex>>()
+    }
+
+    pub fn recursive_get_children(&self) -> Vec<Vertex> {
+        let mut vertices = self
+            .edges
+            .clone()
+            .into_iter()
+            .flat_map(|e| e.to.recursive_get_children())
+            .collect::<Vec<Vertex>>();
+        vertices.push(self.clone());
+        vertices
+    }
+
+    pub fn edges_to_csv(&self, filename: String, vertex_id: usize) {
+        for (idx, edge) in self.edges.clone().into_iter().enumerate() {
+            let mut prefix: String = format!("{}-{}-", vertex_id, idx);
+            prefix.push_str(&filename);
+            edge.to_csv(prefix).expect("Can't write trajectory");
+        }
+    }
+
+    #[allow(dead_code)]
     pub fn print_bbox(&self) {
         println!(
             "{} {}\t{} {}\t{} {}",
             self.bbox.x1, self.bbox.x2, self.bbox.y1, self.bbox.y2, self.bbox.t1, self.bbox.t2
         );
+    }
+
+    pub fn get_bbox(&self) -> [f64; 6] {
+        [
+            self.bbox.x1,
+            self.bbox.y1,
+            self.bbox.t1,
+            self.bbox.x2,
+            self.bbox.y2,
+            self.bbox.t2,
+        ]
     }
 }
 
