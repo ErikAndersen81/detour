@@ -4,10 +4,21 @@ use utility::{CHFilter, MotionDetector};
 mod datastructures;
 mod parser;
 mod utility;
+use std::env;
+use std::path::Path;
 
 fn main() {
     let config = std::fs::read_to_string("config.cfg");
     let config = parser::parse_config(config.unwrap());
+    let out_path = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "output".to_owned());
+    let out_path = Path::new(&out_path);
+    assert!(env::set_current_dir(&out_path).is_ok());
+    println!(
+        "Successfully changed working directory to {}!",
+        out_path.display()
+    );
 
     // The buffered reader could be read from something other than stdin e.g. a tcp-socket.
     let mut buf_reader = BufReader::new(std::io::stdin());
