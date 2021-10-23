@@ -170,9 +170,7 @@ mod pathbuilder_test {
         pb.add_pt([2., 1., 5.], false);
         pb.add_pt([1., 1., 6.], true);
         pb.add_pt([1., 1., 7.], false);
-        let result = pb.get_path();
-        assert!(result.is_ok());
-        let path = result.unwrap();
+        let path = pb.get_path();
         assert_eq!(path.root.len(), 1);
         assert_eq!(path.root[0].edges.len(), 1);
         assert_eq!(path.root[0].edges[0].to.edges.len(), 1);
