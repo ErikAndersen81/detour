@@ -39,11 +39,10 @@ impl Vertex {
         vertices
     }
 
-    pub fn edges_to_csv(&self, filename: String, vertex_id: usize) {
+    pub fn edges_to_csv(&self, vertex_id: usize) {
         for (idx, edge) in self.edges.clone().into_iter().enumerate() {
-            let mut prefix: String = format!("{}-{}-", vertex_id, idx);
-            prefix.push_str(&filename);
-            edge.to_csv(prefix).expect("Can't write trajectory");
+            let filename: String = format!("{}-{}.csv", vertex_id, idx);
+            edge.to_csv(filename).expect("Can't write trajectory");
         }
     }
 
