@@ -10,16 +10,13 @@ use std::path::Path;
 fn main() {
     let config = std::fs::read_to_string("config.cfg");
     let config = parser::parse_config(config.unwrap());
+    println!("{}", config);
     let out_path = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "output".to_owned());
+    println!("Writing output to: {}", out_path);
     let out_path = Path::new(&out_path);
     assert!(env::set_current_dir(&out_path).is_ok());
-    println!(
-        "Successfully changed working directory to {}!",
-        out_path.display()
-    );
-
     // The buffered reader could be read from something other than stdin e.g. a tcp-socket.
     let mut buf_reader = BufReader::new(std::io::stdin());
     let mut contents = String::new();
