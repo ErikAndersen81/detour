@@ -30,6 +30,25 @@ pub struct Config {
     pub timespan: f64,
 }
 
+impl std::fmt::Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Using config:")?;
+        writeln!(f, "\tCHFilter Window Size: {}", self.window_size)?;
+        writeln!(
+            f,
+            "\tMovement Detection Minimum Velocity: {} km/h",
+            self.minimum_velocity
+        )?;
+        writeln!(
+            f,
+            "\tMovement Detection Epsilon Velocity: {} km/h",
+            self.epsilon_velocity
+        )?;
+        write!(f, "\tMovement Detection Timespan: {} ms", self.timespan)?;
+        Ok(())
+    }
+}
+
 enum ConfigKeys {
     WindowSize,
     MinimumVelocity,
