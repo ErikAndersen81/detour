@@ -14,8 +14,12 @@ impl<I: Iterator<Item = [f64; 3]>> Iterator for CHFilter<I> {
             if let Some(point) = point {
                 self.window.push(point);
             } else {
-                // Nothing to read from stream. Reflect this in return
-                return None;
+                // Nothing to read from stream.
+                // If there's no points in the window reflect this in return
+                if self.window.is_empty() {
+                    return None;
+                }
+                break;
             }
             let trj = get_convex_hull_trj(self.window.clone());
             let spikes: Vec<[f64; 3]> = get_spikes(trj);
