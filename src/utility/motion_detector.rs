@@ -81,13 +81,19 @@ impl MotionDetector {
 #[cfg(test)]
 mod trajectory_builder_test {
     use super::*;
-
+    const CONFIG: Config = Config {
+        timespan: 300000.0,
+        window_size: 5,
+        minimum_velocity: 1.5,
+        epsilon_velocity: 0.3,
+        connection_timeout: 180000.0,
+    };
     #[test]
     fn unfilled_window_test() {
         // According to google these two points are approximately 2 km apart
         let from = [10.128126551731393, 55.39057912238903, 0.];
         let to = [10.159840991123847, 55.386813002794774, 1.];
-        let mut md = MotionDetector::new(3.0, 2.5, 0.5);
+        let mut md = MotionDetector::new(CONFIG);
         let mut is_moving = md.is_moving(from);
         assert_eq!(None, is_moving);
         is_moving = md.is_moving(to);
@@ -103,7 +109,7 @@ mod trajectory_builder_test {
         let speed: f64 = 900000.0;
         let a = [10.128126551731393, 55.39057912238903, 0.];
         let b = [10.159840991123847, 55.386813002794774, speed];
-        let mut md = MotionDetector::new(speed, 2.5, 0.5);
+        let mut md = MotionDetector::new(CONFIG);
         let mut is_moving = md.is_moving(a);
         assert_eq!(is_moving, None);
         is_moving = md.is_moving(b);
