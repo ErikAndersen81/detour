@@ -1,8 +1,17 @@
 use super::get_distance;
+
+pub struct MotionDetectorConfig {
+    timespan: f64,           // Number of ms used to calculate avg. velocity
+    min_velocity: f64,       // If average velocity < min_velocity change state to stopped
+    eps: f64,                // If average velocity > (min_velocity + eps) change state to moving
+    connection_timeout: f64, // Maximal temporal distance between points. Triggers reset.
+}
+
 pub struct MotionDetector {
-    timespan: f64,            // Number of ms used to calculate avg. velocity
-    min_velocity: f64,        // If average velocity < min_velocity change state to stopped
-    eps: f64,                 // If average velocity > (min_velocity + eps) change state to moving
+    timespan: f64,
+    min_velocity: f64,
+    eps: f64,
+    connection_timeout: f64,
     tmp_ivls: Vec<f64>,       // Temporal intervals in timespan
     spt_ivls: Vec<f64>,       // Spatial intervals (in meters) in timespan
     ref_pt: Option<[f64; 3]>, // Reference point for calculating intervals
@@ -10,11 +19,12 @@ pub struct MotionDetector {
 }
 
 impl MotionDetector {
-    pub fn new(timespan: f64, min_velocity: f64, eps: f64) -> MotionDetector {
+    pub fn new(config: MotionDetectorConfig) -> MotionDetector {
         MotionDetector {
-            timespan,
-            min_velocity,
-            eps,
+            timespan: config.timespan,
+            min_velocity: config.min_velocity,
+            eps: config.eps,
+            connection_timeout: config.connection_timeout,
             tmp_ivls: Vec::new(),
             spt_ivls: Vec::new(),
             ref_pt: None,
@@ -40,6 +50,9 @@ impl MotionDetector {
             let dist: f64 = get_distance(&from, &point);
             self.ref_pt = Some(point);
             let span: f64 = point[2] - from[2];
+            if span > self.connection_timeout {
+                todo!("Motion detector should reset. Let the caller handle the return of None.");
+            }
             self.spt_ivls.push(dist);
             self.tmp_ivls.push(span);
             let span: f64 = self.tmp_ivls.clone().into_iter().sum();
