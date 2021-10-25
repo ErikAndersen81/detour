@@ -28,6 +28,7 @@ pub struct Config {
     pub minimum_velocity: f64,
     pub epsilon_velocity: f64,
     pub timespan: f64,
+    pub connection_timeout: f64,
 }
 
 impl std::fmt::Display for Config {
@@ -45,6 +46,7 @@ impl std::fmt::Display for Config {
             self.epsilon_velocity
         )?;
         write!(f, "\tMovement Detection Timespan: {} ms", self.timespan)?;
+        write!(f, "\tConnection Timeout: {} ms", self.connection_timeout)?;
         Ok(())
     }
 }
@@ -54,6 +56,7 @@ enum ConfigKeys {
     MinimumVelocity,
     EpsilonVelocity,
     Timespan,
+    ConnectionTimeout,
 }
 
 impl FromStr for ConfigKeys {
@@ -65,6 +68,7 @@ impl FromStr for ConfigKeys {
             "minimum_velocity" => Ok(ConfigKeys::MinimumVelocity),
             "epsilon_velocity" => Ok(ConfigKeys::EpsilonVelocity),
             "timespan" => Ok(ConfigKeys::Timespan),
+            "connection_timeout" => Ok(ConfigKeys::ConnectionTimeout),
             _ => Err(()),
         }
     }
@@ -76,6 +80,7 @@ pub fn parse_config(config: String) -> Config {
         minimum_velocity: 2.5,
         epsilon_velocity: 0.5,
         timespan: 120000.0,
+        connection_timeout: 120000.0,
     };
 
     fn handle_line(line: &str, config: &mut Config) {
