@@ -35,25 +35,14 @@ impl MotionDetector {
         km / h
     }
 
-    fn reset(&self) {
-        self.tmp_ivls = Vec::new();
-        self.spt_ivls = Vec::mew();
-        self.ref_pt = None;
-        self.is_moving = None;
-    }
-
     pub fn is_moving(&mut self, point: [f64; 3]) -> Option<bool> {
         /*
-        Returns None when timespan is not filled or on connection timeout
+        Returns None when timespan is not filled
         */
         if let Some(from) = self.ref_pt {
             let dist: f64 = get_distance(&from, &point);
             self.ref_pt = Some(point);
             let span: f64 = point[2] - from[2];
-            if span > self.connection_timeout {
-                self.reset();
-                return None;
-            }
             self.spt_ivls.push(dist);
             self.tmp_ivls.push(span);
             let span: f64 = self.tmp_ivls.clone().into_iter().sum();
