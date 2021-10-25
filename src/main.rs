@@ -1,6 +1,6 @@
-use datastructures::Graph;
+pub(crate) use datastructures::Graph;
 use std::io::{BufReader, Read};
-use utility::{CHFilter, MotionDetector};
+use utility::CHFilter;
 mod datastructures;
 mod parser;
 mod utility;
@@ -25,16 +25,8 @@ fn main() {
         .expect("can't read from stdin");
     // More parsers are probably needed, for now we only accept gpx
     let stream: Vec<[f64; 3]> = parser::parse_gpx(contents);
-    let stream: CHFilter<std::vec::IntoIter<[f64; 3]>> =
-        CHFilter::new(config.window_size, stream.into_iter());
-    // build the motion detector
-    let md: MotionDetector = MotionDetector::new(
-        config.timespan,
-        config.minimum_velocity,
-        config.epsilon_velocity,
-    );
-    let stream: Vec<[f64; 3]> = stream.collect::<Vec<[f64; 3]>>();
-    let graph = Graph::new(stream, md);
+    let stream = CHFilter::new(config.window_size, stream.into_iter()).collect::<Vec<[f64; 3]>>();
+    let graph = Graph::new(stream, config);
     graph
         .to_csv(String::from("vertices.csv"))
         .expect("Could not write to csv!");
