@@ -22,6 +22,15 @@ impl MotionDetector {
         }
     }
 
+    fn get_avg_velocity(&self) -> f64 {
+        // calculate velocity of points in tmp_ivls and spt_ivls
+        let dist: f64 = self.spt_ivls.clone().into_iter().sum();
+        let span: f64 = self.tmp_ivls.clone().into_iter().sum();
+        let h: f64 = span / 3600000.0;
+        let km: f64 = dist / 1000.0;
+        km / h
+    }
+
     pub fn is_moving(&mut self, point: [f64; 3]) -> Option<bool> {
         /*
         Returns None until timespan has been exceeded once
@@ -43,23 +52,19 @@ impl MotionDetector {
                     self.tmp_ivls.remove(0);
                     excess += self.tmp_ivls[0];
                 }
-                // calculate velocity
-                let dist: f64 = self.spt_ivls.clone().into_iter().sum();
-                let span: f64 = self.tmp_ivls.clone().into_iter().sum();
-                let hr: f64 = span / 3600000.0;
-                let km: f64 = dist / 1000.0;
+                let km_h = self.get_avg_velocity();
                 match self.is_moving {
                     None => {
-                        if self.min_velocity > (km / hr) {
+                        if self.min_velocity > km_h {
                             self.is_moving = Some(false);
                         } else {
                             self.is_moving = Some(true);
                         }
                     }
-                    Some(true) if self.min_velocity > (km / hr) => {
+                    Some(true) if self.min_velocity > km_h => {
                         self.is_moving = Some(false);
                     }
-                    Some(false) if (self.min_velocity + self.eps) < (km / hr) => {
+                    Some(false) if (self.min_velocity + self.eps) < km_h => {
                         self.is_moving = Some(true);
                     }
                     _ => {}
