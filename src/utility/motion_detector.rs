@@ -5,7 +5,6 @@ pub struct MotionDetector {
     timespan: f64,
     min_velocity: f64,
     eps: f64,
-    connection_timeout: f64,
     tmp_ivls: Vec<f64>,       // Temporal intervals in timespan
     spt_ivls: Vec<f64>,       // Spatial intervals (in meters) in timespan
     ref_pt: Option<[f64; 3]>, // Reference point for calculating intervals
@@ -18,7 +17,6 @@ impl MotionDetector {
             timespan: config.timespan,
             min_velocity: config.minimum_velocity,
             eps: config.epsilon_velocity,
-            connection_timeout: config.connection_timeout,
             tmp_ivls: Vec::new(),
             spt_ivls: Vec::new(),
             ref_pt: None,
