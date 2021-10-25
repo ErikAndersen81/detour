@@ -1,6 +1,6 @@
 use super::get_distance;
 
-pub struct MotionDetectorConfig {
+pub struct Config {
     timespan: f64,           // Number of ms used to calculate avg. velocity
     min_velocity: f64,       // If average velocity < min_velocity change state to stopped
     eps: f64,                // If average velocity > (min_velocity + eps) change state to moving
@@ -19,7 +19,7 @@ pub struct MotionDetector {
 }
 
 impl MotionDetector {
-    pub fn new(config: MotionDetectorConfig) -> MotionDetector {
+    pub fn new(config: Config) -> MotionDetector {
         MotionDetector {
             timespan: config.timespan,
             min_velocity: config.min_velocity,
