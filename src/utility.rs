@@ -1,8 +1,12 @@
 pub use ch_filter::CHFilter;
 use geo::prelude::HaversineDistance;
 pub use motion_detector::MotionDetector;
+pub use time_guard::clean_stream;
+pub use timeout_handler::TimeoutHandler;
 pub mod ch_filter;
 pub mod motion_detector;
+pub mod time_guard;
+pub mod timeout_handler;
 
 fn get_distance(from: &[f64; 3], to: &[f64; 3]) -> f64 {
     // Returns haversine distance in meters
