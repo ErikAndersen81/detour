@@ -1,11 +1,5 @@
 use super::get_distance;
-
-pub struct Config {
-    timespan: f64,           // Number of ms used to calculate avg. velocity
-    min_velocity: f64,       // If average velocity < min_velocity change state to stopped
-    eps: f64,                // If average velocity > (min_velocity + eps) change state to moving
-    connection_timeout: f64, // Maximal temporal distance between points. Triggers reset.
-}
+use crate::parser::Config;
 
 pub struct MotionDetector {
     timespan: f64,
@@ -22,8 +16,8 @@ impl MotionDetector {
     pub fn new(config: Config) -> MotionDetector {
         MotionDetector {
             timespan: config.timespan,
-            min_velocity: config.min_velocity,
-            eps: config.eps,
+            min_velocity: config.minimum_velocity,
+            eps: config.epsilon_velocity,
             connection_timeout: config.connection_timeout,
             tmp_ivls: Vec::new(),
             spt_ivls: Vec::new(),
