@@ -17,3 +17,36 @@ impl TimeoutHandler {
         delta_time < self.connection_timeout
     }
 }
+
+#[cfg(test)]
+mod timeout_handler_test {
+    use super::*;
+    #[test]
+    fn test_is_alive() {
+        let connection_timeout = 3.0;
+        let points: Vec<[f64; 3]> = vec![
+            [0., 0., 1.],
+            [0., 0., 2.],
+            [0., 0., 3.],
+            [0., 0., 4.],
+            [0., 0., 5.],
+            [0., 0., 9.],
+            [0., 0., 10.],
+            [0., 0., 11.],
+            [0., 0., 12.],
+            [0., 0., 13.],
+            [0., 0., 14.],
+        ];
+        let mut th = TimeoutHandler::new(connection_timeout, &points[0]);
+        assert!(th.is_alive(&points[1]));
+        assert!(th.is_alive(&points[2]));
+        assert!(th.is_alive(&points[3]));
+        assert!(th.is_alive(&points[4]));
+        assert!(!th.is_alive(&points[5]));
+        assert!(th.is_alive(&points[6]));
+        assert!(th.is_alive(&points[7]));
+        assert!(th.is_alive(&points[8]));
+        assert!(th.is_alive(&points[9]));
+        assert!(th.is_alive(&points[10]));
+    }
+}
