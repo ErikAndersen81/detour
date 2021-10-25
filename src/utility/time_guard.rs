@@ -18,12 +18,38 @@ impl TimeGuard {
     }
 }
 
-pub fn clean_stream(mut stream: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
+pub fn clean_stream(stream: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
     assert!(!stream.is_empty(), "Cannot clean empty stream");
-    let init_point = stream.remove(0);
-    let mut tg = TimeGuard::new(&init_point);
+    let mut tg = TimeGuard::new(&stream[0]);
     stream
         .into_iter()
-        .filter(|point| !tg.is_ok(point))
+        .enumerate()
+        .filter(|(i, point)| (*i == 0) || tg.is_ok(point))
+        .map(|(_, x)| x)
         .collect::<Vec<[f64; 3]>>()
+}
+
+#[cfg(test)]
+mod timeguard_test {
+    use super::*;
+
+    #[test]
+    fn clean_stream_test() {
+        let stream = vec![
+            [0., 0., 0.],
+            [0., 0., 1.],
+            [0., 0., 2.],
+            [0., 0., 1.],
+            [0., 0., 3.],
+            [0., 0., 4.],
+            [0., 0., 5.],
+            [0., 0., 6.],
+        ];
+        let clean = clean_stream(stream.clone());
+        assert_eq!(clean.len(), 7);
+        assert_eq!(clean[0][2] as i32, stream[0][2] as i32);
+        assert_eq!(clean[2][2] as i32, stream[2][2] as i32);
+        assert_ne!(clean[3][2] as i32, stream[3][2] as i32);
+        assert_eq!(clean[3][2] as i32, stream[4][2] as i32);
+    }
 }
