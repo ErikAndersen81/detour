@@ -55,9 +55,7 @@ impl Graph {
         let mut f: BufWriter<File> = BufWriter::new(f);
         writeln!(f, "id,x1,y1,t1,x2,y2,t2")?;
         for (idx, vertex) in self.get_vertices().into_iter().enumerate() {
-            let [x1, y1, t1, x2, y2, t2] = vertex.get_bbox();
-            writeln!(f, "{},{},{},{},{},{},{}", idx, x1, y1, t1, x2, y2, t2)
-                .expect("Unable to write!");
+            writeln!(f, "{},{}", idx, vertex.get_bbox()).expect("Unable to write!");
             vertex.edges_to_csv(idx);
         }
         Ok(())
