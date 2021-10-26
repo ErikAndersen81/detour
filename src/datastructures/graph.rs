@@ -21,7 +21,7 @@ pub struct Graph {
 }
 
 impl Graph {
-    pub fn new(stream: Vec<[f64; 3]>, config: Config) -> Graph {
+    pub fn new(stream: Vec<[f64; 3]>, config: Config) -> Vec<Graph> {
         let splitted_streams = split_stream(stream, config.connection_timeout);
         let paths = splitted_streams
             .into_iter()
@@ -32,7 +32,7 @@ impl Graph {
             !paths.is_empty(),
             "No paths could be created. Maybe connection timeout is too low."
         );
-        paths[0].clone()
+        paths
     }
 
     #[allow(dead_code)]
