@@ -46,4 +46,8 @@ impl Vertex {
             edge.to_csv(filename).expect("Can't write trajectory");
         }
     }
+
+    pub fn get_bbox(&self) -> Bbox {
+        self.bbox
+    }
 }
