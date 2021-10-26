@@ -23,6 +23,7 @@ pub fn parse_gpx(gpx: String) -> Vec<[f64; 3]> {
     trj
 }
 
+#[derive(Clone)]
 pub struct Config {
     pub window_size: usize,
     pub minimum_velocity: f64,
@@ -94,6 +95,9 @@ pub fn parse_config(config: String) -> Config {
                 config.epsilon_velocity = key_val[1].parse::<f64>().unwrap()
             }
             Ok(ConfigKeys::Timespan) => config.timespan = key_val[1].parse::<f64>().unwrap(),
+            Ok(ConfigKeys::ConnectionTimeout) => {
+                config.connection_timeout = key_val[1].parse::<f64>().unwrap()
+            }
             Err(_) => {
                 panic!("Mismatched config key: {}", key_val[0])
             }
