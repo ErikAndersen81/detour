@@ -5,15 +5,15 @@ use super::*;
 pub struct PathBuilder {
     vertices: Vec<Vertex>,
     trjs: Vec<Trajectory>,
-    building_vtx: bool,
+    building_trajectory: bool,
     pts: Vec<[f64; 3]>,
 }
 
 impl PathBuilder {
-    pub fn new(pts: Vec<[f64; 3]>, building_vtx: bool) -> PathBuilder {
+    pub fn new(pts: Vec<[f64; 3]>, building_trajectory: bool) -> PathBuilder {
         let mut vertices: Vec<Vertex> = Vec::new();
         let trjs: Vec<Trajectory> = Vec::new();
-        if !building_vtx {
+        if building_trajectory {
             println!("Warning: Path does not start with a vertex. Inserting degenerated vertex.");
             let point = pts[0];
             let vertex = Vertex::new(vec![point]);
@@ -22,7 +22,7 @@ impl PathBuilder {
         PathBuilder {
             vertices,
             trjs,
-            building_vtx,
+            building_trajectory,
             pts,
         }
     }
@@ -37,25 +37,25 @@ impl PathBuilder {
     }
 
     fn add_to_vertex(&mut self, pt: [f64; 3]) {
-        if !self.building_vtx {
+        if self.building_trajectory {
             // Finish building trajectory
             self.trjs.push(Trajectory::from_array(self.pts.clone()));
             self.pts = vec![pt];
-            self.building_vtx = true;
+            self.building_trajectory = false;
         }
     }
 
     fn add_to_trj(&mut self, pt: [f64; 3]) {
-        if self.building_vtx {
+        if !self.building_trajectory {
             // Finish building vertex
             self.vertices.push(Vertex::new(self.pts.clone()));
             self.pts = vec![pt];
-            self.building_vtx = false;
+            self.building_trajectory = true;
         }
     }
 
     fn finalize_path(&mut self) -> Result<(), PathBuilderError> {
-        if self.building_vtx {
+        if !self.building_trajectory {
             // Finish building vertex
             self.vertices.push(Vertex::new(self.pts.clone()));
             Ok(())
@@ -119,10 +119,10 @@ mod pathbuilder_test {
     #[test]
     fn add_point_moving_test() {
         let points = vec![[0.0, 0.0, 0.0], [0.0, 1.0, 1.0]];
-        let mut pb = PathBuilder::new(points, true);
+        let mut pb = PathBuilder::new(points, false);
         pb.add_pt([1., 1., 2.], true);
         assert!(pb.pts == vec!([1., 1., 2.]));
-        assert!(!pb.building_vtx);
+        assert!(pb.building_trajectory);
         assert!(pb.vertices.len() == 1);
     }
 
