@@ -1,5 +1,6 @@
 use super::{get_common_time_span, Coord2D, Line2D, Trajectory};
 
+#[allow(dead_code)]
 pub fn distance(trj_a: &Trajectory, trj_b: &Trajectory) -> Option<f64> {
     // Returns TraDis of two trajectories.
     let span = get_common_time_span(trj_a, trj_b);
