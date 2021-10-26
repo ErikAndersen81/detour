@@ -46,23 +46,4 @@ impl Vertex {
             edge.to_csv(filename).expect("Can't write trajectory");
         }
     }
-
-    #[allow(dead_code)]
-    pub fn print_bbox(&self) {
-        println!(
-            "{} {}\t{} {}\t{} {}",
-            self.bbox.x1, self.bbox.x2, self.bbox.y1, self.bbox.y2, self.bbox.t1, self.bbox.t2
-        );
-    }
-
-    pub fn get_bbox(&self) -> [f64; 6] {
-        [
-            self.bbox.x1,
-            self.bbox.y1,
-            self.bbox.t1,
-            self.bbox.x2,
-            self.bbox.y2,
-            self.bbox.t2,
-        ]
-    }
 }
