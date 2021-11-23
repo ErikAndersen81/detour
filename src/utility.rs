@@ -1,4 +1,6 @@
+pub mod clustering;
 pub use ch_filter::CHFilter;
+pub use clustering::Clustering;
 use geo::prelude::HaversineDistance;
 pub use motion_detector::MotionDetector;
 pub use time_guard::clean_stream;
@@ -7,8 +9,13 @@ pub mod ch_filter;
 pub mod motion_detector;
 pub mod time_guard;
 pub mod timeout_handler;
+pub mod trajectory;
 pub use bounding_box::Bbox;
 pub mod bounding_box;
+pub mod stop_detector;
+pub use stop_detector::StopDetector;
+pub mod line;
+pub use line::Line;
 
 fn get_distance(from: &[f64; 3], to: &[f64; 3]) -> f64 {
     // Returns haversine distance in meters
@@ -18,7 +25,7 @@ fn get_distance(from: &[f64; 3], to: &[f64; 3]) -> f64 {
 }
 
 #[cfg(test)]
-mod utility_test {
+mod test {
     use super::*;
     #[test]
     fn distance_test() {

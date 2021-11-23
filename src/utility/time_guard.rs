@@ -30,7 +30,7 @@ pub fn clean_stream(stream: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
 }
 
 #[cfg(test)]
-mod timeguard_test {
+mod test {
     use super::*;
 
     #[test]

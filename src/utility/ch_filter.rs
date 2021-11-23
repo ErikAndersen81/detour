@@ -103,7 +103,7 @@ fn get_spikes(trj: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
 }
 
 #[cfg(test)]
-mod trajectory_builder_test {
+mod test {
     use super::*;
     #[test]
     fn test_convexhull_track() {

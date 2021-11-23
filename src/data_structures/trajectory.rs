@@ -50,6 +50,7 @@ impl Trajectory {
         self.coords.len()
     }
 
+    #[allow(dead_code)]
     pub fn to_csv(&self, filename: String) -> std::io::Result<()> {
         let f = File::create(filename)?;
         let mut f = BufWriter::new(f);
