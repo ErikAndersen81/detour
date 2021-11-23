@@ -61,6 +61,7 @@ pub fn get_paths(stream: Vec<[f64; 3]>, config: &Config) -> Vec<Path> {
     let paths = splitted_streams
         .into_iter()
         .map(|stream| build_path(stream, config.clone()))
+        .filter(|path| path.len() > 1)
         .collect::<Vec<Path>>();
     assert!(
         !paths.is_empty(),
