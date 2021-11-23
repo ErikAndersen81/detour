@@ -1,5 +1,8 @@
 #![feature(slice_group_by)]
-use std::io::{BufReader, Read};
+use std::{
+    fs,
+    io::{BufReader, Read},
+};
 use utility::{time_guard, CHFilter};
 mod data_structures;
 mod parser;
@@ -13,6 +16,7 @@ fn main() {
     let out_path = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "output".to_owned());
+    fs::create_dir_all(&out_path).expect("Cant write to specified output folder");
     println!("Writing output to: {}", out_path);
     let out_path = Path::new(&out_path);
     assert!(env::set_current_dir(&out_path).is_ok());
