@@ -63,10 +63,9 @@ pub fn get_paths(stream: Vec<[f64; 3]>, config: &Config) -> Vec<Path> {
         .map(|stream| build_path(stream, config.clone()))
         .filter(|path| path.len() > 1)
         .collect::<Vec<Path>>();
-    assert!(
-        !paths.is_empty(),
-        "No paths could be created. Maybe connection timeout is too low."
-    );
+    if paths.is_empty() {
+        println!("No paths could be created for given stream.");
+    }
     paths
 }
 
@@ -113,7 +112,7 @@ impl PathBuilder {
 
     fn add_pt(&mut self, pt: [f64; 3], is_moving: bool) {
         if self.path_element.is_none() {
-            let path_element = PathElement::Stop(Bbox::new(vec![pt]));
+            let path_element = PathElement::Stop(Bbox::new(&[pt]));
             self.path_element = Some(path_element);
         }
         let mut path_element = self.path_element.clone().unwrap();
@@ -126,7 +125,7 @@ impl PathBuilder {
             }
             (false, PathElement::Route(_)) => {
                 self.path.push(path_element);
-                let path_element = PathElement::Stop(Bbox::new(vec![pt]));
+                let path_element = PathElement::Stop(Bbox::new(&[pt]));
                 self.path_element = Some(path_element);
             }
             (_, _) => {
@@ -142,7 +141,7 @@ impl PathBuilder {
                 // We shouldn't end in the middle of a trajectory
                 // so we construct a degenerate Bbox
                 let trj = path_element.get_trj().unwrap();
-                let path_element = PathElement::Stop(Bbox::new(vec![trj[trj.len() - 1]]));
+                let path_element = PathElement::Stop(Bbox::new(&[trj[trj.len() - 1]]));
                 self.path.push(path_element);
             }
         }

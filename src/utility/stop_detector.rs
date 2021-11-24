@@ -5,7 +5,6 @@ pub struct StopDetector {
     timespan: f64,
     maximal_distance: f64, // Maximal length of Bbox diagonal (spatially)
     points: Vec<[f64; 3]>, // last read points spanning no more than timespan
-    bbox: Option<Bbox>,    // Bounding box for last read points
 }
 
 impl StopDetector {
@@ -14,15 +13,13 @@ impl StopDetector {
             timespan: config.timespan,
             maximal_distance: config.maximal_distance,
             points: vec![],
-            bbox: None,
         }
     }
 
     pub fn is_stopped(&mut self, point: [f64; 3]) -> bool {
         self.points.push(point);
         self.fit_to_timespan();
-        let bbox = Bbox::new(self.points.clone());
-        self.bbox = Some(bbox);
+        let bbox = Bbox::new(&self.points);
         bbox.get_diameter() < self.maximal_distance
     }
 
@@ -32,5 +29,20 @@ impl StopDetector {
         {
             self.points.remove(0);
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn alternating() {
+        let sd = StopDetector {
+            timespan: 300000.0,
+            maximal_distance: 75.0,
+            points: vec![],
+        };
+        let points = vec![];
     }
 }

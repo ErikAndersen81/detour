@@ -20,7 +20,7 @@ use petgraph::visit::{Bfs, EdgeRef};
 use petgraph::EdgeDirection;
 use trajectory_similarity::hausdorff;
 
-use self::pathbuilder::{Path, PathElement};
+use self::pathbuilder::Path;
 
 #[derive(Clone)]
 pub struct DetourGraph {

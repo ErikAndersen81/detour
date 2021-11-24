@@ -50,9 +50,9 @@ impl Ord for Bbox {
 }
 
 impl Bbox {
-    pub fn new(pts: Vec<[f64; 3]>) -> Bbox {
+    pub fn new(pts: &[[f64; 3]]) -> Bbox {
         assert!(!pts.is_empty(), "Need points to instantiate bounding box!");
-        let mut iter = pts.into_iter();
+        let mut iter = pts.iter();
         let pt = iter.next().unwrap();
         let mut x1: f64 = pt[0];
         let mut x2: f64 = pt[0];
@@ -61,7 +61,7 @@ impl Bbox {
         let mut t1: f64 = pt[2];
         let mut t2: f64 = pt[2];
         iter.for_each(|pt| {
-            let [x, y, t] = pt;
+            let [x, y, t] = *pt;
             x1 = if x < x1 { x } else { x1 };
             x2 = if x > x2 { x } else { x2 };
             y1 = if y < y1 { y } else { y1 };
