@@ -2,16 +2,16 @@ use super::Bbox;
 use crate::parser::Config;
 
 pub struct StopDetector {
-    timespan: f64,
-    maximal_distance: f64, // Maximal length of Bbox diagonal (spatially)
+    duration_ms: f64,
+    diagonal_meters: f64,  // Maximal length of Bbox diagonal (spatially)
     points: Vec<[f64; 3]>, // last read points spanning no more than timespan
 }
 
 impl StopDetector {
     pub fn new(config: &Config) -> StopDetector {
         StopDetector {
-            timespan: config.timespan,
-            maximal_distance: config.maximal_distance,
+            duration_ms: config.stop_duration_minutes * 60. * 1000.0,
+            diagonal_meters: config.stop_diagonal_meters,
             points: vec![],
         }
     }
@@ -20,12 +20,12 @@ impl StopDetector {
         self.points.push(point);
         self.fit_to_timespan();
         let bbox = Bbox::new(&self.points);
-        bbox.get_diameter() < self.maximal_distance
+        bbox.get_diameter() < self.diagonal_meters
     }
 
     fn fit_to_timespan(&mut self) {
         while self.points.len() > 1
-            && self.points[self.points.len() - 1][2] - self.points[0][2] > self.timespan
+            && self.points[self.points.len() - 1][2] - self.points[0][2] > self.duration_ms
         {
             self.points.remove(0);
         }
@@ -39,8 +39,8 @@ mod test {
     #[test]
     fn alternating() {
         let sd = StopDetector {
-            timespan: 300000.0,
-            maximal_distance: 75.0,
+            duration_ms: 300000.0,
+            diagonal_meters: 75.0,
             points: vec![],
         };
         let points = vec![];
