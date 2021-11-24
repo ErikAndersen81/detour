@@ -32,57 +32,29 @@ pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
     trjs
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Config {
     pub window_size: usize,
     pub minimum_velocity: f64,
     pub epsilon_velocity: f64,
-    pub timespan: f64,
+    pub stop_duration_minutes: f64,
     pub connection_timeout: f64,
-    pub maximal_distance: f64,
+    pub stop_diagonal_meters: f64,
     pub relax_bbox_minutes: f64,
     pub relax_bbox_meters: f64,
-}
-
-impl std::fmt::Display for Config {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Using config:")?;
-        writeln!(f, "\tCHFilter Window Size: {}", self.window_size)?;
-        writeln!(
-            f,
-            "\tMovement Detection Minimum Velocity: {} km/h",
-            self.minimum_velocity
-        )?;
-        writeln!(
-            f,
-            "\tMovement Detection Epsilon Velocity: {} km/h",
-            self.epsilon_velocity
-        )?;
-        writeln!(f, "\tMovement Detection Timespan: {} ms", self.timespan)?;
-        writeln!(f, "\tConnection Timeout: {} ms", self.connection_timeout)?;
-        writeln!(
-            f,
-            "\tRelaxing Bboxes with {} minutes and {} meters",
-            self.relax_bbox_minutes, self.relax_bbox_meters
-        )?;
-        write!(
-            f,
-            "\tMaximal patial span for stops: {} m",
-            self.maximal_distance
-        )?;
-        Ok(())
-    }
+    pub max_hausdorff_meters: f64,
 }
 
 enum ConfigKeys {
     WindowSize,
     MinimumVelocity,
     EpsilonVelocity,
-    Timespan,
+    StopDurationMinutes,
     ConnectionTimeout,
-    MaximalDistance,
+    StopDiagonalMeters,
     RelaxBboxMinutes,
     RelaxBboxMeters,
+    MaxHausdorffMeters,
 }
 
 impl FromStr for ConfigKeys {
@@ -93,11 +65,12 @@ impl FromStr for ConfigKeys {
             "window_size" => Ok(ConfigKeys::WindowSize),
             "minimum_velocity" => Ok(ConfigKeys::MinimumVelocity),
             "epsilon_velocity" => Ok(ConfigKeys::EpsilonVelocity),
-            "timespan" => Ok(ConfigKeys::Timespan),
+            "stop_duration_minutes" => Ok(ConfigKeys::StopDurationMinutes),
             "connection_timeout" => Ok(ConfigKeys::ConnectionTimeout),
-            "maximal_distance" => Ok(ConfigKeys::MaximalDistance),
+            "stop_diagonal_meters" => Ok(ConfigKeys::StopDiagonalMeters),
             "relax_bbox_minutes" => Ok(ConfigKeys::RelaxBboxMinutes),
             "relax_bbox_meters" => Ok(ConfigKeys::RelaxBboxMeters),
+            "max_hausdorff_meters" => Ok(ConfigKeys::MaxHausdorffMeters),
             _ => Err(()),
         }
     }
@@ -108,11 +81,12 @@ pub fn parse_config(config: String) -> Config {
         window_size: 5,
         minimum_velocity: 2.5,
         epsilon_velocity: 0.5,
-        timespan: 120000.0,
+        stop_duration_minutes: 15.0,
         connection_timeout: 120000.0,
-        maximal_distance: 200.0,
+        stop_diagonal_meters: 50.0,
         relax_bbox_meters: 50.,
         relax_bbox_minutes: 30.,
+        max_hausdorff_meters: 100.,
     };
 
     fn handle_line(line: &str, config: &mut Config) {
@@ -125,18 +99,23 @@ pub fn parse_config(config: String) -> Config {
             Ok(ConfigKeys::EpsilonVelocity) => {
                 config.epsilon_velocity = key_val[1].parse::<f64>().unwrap()
             }
-            Ok(ConfigKeys::Timespan) => config.timespan = key_val[1].parse::<f64>().unwrap(),
+            Ok(ConfigKeys::StopDurationMinutes) => {
+                config.stop_duration_minutes = key_val[1].parse::<f64>().unwrap()
+            }
             Ok(ConfigKeys::ConnectionTimeout) => {
                 config.connection_timeout = key_val[1].parse::<f64>().unwrap()
             }
-            Ok(ConfigKeys::MaximalDistance) => {
-                config.maximal_distance = key_val[1].parse::<f64>().unwrap()
+            Ok(ConfigKeys::StopDiagonalMeters) => {
+                config.stop_diagonal_meters = key_val[1].parse::<f64>().unwrap()
             }
             Ok(ConfigKeys::RelaxBboxMinutes) => {
                 config.relax_bbox_minutes = key_val[1].parse::<f64>().unwrap()
             }
             Ok(ConfigKeys::RelaxBboxMeters) => {
                 config.relax_bbox_meters = key_val[1].parse::<f64>().unwrap()
+            }
+            Ok(ConfigKeys::MaxHausdorffMeters) => {
+                config.max_hausdorff_meters = key_val[1].parse::<f64>().unwrap()
             }
             Err(_) => {
                 panic!("Mismatched config key: {}", key_val[0])
