@@ -60,15 +60,15 @@ impl Bbox {
         let mut y2: f64 = pt[1];
         let mut t1: f64 = pt[2];
         let mut t2: f64 = pt[2];
-        iter.for_each(|pt| {
+        for pt in iter {
             let [x, y, t] = *pt;
-            x1 = if x < x1 { x } else { x1 };
-            x2 = if x > x2 { x } else { x2 };
-            y1 = if y < y1 { y } else { y1 };
-            y2 = if y > y2 { y } else { y2 };
-            t1 = if t < t1 { t } else { t1 };
-            t2 = if t > t2 { t } else { t2 };
-        });
+            x1 = x.min(x1);
+            x2 = x.max(x2);
+            y1 = y.min(y1);
+            y2 = y.max(y2);
+            t1 = t.min(t1);
+            t2 = t.max(t2);
+        }
         Bbox {
             x1,
             x2,
@@ -87,19 +87,19 @@ impl Bbox {
     }
 
     pub fn overlaps(&self, other: &Self) -> bool {
-        let vertical = (self.x1..self.x2).contains(&other.x1)
-            || (self.x1..self.x2).contains(&other.x2)
-            || (other.x1..other.x2).contains(&self.x1)
-            || (other.x1..other.x2).contains(&self.x2);
-        let horizontal = (self.y1..self.y2).contains(&other.y1)
-            || (self.y1..self.y2).contains(&other.y2)
-            || (other.y1..other.y2).contains(&self.y1)
-            || (other.y1..other.y2).contains(&self.y2);
-        let temporal = (self.t1..self.t2).contains(&other.t1)
-            || (self.t1..self.t2).contains(&other.t2)
-            || (other.t1..other.t2).contains(&self.t1)
-            || (other.t1..other.t2).contains(&self.t2);
-        vertical && horizontal && temporal
+        let vertical = (self.x1..=self.x2).contains(&other.x1)
+            || (self.x1..=self.x2).contains(&other.x2)
+            || (other.x1..=other.x2).contains(&self.x1)
+            || (other.x1..=other.x2).contains(&self.x2);
+        let horizontal = (self.y1..=self.y2).contains(&other.y1)
+            || (self.y1..=self.y2).contains(&other.y2)
+            || (other.y1..=other.y2).contains(&self.y1)
+            || (other.y1..=other.y2).contains(&self.y2);
+        let temporal = (self.t1..=self.t2).contains(&other.t1)
+            || (self.t1..=self.t2).contains(&other.t2)
+            || (other.t1..=other.t2).contains(&self.t1)
+            || (other.t1..=other.t2).contains(&self.t2);
+        vertical & horizontal & temporal
     }
 
     #[allow(dead_code)]
@@ -123,17 +123,31 @@ impl Bbox {
         [line_a, line_b, line_c, line_d]
     }
 
-    #[allow(dead_code)]
-    pub fn is_in(&self, pt: &[f64; 3]) -> bool {
-        let in_t = (self.t1..=self.t2).contains(&pt[2]);
-        self.is_in_spatial(pt) && in_t
+    pub fn is_before(&self, other: &Self) -> bool {
+        self.t2 < other.t1
     }
 
-    #[allow(dead_code)]
+    pub fn contains_point(&self, pt: &[f64; 3]) -> bool {
+        let temporally_overlapping = (self.t1..=self.t2).contains(&pt[2]);
+        self.is_in_spatial(pt) & temporally_overlapping
+    }
+
     pub fn is_in_spatial(&self, pt: &[f64; 3]) -> bool {
         let in_x = (self.x1..=self.x2).contains(&pt[0]);
         let in_y = (self.y1..=self.y2).contains(&pt[1]);
-        in_x && in_y
+        in_x & in_y
+    }
+
+    pub fn temporal_split(&self, t: f64, bottom_inclusive: bool) -> (Self, Self) {
+        // add a small fraction to t s.t. the boxes don't overlap temporally
+        let (t1, t2) = if bottom_inclusive {
+            (t, f64::from_bits(t.to_bits() + 1))
+        } else {
+            (f64::from_bits(t.to_bits() - 1), t)
+        };
+        let bbox1 = Bbox::new(&[[self.x1, self.y1, self.t1], [self.x2, self.y2, t1]]);
+        let bbox2 = Bbox::new(&[[self.x1, self.y1, t2], [self.x2, self.y2, self.t2]]);
+        (bbox1, bbox2)
     }
 
     pub fn expand_bbox(&self, meters: f64, minutes: f64) -> Self {
@@ -154,6 +168,18 @@ impl Bbox {
             t1,
             t2,
         }
+    }
+
+    pub fn expand(&mut self, meters: f64, minutes: f64) {
+        let latitude_min: f64 = self.y1;
+        let latitude_max: f64 = self.y2;
+        self.x1 -= meters_to_degrees(latitude_min, meters);
+        self.x2 += meters_to_degrees(latitude_max, meters);
+        let latitude_degree_length = 360. / 40075000.0;
+        self.y1 -= meters * latitude_degree_length;
+        self.y2 += meters * latitude_degree_length;
+        self.t1 -= minutes * 60000.;
+        self.t2 += minutes * 60000.;
     }
 
     pub fn get_diameter(&self) -> f64 {
