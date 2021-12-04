@@ -31,18 +31,3 @@ impl StopDetector {
         }
     }
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn alternating() {
-        let sd = StopDetector {
-            duration_ms: 300000.0,
-            diagonal_meters: 75.0,
-            points: vec![],
-        };
-        let points = vec![];
-    }
-}

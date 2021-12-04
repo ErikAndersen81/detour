@@ -15,7 +15,7 @@ impl MotionDetector {
     #[allow(dead_code)]
     pub fn new(config: &Config) -> MotionDetector {
         MotionDetector {
-            timespan: config.timespan,
+            timespan: config.stop_duration_minutes,
             min_velocity: config.minimum_velocity,
             eps: config.epsilon_velocity,
             tmp_ivls: Vec::new(),
