@@ -26,8 +26,8 @@ impl Clustering {
         for a in 0..n {
             for b in (a + 1)..n {
                 let dist = self.distance_matrix[a][b];
-                let a = self.get_cluster_idx(a);
-                let b = self.get_cluster_idx(b);
+                let a: ClusterIdx = self.get_cluster_idx(a);
+                let b: ClusterIdx = self.get_cluster_idx(b);
                 if dist < self.threshold {
                     self.merge_clusters(a, b);
                 }
