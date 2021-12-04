@@ -32,7 +32,7 @@ pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
     trjs
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Config {
     pub window_size: usize,
     pub minimum_velocity: f64,
@@ -43,6 +43,22 @@ pub struct Config {
     pub relax_bbox_minutes: f64,
     pub relax_bbox_meters: f64,
     pub max_hausdorff_meters: f64,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            window_size: 5,
+            minimum_velocity: 2.5,
+            epsilon_velocity: 0.5,
+            stop_duration_minutes: 15.0,
+            connection_timeout: 120000.0,
+            stop_diagonal_meters: 50.0,
+            relax_bbox_meters: 50.,
+            relax_bbox_minutes: 30.,
+            max_hausdorff_meters: 100.,
+        }
+    }
 }
 
 enum ConfigKeys {
@@ -77,17 +93,7 @@ impl FromStr for ConfigKeys {
 }
 
 pub fn parse_config(config: String) -> Config {
-    let mut default_config: Config = Config {
-        window_size: 5,
-        minimum_velocity: 2.5,
-        epsilon_velocity: 0.5,
-        stop_duration_minutes: 15.0,
-        connection_timeout: 120000.0,
-        stop_diagonal_meters: 50.0,
-        relax_bbox_meters: 50.,
-        relax_bbox_minutes: 30.,
-        max_hausdorff_meters: 100.,
-    };
+    let mut default_config: Config = Config::default();
 
     fn handle_line(line: &str, config: &mut Config) {
         let key_val = line.split('=').collect::<Vec<&str>>();

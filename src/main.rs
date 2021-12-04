@@ -36,5 +36,6 @@ fn main() {
         })
         .collect();
     println!("parsed {} days", daily_streams.len());
-    let _graph = get_graph(daily_streams, config);
+    let graph = get_graph(daily_streams, config);
+    graph.to_csv().expect("Could not write output.");
 }
