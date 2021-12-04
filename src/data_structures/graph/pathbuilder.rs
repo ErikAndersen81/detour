@@ -1,6 +1,6 @@
 use super::*;
 use crate::utility::Bbox;
-use std::fmt;
+use std::{f32::NEG_INFINITY, fmt};
 
 #[derive(Clone, Debug)]
 pub enum PathElement {
@@ -9,13 +9,6 @@ pub enum PathElement {
 }
 
 impl PathElement {
-    fn add_point(&mut self, point: [f64; 3]) {
-        match self {
-            PathElement::Stop(bbox) => bbox.add_point(point),
-            PathElement::Route(trj) => trj.push(point),
-        }
-    }
-
     fn is_stop(&self) -> bool {
         matches!(self, &PathElement::Stop(_))
     }
@@ -34,6 +27,19 @@ impl PathElement {
         } else {
             None
         }
+    }
+
+    pub fn stop_from(points: &[[f64; 3]]) -> PathElement {
+        let (x, y, t1, t2) = points.iter().map(|[x, y, t]| (*x, *y, *t)).fold(
+            (0., 0., f64::INFINITY, f64::NEG_INFINITY),
+            |(x_acc, y_acc, t1_acc, t2_acc), (x, y, t)| {
+                (x_acc + x, y_acc + y, t1_acc.min(t), t2_acc.max(t))
+            },
+        );
+        let n = points.len() as f64;
+        let (x, y) = (x / n, y / n);
+        let bbox = Bbox::new(&[[x, y, t1], [x, y, t2]]);
+        PathElement::Stop(bbox)
     }
 }
 
@@ -57,14 +63,13 @@ impl PathTrait for Path {
 }
 
 pub fn get_paths(stream: Vec<[f64; 3]>, config: &Config) -> Vec<Path> {
-    let splitted_streams = split_stream(&stream, config.connection_timeout);
-    let paths = splitted_streams
+    let splitted_streams = split_stream_on_timeout(&stream, config.connection_timeout);
+    let paths: Vec<Path> = splitted_streams
         .into_iter()
-        .map(|stream| build_path(stream, config.clone()))
-        .filter(|path| path.len() > 1)
-        .collect::<Vec<Path>>();
+        .map(|stream| build_path(stream, *config))
+        .collect();
     if paths.is_empty() {
-        println!("No paths could be created for given stream.");
+        println!("No paths could be created for given stream:\n{:?}", stream);
     }
     paths
 }
@@ -76,10 +81,11 @@ fn build_path(stream: Vec<[f64; 3]>, config: Config) -> Path {
     stream
         .into_iter()
         .for_each(|point| builder.add_pt(point, !sd.is_stopped(point)));
+    builder.expand_stops(config.relax_bbox_meters, config.relax_bbox_minutes);
     builder.get_path()
 }
 
-fn split_stream(stream: &[[f64; 3]], connection_timeout: f64) -> Vec<Vec<[f64; 3]>> {
+fn split_stream_on_timeout(stream: &[[f64; 3]], connection_timeout: f64) -> Vec<Vec<[f64; 3]>> {
     let mut last_timestamp = stream[0][2];
     let mut result = vec![];
     let mut partial_result = vec![];
@@ -97,9 +103,42 @@ fn split_stream(stream: &[[f64; 3]], connection_timeout: f64) -> Vec<Vec<[f64; 3
     result
 }
 
+#[derive(Clone, Debug)]
+enum PointsForElement {
+    Stop(Vec<[f64; 3]>),
+    Route(Vec<[f64; 3]>),
+}
+
+impl PointsForElement {
+    fn to_path_element(&self) -> PathElement {
+        match self {
+            PointsForElement::Stop(pts) => PathElement::stop_from(pts),
+            PointsForElement::Route(pts) => PathElement::Route(pts.clone()),
+        }
+    }
+
+    fn is_stop(&self) -> bool {
+        matches!(self, &PointsForElement::Stop(_))
+    }
+
+    fn add_point(&mut self, point: [f64; 3]) {
+        match self {
+            PointsForElement::Stop(pts) => pts.push(point),
+            PointsForElement::Route(pts) => pts.push(point),
+        };
+    }
+
+    fn get_points(&self) -> Vec<[f64; 3]> {
+        match self {
+            PointsForElement::Stop(pts) => pts.clone(),
+            PointsForElement::Route(pts) => pts.clone(),
+        }
+    }
+}
+
 struct PathBuilder {
     path: Path,
-    path_element: Option<PathElement>,
+    path_element: Option<PointsForElement>,
 }
 
 impl PathBuilder {
@@ -112,20 +151,20 @@ impl PathBuilder {
 
     fn add_pt(&mut self, pt: [f64; 3], is_moving: bool) {
         if self.path_element.is_none() {
-            let path_element = PathElement::Stop(Bbox::new(&[pt]));
+            let path_element = PointsForElement::Stop(vec![pt]);
             self.path_element = Some(path_element);
         }
         let mut path_element = self.path_element.clone().unwrap();
         path_element.add_point(pt);
         match (is_moving, &path_element) {
-            (true, PathElement::Stop(_)) => {
-                self.path.push(path_element);
-                let path_element = PathElement::Route(vec![pt]);
+            (true, PointsForElement::Stop(_)) => {
+                self.path.push(path_element.to_path_element());
+                let path_element = PointsForElement::Route(vec![pt]);
                 self.path_element = Some(path_element);
             }
-            (false, PathElement::Route(_)) => {
-                self.path.push(path_element);
-                let path_element = PathElement::Stop(Bbox::new(&[pt]));
+            (false, PointsForElement::Route(_)) => {
+                self.path.push(path_element.to_path_element());
+                let path_element = PointsForElement::Stop(vec![pt]);
                 self.path_element = Some(path_element);
             }
             (_, _) => {
@@ -135,12 +174,13 @@ impl PathBuilder {
     }
 
     fn finalize_path(&mut self) {
-        if let Some(path_element) = &self.path_element {
-            self.path.push(path_element.clone());
-            if !path_element.is_stop() {
+        if let Some(points_for_element) = &self.path_element {
+            let path_element = points_for_element.clone().to_path_element();
+            self.path.push(path_element);
+            if !points_for_element.is_stop() {
                 // We shouldn't end in the middle of a trajectory
                 // so we construct a degenerate Bbox
-                let trj = path_element.get_trj().unwrap();
+                let trj = points_for_element.get_points();
                 let path_element = PathElement::Stop(Bbox::new(&[trj[trj.len() - 1]]));
                 self.path.push(path_element);
             }
@@ -188,6 +228,14 @@ impl PathBuilder {
         self.path.insert(idx - 1, PathElement::Stop(bbox));
     }
 
+    fn expand_stops(&mut self, meters: f64, minutes: f64) {
+        self.path.iter_mut().for_each(|pe| {
+            if let PathElement::Stop(bbox) = pe {
+                bbox.expand(meters, minutes);
+            }
+        });
+    }
+
     fn get_path(&mut self) -> Path {
         self.finalize_path();
         self.path.clone()
@@ -222,7 +270,7 @@ mod test {
             [0., 0., 14.],
         ];
         let connection_timeout = 3.0;
-        let streams = split_stream(&stream, connection_timeout);
+        let streams = split_stream_on_timeout(&stream, connection_timeout);
         assert_eq!(streams.len(), 2);
         assert_eq!(streams[0].len(), 4);
         assert_eq!(streams[1].len(), 6);
@@ -267,7 +315,7 @@ mod test {
     #[test]
     fn verify_test() {
         let trj: Vec<[f64; 3]> = vec![];
-        let bbox = Bbox::new(vec![[0., 0., 0.]]);
+        let bbox = Bbox::new(&[[0., 0., 0.]]);
         let path: Vec<PathElement> = vec![
             PathElement::Stop(bbox),
             PathElement::Route(trj.clone()),
