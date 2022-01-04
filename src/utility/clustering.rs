@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-
+#[allow(dead_code)]
 type ClusterIdx = usize;
 type MatrixIdx = usize;
 

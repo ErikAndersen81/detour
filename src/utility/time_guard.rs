@@ -17,7 +17,21 @@ impl TimeGuard {
         true
     }
 }
-
+/// Filters away points in the stream that lie temporally before
+/// points earlier in the stream.
+///
+/// # Examples
+///
+/// ``` rust
+/// let stream = vec![
+///            [0., 0., 1.],
+///            [0., 0., 2.],
+///            [0., 0., 1.],
+///            [0., 0., 3.],
+///            [0., 0., 4.],
+/// ];
+/// assert_eq(clean_stream(stream).len(),4);
+/// ```
 pub fn clean_stream(stream: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
     assert!(!stream.is_empty(), "Cannot clean empty stream");
     let mut tg = TimeGuard::new(&stream[0]);

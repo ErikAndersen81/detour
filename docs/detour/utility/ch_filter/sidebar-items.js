@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["get_convex_hull_trj",""],["get_spikes",""],["remove_spikes",""]],"struct":[["CHFilter","Applies the convex hull filter described by Adhinugraha et al."]]});

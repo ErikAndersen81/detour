@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufWriter, Result, Write};
 
@@ -13,18 +13,29 @@ pub use graph_builder::get_graph;
 
 use itertools::Itertools;
 use petgraph::dot::Dot;
-use petgraph::graph::EdgeIndex;
 use petgraph::graph::NodeIndex;
+use petgraph::prelude::EdgeIndex;
+
 use petgraph::stable_graph::StableDiGraph;
-use petgraph::visit::{depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences};
+use petgraph::visit::{
+    depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences, IntoEdgesDirected,
+};
 use petgraph::EdgeDirection;
 use trajectory_similarity::hausdorff;
 
 use self::pathbuilder::Path;
 
 enum RootCase {
-    MultiRoot((NodeIndex, NodeIndex)),
-    SingleRoot((NodeIndex, NodeIndex)),
+    NonRoots,
+    DifferentRoot(usize),
+    SameRoot(usize),
+    DoubleRoot((usize, usize)),
+}
+
+#[derive(Eq, PartialEq, Hash, Clone)]
+struct TimePairs {
+    a: usize,
+    b: bool,
 }
 
 #[derive(Clone)]
@@ -45,6 +56,8 @@ impl DetourGraph {
     }
 
     pub fn to_csv(&self) -> Result<()> {
+        // Write graph, bounding boxes and trajectories.
+        // Write the graph in graphviz format
         let dot = Dot::with_config(
             &self.graph,
             &[
@@ -52,21 +65,20 @@ impl DetourGraph {
                 petgraph::dot::Config::EdgeIndexLabel,
             ],
         );
+        let f = File::create("graph.dot")?;
+        let mut f = BufWriter::new(f);
+        write!(f, "{:?}", dot)?;
+        // Write a single csv file with bounding boxes
         let nodes = self
             .graph
             .node_indices()
             .map(|nx| format!("{},{}", nx.index(), self.graph[nx]))
             .join("");
         let nodes = format!("label,x1,y1,t1,x2,y2,t2\n{}", nodes);
-
         let f = File::create("nodes.csv")?;
         let mut f = BufWriter::new(f);
         write!(f, "{}", nodes)?;
-
-        let f = File::create("graph.dot")?;
-        let mut f = BufWriter::new(f);
-        write!(f, "{:?}", dot)?;
-
+        // Write each trajectory to a separate csv file.
         for (i, edge) in self.graph.edge_references().enumerate() {
             let f = File::create(format!("edge_{}.csv", i))?;
             let trj = edge
@@ -74,11 +86,9 @@ impl DetourGraph {
                 .iter()
                 .map(|[x, y, t]| format!("{},{},{}", *x, *y, *t))
                 .join("\n");
-
             let mut f = BufWriter::new(f);
             write!(f, "x,y,t\n{}", trj)?;
         }
-
         Ok(())
     }
 
@@ -87,16 +97,29 @@ impl DetourGraph {
             assert!(self.verify_constraints(), "Not root reachable!");
             let root_case = self.get_root_case(a, b);
             match root_case {
-                RootCase::MultiRoot((a, b)) => {
+                RootCase::DifferentRoot(root_idx) => {
+                    self.roots.remove(root_idx);
                     self.graph[a] = self.graph[a].union(&self.graph[b]);
                     self.copy_edges(a, b);
                     self.graph.remove_node(b);
                 }
-                RootCase::SingleRoot((a, b)) => {
+                RootCase::SameRoot(_) => {
                     self.graph[a] = self.graph[a].union(&self.graph[b]);
                     self.copy_edges(a, b);
                     self.graph.remove_node(b);
+                    println!("splitting {:?}", a);
                     self.split_node(a);
+                }
+                RootCase::NonRoots => {
+                    self.graph[a] = self.graph[a].union(&self.graph[b]);
+                    self.copy_edges(a, b);
+                    self.graph.remove_node(b);
+                }
+                RootCase::DoubleRoot((_, root_idx)) => {
+                    self.roots.remove(root_idx);
+                    self.graph[a] = self.graph[a].union(&self.graph[b]);
+                    self.copy_edges(a, b);
+                    self.graph.remove_node(b);
                 }
             }
         }
@@ -104,7 +127,64 @@ impl DetourGraph {
         println!("Roots after merge:{:?}", self.roots);
     }
 
-    fn get_temporal_splits(&self, split_node: NodeIndex) -> (f64, f64) {
+    fn split_node(&mut self, split_node: NodeIndex) {
+        let splits = self.get_temporal_splits(split_node);
+        println!("splits: {:?}", splits);
+        let nodes: Vec<NodeIndex> = DetourGraph::split_bbox(self.graph[split_node], &splits)
+            .into_iter()
+            .map(|bbox| self.graph.add_node(bbox))
+            .collect();
+        println!("nodes: {:?}", nodes);
+        self.reassign_edges(split_node, &nodes, EdgeDirection::Outgoing);
+        self.reassign_edges(split_node, &nodes, EdgeDirection::Incoming);
+        // remove nodes with no edges
+        let no_edge_nodes: Vec<&NodeIndex> = nodes
+            .iter()
+            .filter(|nx| {
+                (self
+                    .graph
+                    .edges_directed(**nx, EdgeDirection::Incoming)
+                    .count()
+                    == 0)
+                    & (self
+                        .graph
+                        .edges_directed(**nx, EdgeDirection::Outgoing)
+                        .count()
+                        == 0)
+            })
+            .collect();
+        for nx in no_edge_nodes {
+            println!("rm no-edge:{:?}", nx);
+            self.graph.remove_node(*nx);
+        }
+        // Add orphan nodes to root
+        let orphan_nodes: Vec<NodeIndex> = nodes
+            .into_iter()
+            .filter(|nx| {
+                (self
+                    .graph
+                    .edges_directed(*nx, EdgeDirection::Incoming)
+                    .count()
+                    == 0)
+                    & (self
+                        .graph
+                        .edges_directed(*nx, EdgeDirection::Outgoing)
+                        .count()
+                        > 0)
+            })
+            .collect();
+        for nx in orphan_nodes {
+            print!("add root: {:?}", nx);
+            self.roots.push(nx)
+        }
+        if let Some(root_idx) = self.get_root_index(split_node) {
+            self.roots.remove(root_idx);
+        }
+        self.graph.remove_node(split_node);
+    }
+
+    #[allow(dead_code)]
+    fn get_temporal_splits_old(&self, split_node: NodeIndex) -> (f64, f64) {
         let t1 = self
             .graph
             .edges_directed(split_node, EdgeDirection::Incoming)
@@ -118,104 +198,131 @@ impl DetourGraph {
         (t1, t2)
     }
 
-    fn split_bbox(bbox: Bbox, t1: f64, t2: f64) -> (Bbox, Bbox, Bbox) {
-        let (box1, box2) = bbox.temporal_split(t1, true);
-        let (box2, box3) = box2.temporal_split(t2, false);
-        (box1, box2, box3)
+    fn get_temporal_splits(&self, split_node: NodeIndex) -> Vec<f64> {
+        let mut splits = vec![];
+        let (box_t1, box_t2) = (self.graph[split_node].t1, self.graph[split_node].t2);
+        let mut timestamps: Vec<(usize, f64)> = vec![];
+        self.graph
+            .edges(split_node)
+            .map(|edge| {
+                let trj = edge.weight();
+                (trj[0][2], trj[trj.len() - 1][2])
+            })
+            .filter(|(t1, t2)| (box_t1..box_t2).contains(t1) & (box_t1..box_t2).contains(t2))
+            .enumerate()
+            .for_each(|(idx, (t1, t2))| {
+                timestamps.push((idx, t1));
+                timestamps.push((idx, t2));
+            });
+        timestamps.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
+        let mut visited: HashSet<usize> = HashSet::new();
+        for (idx, t) in timestamps.into_iter() {
+            if !visited.insert(idx) {
+                splits.push(t);
+                visited = HashSet::new();
+            }
+        }
+        splits
     }
 
-    fn split_node(&mut self, split_node: NodeIndex) {
-        let (t1, t2) = self.get_temporal_splits(split_node);
-        let (box1, box2, box3) = DetourGraph::split_bbox(self.graph[split_node], t1, t2);
-        let a = self.graph.add_node(box1);
-        let b = self.graph.add_node(box2);
-        let c = self.graph.add_node(box3);
-        let mut a_edges: Vec<(NodeIndex, Vec<[f64; 3]>)> = vec![];
-        let mut b_edges: Vec<(NodeIndex, Vec<[f64; 3]>)> = vec![];
-        let mut c_edges: Vec<(NodeIndex, Vec<[f64; 3]>)> = vec![];
-        for edge in self
-            .graph
-            .edges_directed(split_node, EdgeDirection::Outgoing)
-        {
-            let trj = edge.weight().clone();
-            if box1.contains_point(&trj[0]) {
-                a_edges.push((edge.target(), trj));
-            } else if box2.contains_point(&trj[0]) {
-                b_edges.push((edge.target(), trj));
-            } else {
-                c_edges.push((edge.target(), trj));
+    fn split_bbox(bbox: Bbox, splits: &[f64]) -> Vec<Bbox> {
+        let mut boxes = vec![];
+        let mut bbox = bbox;
+        for t in splits {
+            let (box1, box2) = bbox.temporal_split(*t, false);
+            boxes.push(box1);
+            bbox = box2;
+        }
+        boxes.push(bbox);
+        boxes
+    }
+
+    fn reassign_edges(
+        &mut self,
+        split_node: NodeIndex,
+        nodes: &[NodeIndex],
+        direction: EdgeDirection,
+    ) {
+        let edges = match direction {
+            EdgeDirection::Outgoing => {
+                let mut edges = vec![];
+                for edge in self.graph.edges_directed(split_node, direction) {
+                    let trj = edge.weight().clone();
+                    let pt = trj[0];
+                    let target = if edge.target() != split_node {
+                        edge.target()
+                    } else {
+                        nodes[nodes.len() - 1]
+                    };
+                    for node in nodes {
+                        if self.graph[*node].contains_point(&pt) {
+                            edges.push((*node, target, trj));
+                            break;
+                        }
+                    }
+                }
+                edges
             }
-        }
-        for (target, trj) in a_edges.into_iter() {
-            self.graph.add_edge(a, target, trj);
-        }
-        for (target, trj) in b_edges.into_iter() {
-            self.graph.add_edge(b, target, trj);
-        }
-        for (target, trj) in c_edges.into_iter() {
-            self.graph.add_edge(c, target, trj);
-        }
-
-        let mut c_edges: Vec<(NodeIndex, Vec<[f64; 3]>)> = vec![];
-
-        for edge in self
-            .graph
-            .edges_directed(split_node, EdgeDirection::Incoming)
-        {
-            let trj = edge.weight().clone();
-            if edge.source() == split_node {
-                c_edges.push((a, trj));
-            } else {
-                c_edges.push((edge.source(), trj));
+            EdgeDirection::Incoming => {
+                let mut edges = vec![];
+                for edge in self.graph.edges_directed(split_node, direction) {
+                    let trj = edge.weight().clone();
+                    let pt = trj[trj.len() - 1];
+                    let source = if edge.source() != split_node {
+                        edge.source()
+                    } else {
+                        nodes[0]
+                    };
+                    for node in nodes {
+                        if self.graph[*node].contains_point(&pt) {
+                            edges.push((source, *node, trj));
+                            break;
+                        }
+                    }
+                }
+                edges
             }
+        };
+        for (source, target, trj) in edges.into_iter() {
+            println!("{:?}->{:?}", source, target);
+            self.graph.add_edge(source, target, trj);
         }
-
-        for (source, trj) in c_edges.into_iter() {
-            self.graph.add_edge(source, c, trj);
-        }
-        self.roots.push(a);
-        if self.graph.edges(b).count() == 0 {
-            self.graph.remove_node(b);
-        } else {
-            self.roots.push(b);
-        }
-        self.graph.remove_node(split_node);
     }
 
     fn get_root_case(&mut self, nx_a: NodeIndex, nx_b: NodeIndex) -> RootCase {
         // Returns node indices: (keep, remove);
-        let a = self.in_root(nx_a);
-        let b = self.in_root(nx_b);
+        let a = self.get_root_index(nx_a);
+        let b = self.get_root_index(nx_b);
         match (a, b) {
-            (None, None) => RootCase::MultiRoot((nx_a, nx_b)),
+            (None, None) => RootCase::NonRoots,
             (Some(idx), None) => {
-                let roots = self.get_root_indices(nx_b);
-                self.roots.remove(idx);
+                let roots = self.get_dominant_roots(nx_b);
                 for root in roots.iter() {
                     if *root != idx {
-                        return RootCase::MultiRoot((nx_b, nx_a));
+                        return RootCase::DifferentRoot(idx);
                     }
                 }
-                RootCase::SingleRoot((nx_b, nx_a))
+                RootCase::SameRoot(idx)
             }
             (None, Some(idx)) => {
-                let roots = self.get_root_indices(nx_a);
-                self.roots.remove(idx);
+                let roots = self.get_dominant_roots(nx_a);
                 for root in roots.iter() {
                     if *root != idx {
-                        return RootCase::MultiRoot((nx_a, nx_b));
+                        return RootCase::DifferentRoot(idx);
                     }
                 }
-                RootCase::SingleRoot((nx_a, nx_b))
+                RootCase::SameRoot(idx)
             }
-            (Some(_), Some(idx)) => {
-                self.roots.remove(idx);
-                RootCase::MultiRoot((nx_a, nx_b))
-            }
+            (Some(idx_a), Some(idx_b)) => RootCase::DoubleRoot((idx_a, idx_b)),
         }
     }
 
-    fn get_root_indices(&self, nx: NodeIndex) -> Vec<usize> {
+    fn get_root_index(&self, nx: NodeIndex) -> Option<usize> {
+        // Returns Some(index) of nx in the roots list or None
+        self.roots.iter().position(|x| *x == nx)
+    }
+
+    fn get_dominant_roots(&self, nx: NodeIndex) -> Vec<usize> {
         // Returns indices of nodes in self.roots from which nx can be reached
         let mut indices: Vec<usize> = vec![];
         for (idx, root) in self.roots.iter().enumerate() {
@@ -248,8 +355,24 @@ impl DetourGraph {
         }
     }
 
-    fn in_root(&self, nx: NodeIndex) -> Option<usize> {
-        self.roots.iter().position(|x| *x == nx)
+    fn make_acyclic(&mut self) {
+        let mut split_nodes = vec![];
+        for nx in self.graph.node_indices() {
+            if self.should_split(nx) {
+                split_nodes.push(nx);
+            }
+        }
+        print!("Splitting: ");
+        for nx in split_nodes.into_iter() {
+            print!(" {:?} ", nx);
+            self.split_node(nx);
+        }
+        println!();
+    }
+
+    fn should_split(&self, nx: NodeIndex) -> bool {
+        let splits = self.get_temporal_splits(nx);
+        !splits.is_empty()
     }
 
     fn verify_constraints(&self) -> bool {
@@ -291,7 +414,7 @@ impl DetourGraph {
         // If a node is root it must be orphan.
         // A node that is not root cannot be orphan
         // Every node must be reachable from a root vertex.
-        let is_root = self.in_root(nx).is_some();
+        let is_root = self.get_root_index(nx).is_some();
         let is_orphan = self
             .graph
             .edges_directed(nx, EdgeDirection::Incoming)
@@ -352,6 +475,7 @@ impl DetourGraph {
         result.break_value()
     }
 
+    #[allow(dead_code)]
     pub fn merge_edges(&mut self) {
         let groups: Vec<((NodeIndex, NodeIndex), Vec<Vec<EdgeIndex>>)> = self
             .get_edge_groups()
@@ -379,6 +503,7 @@ impl DetourGraph {
         }
     }
 
+    #[allow(dead_code)]
     fn get_edge_group_clusters(&self, group: &[EdgeIndex]) -> Vec<Vec<EdgeIndex>> {
         let n = group.len();
         let mut dists = vec![vec![0f64; n]; n];
@@ -397,6 +522,7 @@ impl DetourGraph {
             .collect::<Vec<Vec<EdgeIndex>>>()
     }
 
+    #[allow(dead_code)]
     fn get_edge_groups(&self) -> HashMap<(NodeIndex, NodeIndex), Vec<EdgeIndex>> {
         let mut groups: HashMap<(NodeIndex, NodeIndex), Vec<EdgeIndex>> = HashMap::new();
         for source in self.graph.node_indices() {
@@ -414,6 +540,7 @@ impl DetourGraph {
         groups
     }
 
+    #[allow(dead_code)]
     fn replace_edges(
         &mut self,
         source: NodeIndex,
@@ -424,7 +551,7 @@ impl DetourGraph {
         group.iter().for_each(|ex| {
             self.graph.remove_edge(*ex);
         });
-        let replacement = self.graph.add_edge(source, target, trj);
+        self.graph.add_edge(source, target, trj);
     }
 
     #[allow(dead_code)]
@@ -449,17 +576,17 @@ impl DetourGraph {
         let mut a: NodeIndex = self.graph.add_node(bbox);
         self.roots.push(a);
         path.iter().tuples().for_each(|(route, stop)| {
-            let mut trj = route.get_trj().unwrap();
+            let trj = route.get_trj().unwrap();
             let bbox = stop.get_bbox().unwrap();
             let b = self.graph.add_node(bbox);
             // adjust the trj to start and end in the center of the bboxes
             // at the earliest and latest time, respectively.
-            let mut center_start = self.graph[a].center();
-            center_start[2] = self.graph[a].t1;
-            let mut center_end = self.graph[b].center();
-            center_end[2] = self.graph[b].t2;
-            trj.insert(0, center_start);
-            trj.push(center_end);
+            //let mut center_start = self.graph[a].center();
+            //center_start[2] = self.graph[a].t1;
+            //let mut center_end = self.graph[b].center();
+            //center_end[2] = self.graph[b].t2;
+            //trj.insert(0, center_start);
+            //trj.push(center_end);
             self.graph.add_edge(a, b, trj);
             a = b;
         });

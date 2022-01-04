@@ -2,6 +2,10 @@ use chrono::NaiveDate;
 use regex::Regex;
 use std::str::FromStr;
 
+/// Parses a string containing GPX data.
+///
+/// Retrieves `lat`, `lon`, and `time` for each point. The date part of `time` is
+/// stripped and the timestamp is converted to milliseconds.
 pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
     let mut trjs: Vec<Vec<[f64; 3]>> = Vec::new();
     let mut trj: Vec<[f64; 3]> = Vec::new();
@@ -32,16 +36,26 @@ pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
     trjs
 }
 
+/// The fields can be set using the [config](parse_config) file.
 #[derive(Clone, Copy, Debug)]
 pub struct Config {
+    /// Number of points used in the [CH-filter](crate::utility::ch_filter)
     pub window_size: usize,
+    /// If the object moves slower than this it is considered to be stopped. *Currently unused*.
     pub minimum_velocity: f64,
+    /// If the object moves faster than `minimum_velocity` plus this then it is considered to be moving again. *Currently unused*.
     pub epsilon_velocity: f64,
-    pub stop_duration_minutes: f64,
+    /// Maximal number of milliseconds between two measurements before the stream is cut into two.
     pub connection_timeout: f64,
+    /// Maximal diagonal size of a geofenced region. If movement occurs within a region of this size it is eligible to be considered a stop.
     pub stop_diagonal_meters: f64,
+    /// The least amount of time that movement must occur within a geofenced region before it is considered a stop.
+    pub stop_duration_minutes: f64,
+    /// When searching for matching stops allow them to be this many minutes apart.
     pub relax_bbox_minutes: f64,
+    /// When searching for matching stops allow them to be this many meters apart.
     pub relax_bbox_meters: f64,
+    /// If two trajectories belonging to the same edge have a Hausdorff distance of more than this, they will not be merged.
     pub max_hausdorff_meters: f64,
 }
 
@@ -92,6 +106,7 @@ impl FromStr for ConfigKeys {
     }
 }
 
+/// Parses config.cfg in the root folder into a [Config](Config) struct
 pub fn parse_config(config: String) -> Config {
     let mut default_config: Config = Config::default();
 

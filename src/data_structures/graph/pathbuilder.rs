@@ -1,6 +1,6 @@
 use super::*;
 use crate::utility::Bbox;
-use std::{f32::NEG_INFINITY, fmt};
+use std::fmt;
 
 #[derive(Clone, Debug)]
 pub enum PathElement {
@@ -62,6 +62,11 @@ impl PathTrait for Path {
     }
 }
 
+/// Returns a vector of paths given a stream
+///
+/// The stream is split between two points if their temporal difference exceeds
+/// `connection_timeout` as it is set in the [config](Config) file.
+/// Then, paths are constructed from the stream using a [stop detector](StopDetector).
 pub fn get_paths(stream: Vec<[f64; 3]>, config: &Config) -> Vec<Path> {
     let splitted_streams = split_stream_on_timeout(&stream, config.connection_timeout);
     let paths: Vec<Path> = splitted_streams

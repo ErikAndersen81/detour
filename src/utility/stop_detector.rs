@@ -1,6 +1,20 @@
 use super::Bbox;
 use crate::parser::Config;
 
+/// Detect if the object is stopped.
+/// If the movements of the object within a time frame of `duration_ms` is limited to a geofenced location with a diagonal of `diagonal_meters` the object is considered to be stopped.
+///
+/// # Example
+/// ``` rust
+/// fn object_is_stopped(stream:Vec<[f64;3]>, config:Config) -> Vec<([f64;3],bool)> {
+///     let mut sd = StopDetector::new(&config);
+///     stream
+///         .into_iter()
+///         .map(|point| (point,sd.is_stopped(point)))
+///}
+/// // Returns a list of tuples containing a coordinate and a boolean
+/// // indicating whether the object is stopped at the given point.
+/// ```
 pub struct StopDetector {
     duration_ms: f64,
     diagonal_meters: f64,  // Maximal length of Bbox diagonal (spatially)

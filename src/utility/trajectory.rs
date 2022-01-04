@@ -132,6 +132,7 @@ struct Interpolator {
 
 impl Interpolator {
     fn from(trj: Vec<[f64; 3]>) -> Self {
+        let trj = trj.make_monotone();
         assert!(
             trj.is_monotone(),
             "Not monotone: {:?}",

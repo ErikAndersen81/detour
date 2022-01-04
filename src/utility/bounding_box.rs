@@ -150,6 +150,7 @@ impl Bbox {
         (bbox1, bbox2)
     }
 
+    #[allow(dead_code)]
     pub fn expand_bbox(&self, meters: f64, minutes: f64) -> Self {
         let latitude_min: f64 = self.y1;
         let latitude_max: f64 = self.y2;
@@ -239,6 +240,7 @@ impl Bbox {
         }
     }
 
+    #[allow(dead_code)]
     pub fn add_point(&mut self, point: [f64; 3]) {
         let [x, y, t] = point;
         self.x1 = x.min(self.x1);

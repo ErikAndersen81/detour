@@ -1,5 +1,36 @@
 use super::get_distance;
 
+/// Applies the convex hull filter described by [Adhinugraha et al.](https://onlinelibrary.wiley.com/doi/10.1002/cpe.6139)
+///
+/// Points from the stream are read into a window.
+/// When the window is full, the convex hull algorithm is applied to the window
+/// and spikes are identified. If any spikes are found the are removed from the
+/// window, otherwise the first element in the window is passed through the filter.
+///
+/// # Examples
+///
+/// ``` rust
+/// let trj = vec![
+///     [0., 0., 0.],
+///     [1.1, 0., 1.],
+///     [2., 0., 2.],
+///     [2., 1.1, 3.],
+///     [2., 2., 4.],
+///     [1., 2., 5.],
+///     [0., 2., 6.],
+///     [0., 1., 7.],
+///     [0., 0., 8.],
+/// ];
+/// let hulltrack = vec![
+///     [0., 0., 0.],
+///     [2., 0., 2.],
+///     [2., 2., 4.],
+///     [0., 2., 6.],
+///     [0., 0., 8.],
+/// ];
+/// let output = CHFilter::new(trj).collect::<Vec<[f64; 3]>>();
+/// assert_eq!(output, hulltrack);
+/// ```
 pub struct CHFilter<I: Iterator<Item = [f64; 3]>> {
     stream: I,
     window: Vec<[f64; 3]>,
