@@ -1,4 +1,5 @@
 use chrono::NaiveDate;
+use geomorph::{coord, utm};
 use regex::Regex;
 use std::str::FromStr;
 
@@ -31,7 +32,8 @@ pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
             trjs.push(trj);
             trj = vec![];
         }
-        trj.push([lon, lat, time]); // Note we have x=lon, y=lat, z=time(ms)
+        let c = crate::Coord::from_gps(&[lon, lat, time]);
+        trj.push([c.x, c.y, c.t]); // Note we have x=lon, y=lat, z=time(ms)
     }
     trjs
 }

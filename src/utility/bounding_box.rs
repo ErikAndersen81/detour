@@ -102,7 +102,6 @@ impl Bbox {
         vertical & horizontal & temporal
     }
 
-    #[allow(dead_code)]
     pub fn get_bounding_lines(&self) -> [Line; 4] {
         let line_a = Line {
             start: [self.x1, self.y1],
@@ -123,6 +122,18 @@ impl Bbox {
         [line_a, line_b, line_c, line_d]
     }
 
+    /// Determine if other 'Bbox' is temporally before 'self'.
+    ///
+    /// Specifically, for Bboxes x and y; if x ends before y starts, return true
+    ///
+    /// # Example:
+    ///
+    /// ``` rust
+    /// let a = Bbox::new(&[[0., 0., 0.], [2., 2., 2.]]);
+    /// let b = Bbox::new(&[[0., 0., 1.], [2., 2., 3.]]);
+    /// let c = Bbox::new(&[[0., 0., 2.5], [2., 2., 4.]]);
+    /// assert!(a.is_before(&c));
+    /// assert!(!b.is_before(&c));
     pub fn is_before(&self, other: &Self) -> bool {
         self.t2 < other.t1
     }
@@ -150,7 +161,6 @@ impl Bbox {
         (bbox1, bbox2)
     }
 
-    #[allow(dead_code)]
     pub fn expand_bbox(&self, meters: f64, minutes: f64) -> Self {
         let latitude_min: f64 = self.y1;
         let latitude_max: f64 = self.y2;
@@ -172,13 +182,10 @@ impl Bbox {
     }
 
     pub fn expand(&mut self, meters: f64, minutes: f64) {
-        let latitude_min: f64 = self.y1;
-        let latitude_max: f64 = self.y2;
-        self.x1 -= meters_to_degrees(latitude_min, meters);
-        self.x2 += meters_to_degrees(latitude_max, meters);
-        let latitude_degree_length = 360. / 40075000.0;
-        self.y1 -= meters * latitude_degree_length;
-        self.y2 += meters * latitude_degree_length;
+        self.x1 -= meters;
+        self.x2 += meters;
+        self.y1 -= meters;
+        self.y2 += meters;
         self.t1 -= minutes * 60000.;
         self.t2 += minutes * 60000.;
     }
@@ -263,10 +270,18 @@ fn get_longitude_degree_length(latitude: f64) -> f64 {
 
 impl Display for Bbox {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(
-            f,
-            "{},{},{},{},{},{}",
-            self.x1, self.y1, self.t1, self.x2, self.y2, self.t2
-        )
+        let a = crate::Coord {
+            x: self.x1,
+            y: self.y1,
+            t: self.t1,
+        };
+        let [x1, y1, t1] = a.to_gps();
+        let a = crate::Coord {
+            x: self.x2,
+            y: self.y2,
+            t: self.t2,
+        };
+        let [x2, y2, t2] = a.to_gps();
+        writeln!(f, "{},{},{},{},{},{}", x1, y1, t1, x2, y2, t2)
     }
 }

@@ -487,7 +487,6 @@ impl DetourGraph {
         result.break_value()
     }
 
-    #[allow(dead_code)]
     pub fn merge_edges(&mut self) {
         let groups: Vec<((NodeIndex, NodeIndex), Vec<Vec<EdgeIndex>>)> = self
             .get_edge_groups()
@@ -515,7 +514,6 @@ impl DetourGraph {
         }
     }
 
-    #[allow(dead_code)]
     fn get_edge_group_clusters(&self, group: &[EdgeIndex]) -> Vec<Vec<EdgeIndex>> {
         let n = group.len();
         let mut dists = vec![vec![0f64; n]; n];
@@ -534,7 +532,6 @@ impl DetourGraph {
             .collect::<Vec<Vec<EdgeIndex>>>()
     }
 
-    #[allow(dead_code)]
     fn get_edge_groups(&self) -> HashMap<(NodeIndex, NodeIndex), Vec<EdgeIndex>> {
         let mut groups: HashMap<(NodeIndex, NodeIndex), Vec<EdgeIndex>> = HashMap::new();
         for source in self.graph.node_indices() {
@@ -552,7 +549,6 @@ impl DetourGraph {
         groups
     }
 
-    #[allow(dead_code)]
     fn replace_edges(
         &mut self,
         source: NodeIndex,
@@ -566,7 +562,6 @@ impl DetourGraph {
         self.graph.add_edge(source, target, trj);
     }
 
-    #[allow(dead_code)]
     fn add_endpoints(&self, group: &[EdgeIndex]) -> Vec<Vec<[f64; 3]>> {
         // This might produce better clusters when we use hausdorff distance
         // however, if the bboxes are spatially small it's probably not needed.

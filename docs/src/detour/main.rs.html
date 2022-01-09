@@ -61,6 +61,31 @@
 <span id="61">61</span>
 <span id="62">62</span>
 <span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Constructs Detour Graph</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Command line utility for constructing an acyclic graph that represents</span>
@@ -75,17 +100,10 @@
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//! ## Configuration</span>
 <span class="doccomment">//! Various settings can be adjusted by modifying config.cfg located in</span>
-<span class="doccomment">//! the root folder:</span>
-<span class="doccomment">//! - `window_size` - Number of points used in the [CH-filter](CHFilter)</span>
-<span class="doccomment">//! - To determine if an object is stopped we use a [stop detector](StopDetector) which has two configuration options:</span>
-<span class="doccomment">//!   - `stop_diagonal_meters` - Maximal diagonal size of a geofenced region. If movement occurs within a region of this size it is eligible to be considered a stop.</span>
-<span class="doccomment">//!   - `stop_duration_minutes` - The least amount of time that movement must occur within a geofenced region before it is considered a stop.</span>
-<span class="doccomment">//! - `connection_timeout` - Maximal number of milliseconds between two measurements before the stream is cut into two.</span>
-<span class="doccomment">//! - When we merge stops (bounding boxes) we can temporarily expand them when searching for mathes:</span>
-<span class="doccomment">//!   - `relax_bbox_minutes` - Allow stops to be this many minutes apart.</span>
-<span class="doccomment">//!   - `relax_bbox_meters` - Allow stops to be this many meters apart.</span>
-
+<span class="doccomment">//! the root folder. Read more about [Config](Config) here.</span>
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">slice_group_by</span>)]</span>
+<span class="kw">use</span> <span class="ident">geomorph</span>::{<span class="ident">coord</span>, <span class="ident">utm</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">parser::Config</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">fs</span>,
     <span class="ident">io</span>::{<span class="ident">BufReader</span>, <span class="ident">Read</span>},
@@ -96,7 +114,29 @@
 <span class="kw">mod</span> <span class="ident">utility</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">env</span>, <span class="ident">path::Path</span>};
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::data_structures::get_graph</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">data_structures::get_graph</span>, <span class="ident">utility::visvalingam</span>};
+
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Coord</span> {
+    <span class="kw">pub</span> <span class="ident">x</span>: <span class="ident">f64</span>,
+    <span class="kw">pub</span> <span class="ident">y</span>: <span class="ident">f64</span>,
+    <span class="kw">pub</span> <span class="ident">t</span>: <span class="ident">f64</span>,
+}
+
+<span class="kw">impl</span> <span class="ident">Coord</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_gps</span>(<span class="ident">pt</span>: <span class="kw-2">&amp;</span>[<span class="ident">f64</span>; <span class="number">3</span>]) -&gt; <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="ident">c</span>: <span class="ident">utm::Utm</span> <span class="op">=</span> <span class="ident">coord::Coord::new</span>(<span class="ident">pt</span>[<span class="number">1</span>], <span class="ident">pt</span>[<span class="number">0</span>]).<span class="ident">into</span>();
+        <span class="ident">Coord</span> {
+            <span class="ident">x</span>: <span class="ident">c</span>.<span class="ident">easting</span>,
+            <span class="ident">y</span>: <span class="ident">c</span>.<span class="ident">northing</span>,
+            <span class="ident">t</span>: <span class="ident">pt</span>[<span class="number">2</span>],
+        }
+    }
+    <span class="doccomment">/// Converts to GPS assuming UTM coordinates belong to zone 32 (Denmark)</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_gps</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; [<span class="ident">f64</span>; <span class="number">3</span>] {
+        <span class="kw">let</span> <span class="ident">c</span>: <span class="ident">coord::Coord</span> <span class="op">=</span> <span class="ident">utm::Utm::new</span>(<span class="self">self</span>.<span class="ident">x</span>, <span class="self">self</span>.<span class="ident">y</span>, <span class="bool-val">true</span>, <span class="number">32</span>, <span class="string">&#39;U&#39;</span>, <span class="bool-val">false</span>).<span class="ident">into</span>();
+        [<span class="ident">c</span>.<span class="ident">lon</span>, <span class="ident">c</span>.<span class="ident">lat</span>, <span class="self">self</span>.<span class="ident">t</span>]
+    }
+}
 
 <span class="kw">fn</span> <span class="ident">main</span>() {
     <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">parser::parse_config</span>(<span class="ident">std::fs::read_to_string</span>(<span class="string">&quot;config.cfg&quot;</span>).<span class="ident">unwrap</span>());
@@ -121,6 +161,16 @@
         })
         .<span class="ident">collect</span>();
     <span class="macro">println!</span>(<span class="string">&quot;parsed {} days&quot;</span>, <span class="ident">daily_streams</span>.<span class="ident">len</span>());
+
+    <span class="comment">/////////////////////////////////////////////////////////////////////</span>
+    <span class="comment">// // This is for &#39;testing&#39; the simplification procedure	       //</span>
+    <span class="comment">// for stream in daily_streams.iter() {			       //</span>
+    <span class="comment">//     let a = stream.len();				       //</span>
+    <span class="comment">//     let b = visvalingam(stream, config.epsilon_velocity).len(); //</span>
+    <span class="comment">//     println!(&quot;a:{}, b:{}&quot;, a, b);			       //</span>
+    <span class="comment">// }							       //</span>
+    <span class="comment">/////////////////////////////////////////////////////////////////////</span>
+
     <span class="kw">let</span> <span class="ident">graph</span> <span class="op">=</span> <span class="ident">get_graph</span>(<span class="ident">daily_streams</span>, <span class="ident">config</span>);
     <span class="ident">graph</span>.<span class="ident">to_csv</span>().<span class="ident">expect</span>(<span class="string">&quot;Could not write output.&quot;</span>);
 }

@@ -12,17 +12,10 @@
 //! ```
 //! ## Configuration
 //! Various settings can be adjusted by modifying config.cfg located in
-//! the root folder:
-//! - `window_size` - Number of points used in the [CH-filter](CHFilter)
-//! - To determine if an object is stopped we use a [stop detector](StopDetector) which has two configuration options:
-//!   - `stop_diagonal_meters` - Maximal diagonal size of a geofenced region. If movement occurs within a region of this size it is eligible to be considered a stop.
-//!   - `stop_duration_minutes` - The least amount of time that movement must occur within a geofenced region before it is considered a stop.
-//! - `connection_timeout` - Maximal number of milliseconds between two measurements before the stream is cut into two.
-//! - When we merge stops (bounding boxes) we can temporarily expand them when searching for mathes:
-//!   - `relax_bbox_minutes` - Allow stops to be this many minutes apart.
-//!   - `relax_bbox_meters` - Allow stops to be this many meters apart.
-
+//! the root folder. Read more about [Config](Config) here.
 #![feature(slice_group_by)]
+use geomorph::{coord, utm};
+pub use parser::Config;
 use std::{
     fs,
     io::{BufReader, Read},
@@ -33,7 +26,29 @@ mod parser;
 mod utility;
 use std::{env, path::Path};
 
-use crate::data_structures::get_graph;
+use crate::{data_structures::get_graph, utility::visvalingam};
+
+pub struct Coord {
+    pub x: f64,
+    pub y: f64,
+    pub t: f64,
+}
+
+impl Coord {
+    pub fn from_gps(pt: &[f64; 3]) -> Self {
+        let c: utm::Utm = coord::Coord::new(pt[1], pt[0]).into();
+        Coord {
+            x: c.easting,
+            y: c.northing,
+            t: pt[2],
+        }
+    }
+    /// Converts to GPS assuming UTM coordinates belong to zone 32 (Denmark)
+    pub fn to_gps(&self) -> [f64; 3] {
+        let c: coord::Coord = utm::Utm::new(self.x, self.y, true, 32, 'U', false).into();
+        [c.lon, c.lat, self.t]
+    }
+}
 
 fn main() {
     let config = parser::parse_config(std::fs::read_to_string("config.cfg").unwrap());
@@ -58,6 +73,16 @@ fn main() {
         })
         .collect();
     println!("parsed {} days", daily_streams.len());
+
+    /////////////////////////////////////////////////////////////////////
+    // // This is for 'testing' the simplification procedure	       //
+    // for stream in daily_streams.iter() {			       //
+    //     let a = stream.len();				       //
+    //     let b = visvalingam(stream, config.epsilon_velocity).len(); //
+    //     println!("a:{}, b:{}", a, b);			       //
+    // }							       //
+    /////////////////////////////////////////////////////////////////////
+
     let graph = get_graph(daily_streams, config);
     graph.to_csv().expect("Could not write output.");
 }

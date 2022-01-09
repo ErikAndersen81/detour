@@ -732,6 +732,18 @@
 <span id="732">732</span>
 <span id="733">733</span>
 <span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
+<span id="737">737</span>
+<span id="738">738</span>
+<span id="739">739</span>
+<span id="740">740</span>
+<span id="741">741</span>
+<span id="742">742</span>
+<span id="743">743</span>
+<span id="744">744</span>
+<span id="745">745</span>
+<span id="746">746</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>};
 <span class="kw">use</span> <span class="ident">std::fs::File</span>;
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">BufWriter</span>, <span class="prelude-ty">Result</span>, <span class="ident">Write</span>};
@@ -789,8 +801,12 @@
         }
     }
 
+    <span class="doccomment">/// Writes the graph to the output folder.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// - The graph structure is stored in &#39;graph.dot&#39;.</span>
+    <span class="doccomment">/// - Nodes are stored in &#39;nodes.csv&#39;. Values in the column *label* corresponds to the node labels in &#39;graph.dot&#39;.</span>
+    <span class="doccomment">/// - Each edge is stored in an &#39;edge_{label}.csv&#39; file. Here, *label* correspond to the an edge label in &#39;graph.dot&#39;.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_csv</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="comment">// Write graph, bounding boxes and trajectories.</span>
         <span class="comment">// Write the graph in graphviz format</span>
         <span class="kw">let</span> <span class="ident">dot</span> <span class="op">=</span> <span class="ident">Dot::with_config</span>(
             <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>,
@@ -818,7 +834,15 @@
             <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">edge</span>
                 .<span class="ident">weight</span>()
                 .<span class="ident">iter</span>()
-                .<span class="ident">map</span>(<span class="op">|</span>[<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>]<span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;{},{},{}&quot;</span>, <span class="kw-2">*</span><span class="ident">x</span>, <span class="kw-2">*</span><span class="ident">y</span>, <span class="kw-2">*</span><span class="ident">t</span>))
+                .<span class="ident">map</span>(<span class="op">|</span>[<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>]<span class="op">|</span> {
+                    <span class="kw">let</span> <span class="ident">c</span> <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::Coord</span> {
+                        <span class="ident">x</span>: <span class="kw-2">*</span><span class="ident">x</span>,
+                        <span class="ident">y</span>: <span class="kw-2">*</span><span class="ident">y</span>,
+                        <span class="ident">t</span>: <span class="kw-2">*</span><span class="ident">t</span>,
+                    };
+                    <span class="kw">let</span> [<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>] <span class="op">=</span> <span class="ident">c</span>.<span class="ident">to_gps</span>();
+                    <span class="macro">format!</span>(<span class="string">&quot;{},{},{}&quot;</span>, <span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>)
+                })
                 .<span class="ident">join</span>(<span class="string">&quot;\n&quot;</span>);
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
             <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;x,y,t\n{}&quot;</span>, <span class="ident">trj</span>)<span class="question-mark">?</span>;
@@ -1160,7 +1184,7 @@
 
     <span class="kw">fn</span> <span class="ident">find_matching_nodes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">NodeIndex</span>, <span class="ident">NodeIndex</span>)<span class="op">&gt;</span> {
         <span class="kw">for</span> <span class="ident">match_nx</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">node_indices</span>() {
-            <span class="kw">let</span> <span class="ident">bbox</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">match_nx</span>];
+            <span class="kw">let</span> <span class="ident">bbox</span>: <span class="ident">Bbox</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">match_nx</span>];
             <span class="kw">let</span> <span class="ident">roots</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">clone</span>();
             <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">depth_first_search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>, <span class="ident">roots</span>, <span class="op">|</span><span class="ident">event</span><span class="op">|</span> {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="ident">DfsEvent::Discover</span>(<span class="ident">nx</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">event</span> {

@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Utm","Holds attributes for Universal Transverse Mercator (UTM) coordinate system"]]});
