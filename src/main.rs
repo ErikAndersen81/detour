@@ -29,7 +29,7 @@ pub use data_structures::coord::Coord;
 use std::{env, path::Path};
 
 fn main() {
-    let config = parser::parse_config(std::fs::read_to_string("config.cfg").unwrap());
+    let config = config::parse_config(std::fs::read_to_string("config.cfg").unwrap());
     let out_path = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "output".to_owned());

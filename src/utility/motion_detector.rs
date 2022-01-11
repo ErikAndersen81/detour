@@ -1,5 +1,5 @@
 use super::get_distance;
-use crate::parser::Config;
+use crate::config::Config;
 
 #[allow(dead_code)]
 pub struct MotionDetector {
