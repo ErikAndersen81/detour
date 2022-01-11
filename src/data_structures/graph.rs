@@ -598,7 +598,7 @@ impl DetourGraph {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{data_structures::graph::pathbuilder::PathElement, parser::Config};
+    use crate::{data_structures::graph::pathbuilder::PathElement, config::Config};
     #[test]
     fn merge_twins() {
         let mut graph = DetourGraph::new(Config::default());

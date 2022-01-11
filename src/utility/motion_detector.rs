@@ -1,7 +1,6 @@
 use super::get_distance;
 use crate::config::Config;
 
-#[allow(dead_code)]
 pub struct MotionDetector {
     timespan: f64,
     min_velocity: f64,
@@ -12,7 +11,6 @@ pub struct MotionDetector {
 }
 
 impl MotionDetector {
-    #[allow(dead_code)]
     pub fn new(config: &Config) -> MotionDetector {
         MotionDetector {
             timespan: config.stop_duration_minutes,
@@ -24,7 +22,6 @@ impl MotionDetector {
         }
     }
 
-    #[allow(dead_code)]
     fn get_avg_velocity(&self) -> f64 {
         // calculate velocity of points in tmp_ivls and spt_ivls
         let dist: f64 = self.spt_ivls.clone().into_iter().sum();
@@ -34,7 +31,6 @@ impl MotionDetector {
         km / h
     }
 
-    #[allow(dead_code)]
     pub fn is_moving(&mut self, point: [f64; 3]) -> bool {
         if let Some(from) = self.ref_pt {
             let dist: f64 = get_distance(&from, &point);
