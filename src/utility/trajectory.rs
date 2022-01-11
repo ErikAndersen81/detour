@@ -1,6 +1,6 @@
 use std::iter::Peekable;
-
-use super::visvalingam;
+use crate::visvalingam;
+use crate::Config;
 
 pub trait Monotone {
     fn is_monotone(&self) -> bool;
@@ -47,7 +47,6 @@ impl Monotone for Vec<f64> {
     }
 }
 
-#[allow(dead_code)]
 pub fn get_common_time_span(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> Option<(f64, f64)> {
     let a_len = trj_a.len() - 1;
     let b_len = trj_b.len() - 1;
@@ -72,7 +71,6 @@ pub fn get_common_time_span(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> Option<(f
     }
 }
 
-#[allow(dead_code)]
 pub fn trim(trj: &[[f64; 3]], start: &f64, end: &f64) -> Vec<[f64; 3]> {
     // Adjust the trajectory to start and end at the given times
     let mut start_idx: usize = 0;
@@ -97,7 +95,6 @@ pub fn trim(trj: &[[f64; 3]], start: &f64, end: &f64) -> Vec<[f64; 3]> {
     coords
 }
 
-#[allow(dead_code)]
 pub fn align_time_to_zero(trj: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
     let offset: f64 = trj[0][2];
     trj.into_iter()
@@ -105,11 +102,11 @@ pub fn align_time_to_zero(trj: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
         .collect::<Vec<[f64; 3]>>()
 }
 
-pub fn merge(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> Vec<[f64; 3]> {
+pub fn merge(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]], config:&Config) -> Vec<[f64; 3]> {
     let (trj_a, trj_b) = align_start_time(trj_a, trj_b);
     let (trj_a, trj_b) = morph_to_fit(&trj_a, &trj_b);
-    average(&trj_a, &trj_b)
-    //visvalingam(&trj)
+    let trj = average(&trj_a, &trj_b);
+    visvalingam(&trj, config)
 }
 
 fn average(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> Vec<[f64; 3]> {
@@ -251,7 +248,7 @@ fn morph_to_fit(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> (Vec<[f64; 3]>, Vec<[
 #[cfg(test)]
 mod test {
     use super::*;
-
+    const CONFIG:Config = Config::default();
     #[test]
     fn average_test() {}
 
@@ -287,7 +284,7 @@ mod test {
     fn merge_test() {
         let trj_a = [[0., 0., 0.], [1., 0., 1.], [2., 0., 2.], [3., 0., 3.]];
         let trj_b = [[0., 0., 0.], [0., 2., 2.], [0., 3., 3.]];
-        let trj = merge(&trj_a, &trj_b);
+        let trj = merge(&trj_a, &trj_b, &CONFIG);
         assert_eq!([0., 0., 0.], trj[0]);
         assert_eq!([0.5, 0.5, 1.], trj[1]);
         assert_eq!([1., 1., 2.], trj[2]);

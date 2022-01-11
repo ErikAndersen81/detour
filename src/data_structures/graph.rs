@@ -4,7 +4,7 @@ use std::io::{BufWriter, Result, Write};
 
 use crate::parser::Config;
 use crate::utility::trajectory::{merge, Monotone};
-use crate::utility::{clustering, visvalingam, Bbox, StopDetector};
+use crate::utility::{clustering, Bbox, StopDetector};
 mod pathbuilder;
 
 mod graph_builder;
@@ -524,7 +524,7 @@ impl DetourGraph {
                 let trj = trjs.pop().unwrap();
                 let trj: Vec<[f64; 3]> = trjs
                     .into_iter()
-                    .fold(trj, |trj_a, trj_b| merge(&trj_a, &trj_b));
+                    .fold(trj, |trj_a, trj_b| merge(&trj_a, &trj_b, &self.config));
                 self.replace_edges(source, target, &cluster, trj);
             }
         }
