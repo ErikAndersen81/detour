@@ -15,6 +15,7 @@
 //! the root folder. Read more about [Config](Config) here.
 #![feature(slice_group_by)]
 pub mod config;
+pub mod arguments;
 pub use config::Config;
 use std::{
     fs,
@@ -26,17 +27,9 @@ mod parser;
 mod utility;
 use crate::{data_structures::get_graph, utility::visvalingam};
 pub use data_structures::coord::Coord;
-use std::{env, path::Path};
 
 fn main() {
-    let config = config::parse_config(std::fs::read_to_string("config.cfg").unwrap());
-    let out_path = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "output".to_owned());
-    fs::create_dir_all(&out_path).expect("Cant write to specified output folder");
-    println!("Writing output to: {}", &out_path);
-    let out_path = Path::new(&out_path);
-    assert!(env::set_current_dir(&out_path).is_ok());
+    let config = arguments::parse_arguments();
     let mut buf_reader = BufReader::new(std::io::stdin());
     let mut contents = String::new();
     buf_reader
@@ -47,9 +40,7 @@ fn main() {
         .filter(|day| !day.is_empty())
         .map(time_guard::clean_stream)
         .map(|stream| {
-            let stream =
-                CHFilter::new(config.window_size, stream.into_iter()).collect::<Vec<[f64; 3]>>();
-            visvalingam(&stream, config.visvalingam_threshold)
+            CHFilter::new(config.window_size, stream.into_iter()).collect::<Vec<[f64; 3]>>()
         })
         .collect();
     println!("parsed {} days", daily_streams.len());
