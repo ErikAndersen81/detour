@@ -14,7 +14,8 @@
 //! Various settings can be adjusted by modifying config.cfg located in
 //! the root folder. Read more about [Config](Config) here.
 #![feature(slice_group_by)]
-pub use parser::Config;
+pub mod config;
+pub use config::Config;
 use std::{
     fs,
     io::{BufReader, Read},
