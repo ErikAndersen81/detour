@@ -174,7 +174,6 @@ fn mean_point(a: &[f64; 3], b: &[f64; 3]) -> [f64; 3] {
     [x, y, t]
 }
 
-#[allow(dead_code)]
 fn get_min(
     mut trj_a: Peekable<std::slice::Iter<[f64; 3]>>,
     mut trj_b: Peekable<std::slice::Iter<[f64; 3]>>,
