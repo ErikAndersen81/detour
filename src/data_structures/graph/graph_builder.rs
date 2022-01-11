@@ -1,5 +1,5 @@
 use super::{pathbuilder::get_paths, DetourGraph};
-use crate::parser::Config;
+use crate::config::Config;
 
 /// Returns a detour graph when given a vector of preprocessed streams.
 ///

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufWriter, Result, Write};
 
-use crate::parser::Config;
+use crate::config::Config;
 use crate::utility::trajectory::{merge, Monotone};
 use crate::utility::{clustering, Bbox, StopDetector};
 mod pathbuilder;

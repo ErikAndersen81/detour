@@ -1,5 +1,5 @@
 use super::Bbox;
-use crate::parser::Config;
+use crate::config::Config;
 
 /// Detect if the object is stopped.
 /// If the movements of the object within a time frame of `duration_ms` is limited to a geofenced location with a diagonal of `diagonal_meters` the object is considered to be stopped.

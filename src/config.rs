@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Config {
     /// Number of points used in the CH-filter.
