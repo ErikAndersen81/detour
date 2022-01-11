@@ -293,6 +293,8 @@
 <span id="293">293</span>
 <span id="294">294</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::iter::Peekable</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::visvalingam</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Config</span>;
 
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Monotone</span> {
     <span class="kw">fn</span> <span class="ident">is_monotone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span>;
@@ -339,7 +341,6 @@
     }
 }
 
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_common_time_span</span>(<span class="ident">trj_a</span>: <span class="kw-2">&amp;</span>[[<span class="ident">f64</span>; <span class="number">3</span>]], <span class="ident">trj_b</span>: <span class="kw-2">&amp;</span>[[<span class="ident">f64</span>; <span class="number">3</span>]]) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">f64</span>, <span class="ident">f64</span>)<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">a_len</span> <span class="op">=</span> <span class="ident">trj_a</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>;
     <span class="kw">let</span> <span class="ident">b_len</span> <span class="op">=</span> <span class="ident">trj_b</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>;
@@ -364,7 +365,6 @@
     }
 }
 
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">trim</span>(<span class="ident">trj</span>: <span class="kw-2">&amp;</span>[[<span class="ident">f64</span>; <span class="number">3</span>]], <span class="ident">start</span>: <span class="kw-2">&amp;</span><span class="ident">f64</span>, <span class="ident">end</span>: <span class="kw-2">&amp;</span><span class="ident">f64</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span> {
     <span class="comment">// Adjust the trajectory to start and end at the given times</span>
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">start_idx</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">0</span>;
@@ -389,7 +389,6 @@
     <span class="ident">coords</span>
 }
 
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">align_time_to_zero</span>(<span class="ident">trj</span>: <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">offset</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="ident">trj</span>[<span class="number">0</span>][<span class="number">2</span>];
     <span class="ident">trj</span>.<span class="ident">into_iter</span>()
@@ -397,10 +396,11 @@
         .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span>()
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">merge</span>(<span class="ident">trj_a</span>: <span class="kw-2">&amp;</span>[[<span class="ident">f64</span>; <span class="number">3</span>]], <span class="ident">trj_b</span>: <span class="kw-2">&amp;</span>[[<span class="ident">f64</span>; <span class="number">3</span>]]) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">merge</span>(<span class="ident">trj_a</span>: <span class="kw-2">&amp;</span>[[<span class="ident">f64</span>; <span class="number">3</span>]], <span class="ident">trj_b</span>: <span class="kw-2">&amp;</span>[[<span class="ident">f64</span>; <span class="number">3</span>]], <span class="ident">config</span>:<span class="kw-2">&amp;</span><span class="ident">Config</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span> {
     <span class="kw">let</span> (<span class="ident">trj_a</span>, <span class="ident">trj_b</span>) <span class="op">=</span> <span class="ident">align_start_time</span>(<span class="ident">trj_a</span>, <span class="ident">trj_b</span>);
     <span class="kw">let</span> (<span class="ident">trj_a</span>, <span class="ident">trj_b</span>) <span class="op">=</span> <span class="ident">morph_to_fit</span>(<span class="kw-2">&amp;</span><span class="ident">trj_a</span>, <span class="kw-2">&amp;</span><span class="ident">trj_b</span>);
-    <span class="ident">average</span>(<span class="kw-2">&amp;</span><span class="ident">trj_a</span>, <span class="kw-2">&amp;</span><span class="ident">trj_b</span>)
+    <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">average</span>(<span class="kw-2">&amp;</span><span class="ident">trj_a</span>, <span class="kw-2">&amp;</span><span class="ident">trj_b</span>);
+    <span class="ident">visvalingam</span>(<span class="kw-2">&amp;</span><span class="ident">trj</span>, <span class="ident">config</span>.<span class="ident">visvalingam_threshold</span>)
 }
 
 <span class="kw">fn</span> <span class="ident">average</span>(<span class="ident">trj_a</span>: <span class="kw-2">&amp;</span>[[<span class="ident">f64</span>; <span class="number">3</span>]], <span class="ident">trj_b</span>: <span class="kw-2">&amp;</span>[[<span class="ident">f64</span>; <span class="number">3</span>]]) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span> {
@@ -542,7 +542,7 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">test</span> {
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-
+    <span class="kw">const</span> <span class="ident">CONFIG</span>:<span class="ident">Config</span> <span class="op">=</span> <span class="ident">Config::default</span>();
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">average_test</span>() {}
 
@@ -578,7 +578,7 @@
     <span class="kw">fn</span> <span class="ident">merge_test</span>() {
         <span class="kw">let</span> <span class="ident">trj_a</span> <span class="op">=</span> [[<span class="number">0.</span>, <span class="number">0.</span>, <span class="number">0.</span>], [<span class="number">1.</span>, <span class="number">0.</span>, <span class="number">1.</span>], [<span class="number">2.</span>, <span class="number">0.</span>, <span class="number">2.</span>], [<span class="number">3.</span>, <span class="number">0.</span>, <span class="number">3.</span>]];
         <span class="kw">let</span> <span class="ident">trj_b</span> <span class="op">=</span> [[<span class="number">0.</span>, <span class="number">0.</span>, <span class="number">0.</span>], [<span class="number">0.</span>, <span class="number">2.</span>, <span class="number">2.</span>], [<span class="number">0.</span>, <span class="number">3.</span>, <span class="number">3.</span>]];
-        <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="ident">trj_a</span>, <span class="kw-2">&amp;</span><span class="ident">trj_b</span>);
+        <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="ident">trj_a</span>, <span class="kw-2">&amp;</span><span class="ident">trj_b</span>, <span class="kw-2">&amp;</span><span class="ident">CONFIG</span>);
         <span class="macro">assert_eq!</span>([<span class="number">0.</span>, <span class="number">0.</span>, <span class="number">0.</span>], <span class="ident">trj</span>[<span class="number">0</span>]);
         <span class="macro">assert_eq!</span>([<span class="number">0.5</span>, <span class="number">0.5</span>, <span class="number">1.</span>], <span class="ident">trj</span>[<span class="number">1</span>]);
         <span class="macro">assert_eq!</span>([<span class="number">1.</span>, <span class="number">1.</span>, <span class="number">2.</span>], <span class="ident">trj</span>[<span class="number">2</span>]);

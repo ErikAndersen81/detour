@@ -733,17 +733,6 @@
 <span id="733">733</span>
 <span id="734">734</span>
 <span id="735">735</span>
-<span id="736">736</span>
-<span id="737">737</span>
-<span id="738">738</span>
-<span id="739">739</span>
-<span id="740">740</span>
-<span id="741">741</span>
-<span id="742">742</span>
-<span id="743">743</span>
-<span id="744">744</span>
-<span id="745">745</span>
-<span id="746">746</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>};
 <span class="kw">use</span> <span class="ident">std::fs::File</span>;
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">BufWriter</span>, <span class="prelude-ty">Result</span>, <span class="ident">Write</span>};
@@ -763,18 +752,22 @@
 <span class="kw">use</span> <span class="ident">petgraph::prelude::EdgeIndex</span>;
 
 <span class="kw">use</span> <span class="ident">petgraph::stable_graph::StableDiGraph</span>;
-<span class="kw">use</span> <span class="ident">petgraph::visit</span>::{
-    <span class="ident">depth_first_search</span>, <span class="ident">Bfs</span>, <span class="ident">Control</span>, <span class="ident">DfsEvent</span>, <span class="ident">EdgeRef</span>, <span class="ident">IntoEdgeReferences</span>, <span class="ident">IntoEdgesDirected</span>,
-};
+<span class="kw">use</span> <span class="ident">petgraph::visit</span>::{<span class="ident">depth_first_search</span>, <span class="ident">Bfs</span>, <span class="ident">Control</span>, <span class="ident">DfsEvent</span>, <span class="ident">EdgeRef</span>, <span class="ident">IntoEdgeReferences</span>};
 <span class="kw">use</span> <span class="ident">petgraph::EdgeDirection</span>;
 <span class="kw">use</span> <span class="ident">trajectory_similarity::hausdorff</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="self">self</span>::pathbuilder::Path</span>;
 
+<span class="kw">type</span> <span class="ident">EdgeClusters</span> <span class="op">=</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+
 <span class="kw">enum</span> <span class="ident">RootCase</span> {
+    <span class="doccomment">/// None of the nodes are root nodes</span>
     <span class="ident">NonRoots</span>,
+    <span class="doccomment">/// One of the nodes has this idx in the root list. The other can be reached from a different node in the root list.</span>
     <span class="ident">DifferentRoot</span>(<span class="ident">usize</span>),
+    <span class="doccomment">/// One of the nodes has this idx in the root list. The other can be reached only from this node.</span>
     <span class="ident">SameRoot</span>(<span class="ident">usize</span>),
+    <span class="doccomment">/// Both nodes are in the root list.</span>
     <span class="ident">DoubleRoot</span>((<span class="ident">usize</span>, <span class="ident">usize</span>)),
 }
 
@@ -865,7 +858,6 @@
                     <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">a</span>] <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">a</span>].<span class="ident">union</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">b</span>]);
                     <span class="self">self</span>.<span class="ident">copy_edges</span>(<span class="ident">a</span>, <span class="ident">b</span>);
                     <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">remove_node</span>(<span class="ident">b</span>);
-                    <span class="macro">println!</span>(<span class="string">&quot;splitting {:?}&quot;</span>, <span class="ident">a</span>);
                     <span class="self">self</span>.<span class="ident">split_node</span>(<span class="ident">a</span>);
                 }
                 <span class="ident">RootCase::NonRoots</span> =&gt; {
@@ -882,20 +874,17 @@
             }
         }
         <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">verify_constraints</span>(), <span class="string">&quot;Invalid graph structure!&quot;</span>);
-        <span class="macro">println!</span>(<span class="string">&quot;Roots after merge:{:?}&quot;</span>, <span class="self">self</span>.<span class="ident">roots</span>);
     }
 
     <span class="kw">fn</span> <span class="ident">split_node</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">split_node</span>: <span class="ident">NodeIndex</span>) {
         <span class="kw">let</span> <span class="ident">splits</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_temporal_splits</span>(<span class="ident">split_node</span>);
-        <span class="macro">println!</span>(<span class="string">&quot;splits: {:?}&quot;</span>, <span class="ident">splits</span>);
         <span class="kw">let</span> <span class="ident">nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">NodeIndex</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">DetourGraph::split_bbox</span>(<span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">split_node</span>], <span class="kw-2">&amp;</span><span class="ident">splits</span>)
             .<span class="ident">into_iter</span>()
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">bbox</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">add_node</span>(<span class="ident">bbox</span>))
             .<span class="ident">collect</span>();
-        <span class="macro">println!</span>(<span class="string">&quot;nodes: {:?}&quot;</span>, <span class="ident">nodes</span>);
         <span class="self">self</span>.<span class="ident">reassign_edges</span>(<span class="ident">split_node</span>, <span class="kw-2">&amp;</span><span class="ident">nodes</span>, <span class="ident">EdgeDirection::Outgoing</span>);
         <span class="self">self</span>.<span class="ident">reassign_edges</span>(<span class="ident">split_node</span>, <span class="kw-2">&amp;</span><span class="ident">nodes</span>, <span class="ident">EdgeDirection::Incoming</span>);
-        <span class="comment">// remove nodes with no edges</span>
+        <span class="comment">// remove new nodes that has no edges</span>
         <span class="kw">let</span> <span class="ident">no_edge_nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">NodeIndex</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">nodes</span>
             .<span class="ident">iter</span>()
             .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">nx</span><span class="op">|</span> {
@@ -912,10 +901,17 @@
             })
             .<span class="ident">collect</span>();
         <span class="kw">for</span> <span class="ident">nx</span> <span class="kw">in</span> <span class="ident">no_edge_nodes</span> {
-            <span class="macro">println!</span>(<span class="string">&quot;rm no-edge:{:?}&quot;</span>, <span class="ident">nx</span>);
             <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">remove_node</span>(<span class="kw-2">*</span><span class="ident">nx</span>);
         }
-        <span class="comment">// Add orphan nodes to root</span>
+
+        <span class="comment">// If the split node was in root, remove its reference from the root list</span>
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">root_idx</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_root_index</span>(<span class="ident">split_node</span>) {
+            <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">remove</span>(<span class="ident">root_idx</span>);
+        }
+        <span class="comment">// remove the now unused split node</span>
+        <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">remove_node</span>(<span class="ident">split_node</span>);
+
+        <span class="comment">// Add orphan nodes to the root list</span>
         <span class="kw">let</span> <span class="ident">orphan_nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">NodeIndex</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">nodes</span>
             .<span class="ident">into_iter</span>()
             .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">nx</span><span class="op">|</span> {
@@ -932,62 +928,57 @@
             })
             .<span class="ident">collect</span>();
         <span class="kw">for</span> <span class="ident">nx</span> <span class="kw">in</span> <span class="ident">orphan_nodes</span> {
-            <span class="macro">print!</span>(<span class="string">&quot;add root: {:?}&quot;</span>, <span class="ident">nx</span>);
             <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">push</span>(<span class="ident">nx</span>)
         }
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">root_idx</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_root_index</span>(<span class="ident">split_node</span>) {
-            <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">remove</span>(<span class="ident">root_idx</span>);
-        }
-        <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">remove_node</span>(<span class="ident">split_node</span>);
-    }
-
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">get_temporal_splits_old</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">split_node</span>: <span class="ident">NodeIndex</span>) -&gt; (<span class="ident">f64</span>, <span class="ident">f64</span>) {
-        <span class="kw">let</span> <span class="ident">t1</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">graph</span>
-            .<span class="ident">edges_directed</span>(<span class="ident">split_node</span>, <span class="ident">EdgeDirection::Incoming</span>)
-            .<span class="ident">fold</span>(<span class="ident">f64::NEG_INFINITY</span>, <span class="op">|</span><span class="ident">acc</span>, <span class="ident">x</span><span class="op">|</span> <span class="ident">acc</span>.<span class="ident">max</span>(<span class="ident">x</span>.<span class="ident">weight</span>()[<span class="number">0</span>][<span class="number">2</span>]));
-        <span class="kw">let</span> <span class="ident">t2</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">graph</span>
-            .<span class="ident">edges_directed</span>(<span class="ident">split_node</span>, <span class="ident">EdgeDirection::Incoming</span>)
-            .<span class="ident">fold</span>(<span class="ident">f64::INFINITY</span>, <span class="op">|</span><span class="ident">acc</span>, <span class="ident">x</span><span class="op">|</span> {
-                <span class="ident">acc</span>.<span class="ident">min</span>(<span class="ident">x</span>.<span class="ident">weight</span>()[<span class="ident">x</span>.<span class="ident">weight</span>().<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>][<span class="number">2</span>])
-            });
-        (<span class="ident">t1</span>, <span class="ident">t2</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">get_temporal_splits</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">split_node</span>: <span class="ident">NodeIndex</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">f64</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">edge_idxs</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_trjs_in_timeframe</span>(<span class="ident">split_node</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">splits</span> <span class="op">=</span> <span class="macro">vec!</span>[];
-        <span class="kw">let</span> (<span class="ident">box_t1</span>, <span class="ident">box_t2</span>) <span class="op">=</span> (<span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">split_node</span>].<span class="ident">t1</span>, <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">split_node</span>].<span class="ident">t2</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">timestamps</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">usize</span>, <span class="ident">f64</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="macro">vec!</span>[];
-        <span class="self">self</span>.<span class="ident">graph</span>
-            .<span class="ident">edges</span>(<span class="ident">split_node</span>)
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">edge</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">edge</span>.<span class="ident">weight</span>();
-                (<span class="ident">trj</span>[<span class="number">0</span>][<span class="number">2</span>], <span class="ident">trj</span>[<span class="ident">trj</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>][<span class="number">2</span>])
-            })
-            .<span class="ident">filter</span>(<span class="op">|</span>(<span class="ident">t1</span>, <span class="ident">t2</span>)<span class="op">|</span> (<span class="ident">box_t1</span>..<span class="ident">box_t2</span>).<span class="ident">contains</span>(<span class="ident">t1</span>) <span class="op">&amp;</span> (<span class="ident">box_t1</span>..<span class="ident">box_t2</span>).<span class="ident">contains</span>(<span class="ident">t2</span>))
-            .<span class="ident">enumerate</span>()
-            .<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">idx</span>, (<span class="ident">t1</span>, <span class="ident">t2</span>))<span class="op">|</span> {
-                <span class="ident">timestamps</span>.<span class="ident">push</span>((<span class="ident">idx</span>, <span class="ident">t1</span>));
-                <span class="ident">timestamps</span>.<span class="ident">push</span>((<span class="ident">idx</span>, <span class="ident">t2</span>));
-            });
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">timestamps</span> <span class="op">=</span> <span class="macro">vec!</span>[];
+        <span class="kw">for</span> <span class="ident">ex</span> <span class="kw">in</span> <span class="ident">edge_idxs</span> {
+            <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edge_weight</span>(<span class="ident">ex</span>).<span class="ident">unwrap</span>();
+            <span class="kw">let</span> (<span class="ident">t1</span>, <span class="ident">t2</span>) <span class="op">=</span> (<span class="ident">trj</span>[<span class="number">0</span>][<span class="number">2</span>], <span class="ident">trj</span>[<span class="ident">trj</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>][<span class="number">2</span>]);
+            <span class="ident">timestamps</span>.<span class="ident">push</span>((<span class="ident">ex</span>, <span class="ident">t1</span>));
+            <span class="ident">timestamps</span>.<span class="ident">push</span>((<span class="ident">ex</span>, <span class="ident">t2</span>));
+        }
         <span class="ident">timestamps</span>.<span class="ident">sort_by</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">a</span>), (<span class="kw">_</span>, <span class="ident">b</span>)<span class="op">|</span> <span class="ident">a</span>.<span class="ident">partial_cmp</span>(<span class="ident">b</span>).<span class="ident">unwrap</span>());
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">visited</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">HashSet::new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">visited</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">HashSet::new</span>();
         <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">t</span>) <span class="kw">in</span> <span class="ident">timestamps</span>.<span class="ident">into_iter</span>() {
+            <span class="comment">// mark index as visited</span>
             <span class="kw">if</span> <span class="op">!</span><span class="ident">visited</span>.<span class="ident">insert</span>(<span class="ident">idx</span>) {
-                <span class="ident">splits</span>.<span class="ident">push</span>(<span class="ident">t</span>);
+                <span class="comment">// if we already visited the edge we can infer</span>
+                <span class="comment">// that this must be a split.</span>
+                <span class="comment">// (see paper on detour, section on &#39;Perserving temporal monotonicity&#39;)</span>
+                <span class="comment">// we add -1ms s.t. the split is just before the end</span>
+                <span class="comment">// of the edge</span>
+                <span class="ident">splits</span>.<span class="ident">push</span>(<span class="ident">t</span> <span class="op">-</span> <span class="number">1.0</span>);
                 <span class="ident">visited</span> <span class="op">=</span> <span class="ident">HashSet::new</span>();
             }
         }
         <span class="ident">splits</span>
     }
 
+    <span class="doccomment">/// Return edge indices connected to node that potentially violates temporal monotonicity</span>
+    <span class="doccomment">/// i.e. their trajectories&#39; temporal start and end lie within bbox of the node.</span>
+    <span class="kw">fn</span> <span class="ident">get_trjs_in_timeframe</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">node</span>: <span class="ident">NodeIndex</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> (<span class="ident">box_t1</span>, <span class="ident">box_t2</span>) <span class="op">=</span> (<span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">node</span>].<span class="ident">t1</span>, <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">node</span>].<span class="ident">t2</span>);
+        <span class="self">self</span>.<span class="ident">graph</span>
+            .<span class="ident">edges</span>(<span class="ident">node</span>)
+            .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">edge</span><span class="op">|</span> {
+                <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">edge</span>.<span class="ident">weight</span>();
+                <span class="kw">let</span> [<span class="ident">t1</span>, <span class="ident">t2</span>] <span class="op">=</span> [<span class="ident">trj</span>[<span class="number">0</span>][<span class="number">2</span>], <span class="ident">trj</span>[<span class="ident">trj</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>][<span class="number">2</span>]];
+                (<span class="ident">box_t1</span>..<span class="op">=</span><span class="ident">box_t2</span>).<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">t1</span>) <span class="op">&amp;</span> (<span class="ident">box_t1</span>..<span class="op">=</span><span class="ident">box_t2</span>).<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">t2</span>)
+            })
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">edge</span><span class="op">|</span> <span class="ident">edge</span>.<span class="ident">id</span>())
+            .<span class="ident">collect</span>()
+    }
+
     <span class="kw">fn</span> <span class="ident">split_bbox</span>(<span class="ident">bbox</span>: <span class="ident">Bbox</span>, <span class="ident">splits</span>: <span class="kw-2">&amp;</span>[<span class="ident">f64</span>]) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Bbox</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">boxes</span> <span class="op">=</span> <span class="macro">vec!</span>[];
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bbox</span> <span class="op">=</span> <span class="ident">bbox</span>;
         <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">splits</span> {
-            <span class="kw">let</span> (<span class="ident">box1</span>, <span class="ident">box2</span>) <span class="op">=</span> <span class="ident">bbox</span>.<span class="ident">temporal_split</span>(<span class="kw-2">*</span><span class="ident">t</span>, <span class="bool-val">false</span>);
+            <span class="kw">let</span> (<span class="ident">box1</span>, <span class="ident">box2</span>) <span class="op">=</span> <span class="ident">bbox</span>.<span class="ident">temporal_split</span>(<span class="kw-2">*</span><span class="ident">t</span>);
             <span class="ident">boxes</span>.<span class="ident">push</span>(<span class="ident">box1</span>);
             <span class="ident">bbox</span> <span class="op">=</span> <span class="ident">box2</span>;
         }
@@ -1013,7 +1004,7 @@
                         <span class="ident">nodes</span>[<span class="ident">nodes</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>]
                     };
                     <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">nodes</span> {
-                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="kw-2">*</span><span class="ident">node</span>].<span class="ident">contains_point</span>(<span class="kw-2">&amp;</span><span class="ident">pt</span>) {
+                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="kw-2">*</span><span class="ident">node</span>].<span class="ident">is_in_temporal</span>(<span class="kw-2">&amp;</span><span class="ident">pt</span>) {
                             <span class="ident">edges</span>.<span class="ident">push</span>((<span class="kw-2">*</span><span class="ident">node</span>, <span class="ident">target</span>, <span class="ident">trj</span>));
                             <span class="kw">break</span>;
                         }
@@ -1032,7 +1023,7 @@
                         <span class="ident">nodes</span>[<span class="number">0</span>]
                     };
                     <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">nodes</span> {
-                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="kw-2">*</span><span class="ident">node</span>].<span class="ident">contains_point</span>(<span class="kw-2">&amp;</span><span class="ident">pt</span>) {
+                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="kw-2">*</span><span class="ident">node</span>].<span class="ident">is_in_temporal</span>(<span class="kw-2">&amp;</span><span class="ident">pt</span>) {
                             <span class="ident">edges</span>.<span class="ident">push</span>((<span class="ident">source</span>, <span class="kw-2">*</span><span class="ident">node</span>, <span class="ident">trj</span>));
                             <span class="kw">break</span>;
                         }
@@ -1042,13 +1033,11 @@
             }
         };
         <span class="kw">for</span> (<span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">trj</span>) <span class="kw">in</span> <span class="ident">edges</span>.<span class="ident">into_iter</span>() {
-            <span class="macro">println!</span>(<span class="string">&quot;{:?}-&gt;{:?}&quot;</span>, <span class="ident">source</span>, <span class="ident">target</span>);
             <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">add_edge</span>(<span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">trj</span>);
         }
     }
 
     <span class="kw">fn</span> <span class="ident">get_root_case</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">nx_a</span>: <span class="ident">NodeIndex</span>, <span class="ident">nx_b</span>: <span class="ident">NodeIndex</span>) -&gt; <span class="ident">RootCase</span> {
-        <span class="comment">// Returns node indices: (keep, remove);</span>
         <span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_root_index</span>(<span class="ident">nx_a</span>);
         <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_root_index</span>(<span class="ident">nx_b</span>);
         <span class="kw">match</span> (<span class="ident">a</span>, <span class="ident">b</span>) {
@@ -1080,8 +1069,8 @@
         <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">iter</span>().<span class="ident">position</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">x</span> <span class="op">==</span> <span class="ident">nx</span>)
     }
 
+    <span class="doccomment">/// Returns indices of nodes in self.roots from which nx can be reached</span>
     <span class="kw">fn</span> <span class="ident">get_dominant_roots</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">nx</span>: <span class="ident">NodeIndex</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
-        <span class="comment">// Returns indices of nodes in self.roots from which nx can be reached</span>
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">indices</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="macro">vec!</span>[];
         <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">root</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bfs</span> <span class="op">=</span> <span class="ident">Bfs::new</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>, <span class="kw-2">*</span><span class="ident">root</span>);
@@ -1095,16 +1084,16 @@
         <span class="ident">indices</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">copy_edges</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">to</span>: <span class="ident">NodeIndex</span>, <span class="ident">from</span>: <span class="ident">NodeIndex</span>) {
+    <span class="kw">fn</span> <span class="ident">copy_edges</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">copyer</span>: <span class="ident">NodeIndex</span>, <span class="ident">copyed</span>: <span class="ident">NodeIndex</span>) {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">edges</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">NodeIndex</span>, <span class="ident">NodeIndex</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="macro">vec!</span>[];
         <span class="comment">// retreive the edges of &#39;from&#39;</span>
-        <span class="kw">for</span> <span class="ident">edge</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edges_directed</span>(<span class="ident">from</span>, <span class="ident">EdgeDirection::Incoming</span>) {
-            <span class="kw">let</span> (<span class="ident">s</span>, <span class="ident">t</span>) <span class="op">=</span> (<span class="ident">edge</span>.<span class="ident">source</span>(), <span class="ident">to</span>);
+        <span class="kw">for</span> <span class="ident">edge</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edges_directed</span>(<span class="ident">copyed</span>, <span class="ident">EdgeDirection::Incoming</span>) {
+            <span class="kw">let</span> (<span class="ident">s</span>, <span class="ident">t</span>) <span class="op">=</span> (<span class="ident">edge</span>.<span class="ident">source</span>(), <span class="ident">copyer</span>);
             <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">edge</span>.<span class="ident">weight</span>().<span class="ident">clone</span>();
             <span class="ident">edges</span>.<span class="ident">push</span>((<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">trj</span>));
         }
-        <span class="kw">for</span> <span class="ident">edge</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edges_directed</span>(<span class="ident">from</span>, <span class="ident">EdgeDirection::Outgoing</span>) {
-            <span class="kw">let</span> (<span class="ident">s</span>, <span class="ident">t</span>) <span class="op">=</span> (<span class="ident">to</span>, <span class="ident">edge</span>.<span class="ident">target</span>());
+        <span class="kw">for</span> <span class="ident">edge</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edges_directed</span>(<span class="ident">copyed</span>, <span class="ident">EdgeDirection::Outgoing</span>) {
+            <span class="kw">let</span> (<span class="ident">s</span>, <span class="ident">t</span>) <span class="op">=</span> (<span class="ident">copyer</span>, <span class="ident">edge</span>.<span class="ident">target</span>());
             <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">edge</span>.<span class="ident">weight</span>().<span class="ident">clone</span>();
             <span class="ident">edges</span>.<span class="ident">push</span>((<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">trj</span>));
         }
@@ -1120,12 +1109,9 @@
                 <span class="ident">split_nodes</span>.<span class="ident">push</span>(<span class="ident">nx</span>);
             }
         }
-        <span class="macro">print!</span>(<span class="string">&quot;Splitting: &quot;</span>);
         <span class="kw">for</span> <span class="ident">nx</span> <span class="kw">in</span> <span class="ident">split_nodes</span>.<span class="ident">into_iter</span>() {
-            <span class="macro">print!</span>(<span class="string">&quot; {:?} &quot;</span>, <span class="ident">nx</span>);
             <span class="self">self</span>.<span class="ident">split_node</span>(<span class="ident">nx</span>);
         }
-        <span class="macro">println!</span>();
     }
 
     <span class="kw">fn</span> <span class="ident">should_split</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">nx</span>: <span class="ident">NodeIndex</span>) -&gt; <span class="ident">bool</span> {
@@ -1139,7 +1125,7 @@
             <span class="kw">match</span> <span class="self">self</span>.<span class="ident">verify_node</span>(<span class="ident">nx</span>) {
                 (<span class="bool-val">true</span>, <span class="bool-val">true</span>, <span class="bool-val">true</span>) =&gt; (),
                 (<span class="bool-val">true</span>, <span class="bool-val">true</span>, <span class="bool-val">false</span>) =&gt; {
-                    <span class="macro">println!</span>(<span class="string">&quot;{:?} is not reachable&quot;</span>, <span class="ident">nx</span>);
+                    <span class="macro">println!</span>(<span class="string">&quot;{:?} is not reachable (ttf)&quot;</span>, <span class="ident">nx</span>);
                     <span class="ident">valid</span> <span class="op">=</span> <span class="bool-val">false</span>;
                 }
                 (<span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>) =&gt; {
@@ -1160,48 +1146,67 @@
                 }
                 (<span class="bool-val">false</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>) =&gt; (),
                 (<span class="bool-val">false</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>) =&gt; {
-                    <span class="macro">println!</span>(<span class="string">&quot;{:?} is not reachable&quot;</span>, <span class="ident">nx</span>);
+                    <span class="macro">println!</span>(<span class="string">&quot;{:?} is not reachable (fff)&quot;</span>, <span class="ident">nx</span>);
+                    <span class="macro">println!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="self">self</span>.<span class="ident">roots</span>);
                     <span class="ident">valid</span> <span class="op">=</span> <span class="bool-val">false</span>;
                 }
             }
         }
-        <span class="ident">valid</span>
+        <span class="kw">let</span> <span class="ident">temporally_monotone</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">verify_temporal_monotonicity</span>();
+        <span class="ident">valid</span> <span class="op">&amp;</span> <span class="ident">temporally_monotone</span>
     }
 
+    <span class="doccomment">/// Checks and returns a tuple with the following for the node, nx:</span>
+    <span class="doccomment">/// (is_root, is_orphan, is_root_reachable)</span>
     <span class="kw">fn</span> <span class="ident">verify_node</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">nx</span>: <span class="ident">NodeIndex</span>) -&gt; (<span class="ident">bool</span>, <span class="ident">bool</span>, <span class="ident">bool</span>) {
-        <span class="comment">// If a node is root it must be orphan.</span>
-        <span class="comment">// A node that is not root cannot be orphan</span>
-        <span class="comment">// Every node must be reachable from a root vertex.</span>
         <span class="kw">let</span> <span class="ident">is_root</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_root_index</span>(<span class="ident">nx</span>).<span class="ident">is_some</span>();
         <span class="kw">let</span> <span class="ident">is_orphan</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">graph</span>
             .<span class="ident">edges_directed</span>(<span class="ident">nx</span>, <span class="ident">EdgeDirection::Incoming</span>)
             .<span class="ident">count</span>()
             <span class="op">==</span> <span class="number">0</span>;
-        <span class="kw">let</span> <span class="ident">root_reachable</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_match</span>(<span class="ident">nx</span>).<span class="ident">is_some</span>();
+        <span class="kw">let</span> <span class="ident">root_reachable</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">root_reachable</span>(<span class="ident">nx</span>);
         (<span class="ident">is_root</span>, <span class="ident">is_orphan</span>, <span class="ident">root_reachable</span>)
+    }
+
+    <span class="doccomment">/// If any edge (a,b) breaks temporal monotonicity -&gt; false.</span>
+    <span class="kw">fn</span> <span class="ident">verify_temporal_monotonicity</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
+        <span class="ident">depth_first_search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>, <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">clone</span>(), <span class="op">|</span><span class="ident">event</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">event</span> {
+            <span class="ident">DfsEvent::TreeEdge</span>(<span class="ident">a</span>, <span class="ident">b</span>) =&gt; {
+                <span class="kw">let</span> <span class="ident">a_time</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">a</span>].<span class="ident">t2</span>;
+                <span class="kw">let</span> <span class="ident">b_time</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">b</span>].<span class="ident">t1</span>;
+                <span class="kw">if</span> <span class="ident">a_time</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">b_time</span> {
+                    <span class="ident">Control::Break</span>(<span class="ident">a</span>)
+                } <span class="kw">else</span> {
+                    <span class="ident">Control::Continue</span>
+                }
+            }
+            <span class="kw">_</span> =&gt; <span class="ident">Control::Continue</span>,
+        })
+        .<span class="ident">break_value</span>()
+        .<span class="ident">is_none</span>()
     }
 
     <span class="kw">fn</span> <span class="ident">find_matching_nodes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">NodeIndex</span>, <span class="ident">NodeIndex</span>)<span class="op">&gt;</span> {
         <span class="kw">for</span> <span class="ident">match_nx</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">node_indices</span>() {
             <span class="kw">let</span> <span class="ident">bbox</span>: <span class="ident">Bbox</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">match_nx</span>];
             <span class="kw">let</span> <span class="ident">roots</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">clone</span>();
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">depth_first_search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>, <span class="ident">roots</span>, <span class="op">|</span><span class="ident">event</span><span class="op">|</span> {
-                <span class="kw">if</span> <span class="kw">let</span> <span class="ident">DfsEvent::Discover</span>(<span class="ident">nx</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">event</span> {
+            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">depth_first_search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>, <span class="ident">roots</span>, <span class="op">|</span><span class="ident">event</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">event</span> {
+                <span class="ident">DfsEvent::Discover</span>(<span class="ident">nx</span>, <span class="kw">_</span>) =&gt; {
                     <span class="kw">if</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">nx</span>].<span class="ident">overlaps</span>(<span class="kw-2">&amp;</span><span class="ident">bbox</span>) <span class="op">&amp;&amp;</span> <span class="ident">match_nx</span> <span class="op">!</span><span class="op">=</span> <span class="ident">nx</span> {
                         <span class="ident">Control::Break</span>(<span class="ident">nx</span>)
                     } <span class="kw">else</span> {
                         <span class="ident">Control::Continue</span>
                     }
-                } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="ident">DfsEvent::TreeEdge</span>(<span class="kw">_</span>, <span class="ident">nx</span>) <span class="op">=</span> <span class="ident">event</span> {
+                }
+                <span class="ident">DfsEvent::TreeEdge</span>(<span class="kw">_</span>, <span class="ident">nx</span>) =&gt; {
                     <span class="kw">if</span> <span class="ident">bbox</span>.<span class="ident">is_before</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">nx</span>]) {
                         <span class="ident">Control::Prune</span>
                     } <span class="kw">else</span> {
                         <span class="ident">Control::Continue</span>
                     }
-                } <span class="kw">else</span> {
-                    <span class="ident">Control::Continue</span>
                 }
+                <span class="kw">_</span> =&gt; <span class="ident">Control::Continue</span>,
             });
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">nx</span>) <span class="op">=</span> <span class="ident">result</span>.<span class="ident">break_value</span>() {
                 <span class="kw">return</span> <span class="prelude-val">Some</span>((<span class="ident">match_nx</span>, <span class="ident">nx</span>));
@@ -1210,32 +1215,31 @@
         <span class="prelude-val">None</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">find_match</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">target</span>: <span class="ident">NodeIndex</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NodeIndex</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">root_reachable</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">target</span>: <span class="ident">NodeIndex</span>) -&gt; <span class="ident">bool</span> {
         <span class="kw">let</span> <span class="ident">roots</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">clone</span>();
         <span class="kw">let</span> <span class="ident">bbox</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">target</span>];
-        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">depth_first_search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>, <span class="ident">roots</span>, <span class="op">|</span><span class="ident">event</span><span class="op">|</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">DfsEvent::Discover</span>(<span class="ident">nx</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">event</span> {
+        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">depth_first_search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>, <span class="ident">roots</span>, <span class="op">|</span><span class="ident">event</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">event</span> {
+            <span class="ident">DfsEvent::Discover</span>(<span class="ident">nx</span>, <span class="kw">_</span>) =&gt; {
                 <span class="kw">if</span> <span class="ident">target</span> <span class="op">==</span> <span class="ident">nx</span> {
                     <span class="ident">Control::Break</span>(<span class="ident">nx</span>)
                 } <span class="kw">else</span> {
                     <span class="ident">Control::Continue</span>
                 }
-            } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="ident">DfsEvent::TreeEdge</span>(<span class="kw">_</span>, <span class="ident">nx</span>) <span class="op">=</span> <span class="ident">event</span> {
+            }
+            <span class="ident">DfsEvent::TreeEdge</span>(<span class="kw">_</span>, <span class="ident">nx</span>) =&gt; {
                 <span class="kw">if</span> <span class="ident">bbox</span>.<span class="ident">is_before</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">nx</span>]) {
                     <span class="ident">Control::Prune</span>
                 } <span class="kw">else</span> {
                     <span class="ident">Control::Continue</span>
                 }
-            } <span class="kw">else</span> {
-                <span class="ident">Control::Continue</span>
             }
+            <span class="kw">_</span> =&gt; <span class="ident">Control::Continue</span>,
         });
-        <span class="ident">result</span>.<span class="ident">break_value</span>()
+        <span class="ident">result</span>.<span class="ident">break_value</span>().<span class="ident">is_some</span>()
     }
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">merge_edges</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">let</span> <span class="ident">groups</span>: <span class="ident">Vec</span><span class="op">&lt;</span>((<span class="ident">NodeIndex</span>, <span class="ident">NodeIndex</span>), <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span><span class="op">&gt;</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
+        <span class="kw">let</span> <span class="ident">groups</span>: <span class="ident">Vec</span><span class="op">&lt;</span>((<span class="ident">NodeIndex</span>, <span class="ident">NodeIndex</span>), <span class="ident">EdgeClusters</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">get_edge_groups</span>()
             .<span class="ident">iter</span>()
             .<span class="ident">map</span>(<span class="op">|</span>((<span class="ident">source</span>, <span class="ident">target</span>), <span class="ident">group</span>)<span class="op">|</span> {
@@ -1255,14 +1259,13 @@
                 <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">trjs</span>.<span class="ident">pop</span>().<span class="ident">unwrap</span>();
                 <span class="kw">let</span> <span class="ident">trj</span>: <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">trjs</span>
                     .<span class="ident">into_iter</span>()
-                    .<span class="ident">fold</span>(<span class="ident">trj</span>, <span class="op">|</span><span class="ident">trj_a</span>, <span class="ident">trj_b</span><span class="op">|</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="ident">trj_a</span>, <span class="kw-2">&amp;</span><span class="ident">trj_b</span>));
+                    .<span class="ident">fold</span>(<span class="ident">trj</span>, <span class="op">|</span><span class="ident">trj_a</span>, <span class="ident">trj_b</span><span class="op">|</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="ident">trj_a</span>, <span class="kw-2">&amp;</span><span class="ident">trj_b</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">config</span>));
                 <span class="self">self</span>.<span class="ident">replace_edges</span>(<span class="ident">source</span>, <span class="ident">target</span>, <span class="kw-2">&amp;</span><span class="ident">cluster</span>, <span class="ident">trj</span>);
             }
         }
     }
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">get_edge_group_clusters</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">group</span>: <span class="kw-2">&amp;</span>[<span class="ident">EdgeIndex</span>]) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">get_edge_group_clusters</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">group</span>: <span class="kw-2">&amp;</span>[<span class="ident">EdgeIndex</span>]) -&gt; <span class="ident">EdgeClusters</span> {
         <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">group</span>.<span class="ident">len</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dists</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="macro">vec!</span>[<span class="number">0f64</span>; <span class="ident">n</span>]; <span class="ident">n</span>];
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">group</span>.<span class="ident">len</span>() {
@@ -1277,10 +1280,9 @@
         <span class="ident">clusters</span>
             .<span class="ident">iter</span>()
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">idx</span><span class="op">|</span> <span class="ident">group</span>[<span class="kw-2">*</span><span class="ident">idx</span>]).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span><span class="op">&gt;</span>())
-            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>()
+            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">EdgeClusters</span><span class="op">&gt;</span>()
     }
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
     <span class="kw">fn</span> <span class="ident">get_edge_groups</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">HashMap</span><span class="op">&lt;</span>(<span class="ident">NodeIndex</span>, <span class="ident">NodeIndex</span>), <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">groups</span>: <span class="ident">HashMap</span><span class="op">&lt;</span>(<span class="ident">NodeIndex</span>, <span class="ident">NodeIndex</span>), <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">HashMap::new</span>();
         <span class="kw">for</span> <span class="ident">source</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">node_indices</span>() {
@@ -1298,7 +1300,6 @@
         <span class="ident">groups</span>
     }
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
     <span class="kw">fn</span> <span class="ident">replace_edges</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">source</span>: <span class="ident">NodeIndex</span>,
@@ -1309,24 +1310,9 @@
         <span class="ident">group</span>.<span class="ident">iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">ex</span><span class="op">|</span> {
             <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">remove_edge</span>(<span class="kw-2">*</span><span class="ident">ex</span>);
         });
+        <span class="comment">// Simplify the trajectory to avoid an excessive amount of points.</span>
+        <span class="comment">//let trj = visvalingam(&amp;trj, self.config.visvalingam_threshold);</span>
         <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">add_edge</span>(<span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">trj</span>);
-    }
-
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">add_endpoints</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">group</span>: <span class="kw-2">&amp;</span>[<span class="ident">EdgeIndex</span>]) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="comment">// This might produce better clusters when we use hausdorff distance</span>
-        <span class="comment">// however, if the bboxes are spatially small it&#39;s probably not needed.</span>
-        <span class="ident">group</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">ex</span><span class="op">|</span> {
-                <span class="kw">let</span> (<span class="ident">a</span>, <span class="ident">b</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edge_endpoints</span>(<span class="kw-2">*</span><span class="ident">ex</span>).<span class="ident">unwrap</span>();
-                <span class="kw">let</span> (<span class="ident">ex</span>, (<span class="ident">a</span>, <span class="ident">b</span>)) <span class="op">=</span> (<span class="kw-2">*</span><span class="ident">ex</span>, (<span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">a</span>].<span class="ident">center</span>(), <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">b</span>].<span class="ident">center</span>()));
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">trj</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edge_weight</span>(<span class="ident">ex</span>).<span class="ident">unwrap</span>().<span class="ident">clone</span>();
-                <span class="ident">trj</span>.<span class="ident">insert</span>(<span class="number">0</span>, <span class="ident">a</span>);
-                <span class="ident">trj</span>.<span class="ident">push</span>(<span class="ident">b</span>);
-                <span class="ident">trj</span>
-            })
-            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>()
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_path</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">path</span>: <span class="ident">Path</span>) {
@@ -1337,14 +1323,6 @@
             <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">route</span>.<span class="ident">get_trj</span>().<span class="ident">unwrap</span>();
             <span class="kw">let</span> <span class="ident">bbox</span> <span class="op">=</span> <span class="ident">stop</span>.<span class="ident">get_bbox</span>().<span class="ident">unwrap</span>();
             <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">add_node</span>(<span class="ident">bbox</span>);
-            <span class="comment">// adjust the trj to start and end in the center of the bboxes</span>
-            <span class="comment">// at the earliest and latest time, respectively.</span>
-            <span class="comment">//let mut center_start = self.graph[a].center();</span>
-            <span class="comment">//center_start[2] = self.graph[a].t1;</span>
-            <span class="comment">//let mut center_end = self.graph[b].center();</span>
-            <span class="comment">//center_end[2] = self.graph[b].t2;</span>
-            <span class="comment">//trj.insert(0, center_start);</span>
-            <span class="comment">//trj.push(center_end);</span>
             <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">add_edge</span>(<span class="ident">a</span>, <span class="ident">b</span>, <span class="ident">trj</span>);
             <span class="ident">a</span> <span class="op">=</span> <span class="ident">b</span>;
         });
