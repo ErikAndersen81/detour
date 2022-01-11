@@ -106,7 +106,7 @@ pub fn merge(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]], config:&Config) -> Vec<[f64
     let (trj_a, trj_b) = align_start_time(trj_a, trj_b);
     let (trj_a, trj_b) = morph_to_fit(&trj_a, &trj_b);
     let trj = average(&trj_a, &trj_b);
-    visvalingam(&trj, config)
+    visvalingam(&trj, config.visvalingam_threshold)
 }
 
 fn average(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> Vec<[f64; 3]> {
