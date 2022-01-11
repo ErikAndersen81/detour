@@ -86,7 +86,6 @@ fn build_path(stream: Vec<[f64; 3]>, config: Config) -> Path {
     stream
         .into_iter()
         .for_each(|point| builder.add_pt(point, !sd.is_stopped(point)));
-    builder.expand_stops(config.relax_bbox_meters, config.relax_bbox_minutes);
     builder.get_path()
 }
 
@@ -231,14 +230,6 @@ impl PathBuilder {
         let other = self.path.remove(idx - 1).get_bbox().unwrap();
         let bbox = bbox.union(&other);
         self.path.insert(idx - 1, PathElement::Stop(bbox));
-    }
-
-    fn expand_stops(&mut self, meters: f64, minutes: f64) {
-        self.path.iter_mut().for_each(|pe| {
-            if let PathElement::Stop(bbox) = pe {
-                bbox.expand(meters, minutes);
-            }
-        });
     }
 
     fn get_path(&mut self) -> Path {

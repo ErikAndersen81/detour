@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Coord","Holds a pair for latitude and longitude coordinates"]]});

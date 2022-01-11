@@ -150,14 +150,16 @@
 <span id="150">150</span>
 <span id="151">151</span>
 <span id="152">152</span>
+<span id="153">153</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">chrono::NaiveDate</span>;
-<span class="kw">use</span> <span class="ident">geomorph</span>::{<span class="ident">coord</span>, <span class="ident">utm</span>};
 <span class="kw">use</span> <span class="ident">regex::Regex</span>;
 <span class="kw">use</span> <span class="ident">std::str::FromStr</span>;
 
 <span class="doccomment">/// Parses a string containing GPX data.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// Retrieves `lat`, `lon`, and `time` for each point. The date part of `time` is</span>
+<span class="doccomment">/// Creates an array with UTM projected `[easting, northing, time]` for each `&lt;trkpt&gt;`.</span>
+<span class="doccomment">/// See [Coord](crate::Coord) for details on projection.</span>
+<span class="doccomment">/// The date part of `time` is</span>
 <span class="doccomment">/// stripped and the timestamp is converted to milliseconds.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">parse_gpx</span>(<span class="ident">gpx</span>: <span class="ident">String</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">trjs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec::new</span>();

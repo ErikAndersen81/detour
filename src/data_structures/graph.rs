@@ -4,7 +4,7 @@ use std::io::{BufWriter, Result, Write};
 
 use crate::parser::Config;
 use crate::utility::trajectory::{merge, Monotone};
-use crate::utility::{clustering, Bbox, StopDetector};
+use crate::utility::{clustering, visvalingam, Bbox, StopDetector};
 mod pathbuilder;
 
 mod graph_builder;
@@ -17,18 +17,22 @@ use petgraph::graph::NodeIndex;
 use petgraph::prelude::EdgeIndex;
 
 use petgraph::stable_graph::StableDiGraph;
-use petgraph::visit::{
-    depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences, IntoEdgesDirected,
-};
+use petgraph::visit::{depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences};
 use petgraph::EdgeDirection;
 use trajectory_similarity::hausdorff;
 
 use self::pathbuilder::Path;
 
+type EdgeClusters = Vec<Vec<EdgeIndex>>;
+
 enum RootCase {
+    /// None of the nodes are root nodes
     NonRoots,
+    /// One of the nodes has this idx in the root list. The other can be reached from a different node in the root list.
     DifferentRoot(usize),
+    /// One of the nodes has this idx in the root list. The other can be reached only from this node.
     SameRoot(usize),
+    /// Both nodes are in the root list.
     DoubleRoot((usize, usize)),
 }
 
@@ -119,7 +123,6 @@ impl DetourGraph {
                     self.graph[a] = self.graph[a].union(&self.graph[b]);
                     self.copy_edges(a, b);
                     self.graph.remove_node(b);
-                    println!("splitting {:?}", a);
                     self.split_node(a);
                 }
                 RootCase::NonRoots => {
@@ -136,20 +139,17 @@ impl DetourGraph {
             }
         }
         assert!(self.verify_constraints(), "Invalid graph structure!");
-        println!("Roots after merge:{:?}", self.roots);
     }
 
     fn split_node(&mut self, split_node: NodeIndex) {
         let splits = self.get_temporal_splits(split_node);
-        println!("splits: {:?}", splits);
         let nodes: Vec<NodeIndex> = DetourGraph::split_bbox(self.graph[split_node], &splits)
             .into_iter()
             .map(|bbox| self.graph.add_node(bbox))
             .collect();
-        println!("nodes: {:?}", nodes);
         self.reassign_edges(split_node, &nodes, EdgeDirection::Outgoing);
         self.reassign_edges(split_node, &nodes, EdgeDirection::Incoming);
-        // remove nodes with no edges
+        // remove new nodes that has no edges
         let no_edge_nodes: Vec<&NodeIndex> = nodes
             .iter()
             .filter(|nx| {
@@ -166,10 +166,17 @@ impl DetourGraph {
             })
             .collect();
         for nx in no_edge_nodes {
-            println!("rm no-edge:{:?}", nx);
             self.graph.remove_node(*nx);
         }
-        // Add orphan nodes to root
+
+        // If the split node was in root, remove its reference from the root list
+        if let Some(root_idx) = self.get_root_index(split_node) {
+            self.roots.remove(root_idx);
+        }
+        // remove the now unused split node
+        self.graph.remove_node(split_node);
+
+        // Add orphan nodes to the root list
         let orphan_nodes: Vec<NodeIndex> = nodes
             .into_iter()
             .filter(|nx| {
@@ -186,62 +193,57 @@ impl DetourGraph {
             })
             .collect();
         for nx in orphan_nodes {
-            print!("add root: {:?}", nx);
             self.roots.push(nx)
         }
-        if let Some(root_idx) = self.get_root_index(split_node) {
-            self.roots.remove(root_idx);
-        }
-        self.graph.remove_node(split_node);
-    }
-
-    #[allow(dead_code)]
-    fn get_temporal_splits_old(&self, split_node: NodeIndex) -> (f64, f64) {
-        let t1 = self
-            .graph
-            .edges_directed(split_node, EdgeDirection::Incoming)
-            .fold(f64::NEG_INFINITY, |acc, x| acc.max(x.weight()[0][2]));
-        let t2 = self
-            .graph
-            .edges_directed(split_node, EdgeDirection::Incoming)
-            .fold(f64::INFINITY, |acc, x| {
-                acc.min(x.weight()[x.weight().len() - 1][2])
-            });
-        (t1, t2)
     }
 
     fn get_temporal_splits(&self, split_node: NodeIndex) -> Vec<f64> {
+        let edge_idxs = self.get_trjs_in_timeframe(split_node);
         let mut splits = vec![];
-        let (box_t1, box_t2) = (self.graph[split_node].t1, self.graph[split_node].t2);
-        let mut timestamps: Vec<(usize, f64)> = vec![];
-        self.graph
-            .edges(split_node)
-            .map(|edge| {
-                let trj = edge.weight();
-                (trj[0][2], trj[trj.len() - 1][2])
-            })
-            .filter(|(t1, t2)| (box_t1..box_t2).contains(t1) & (box_t1..box_t2).contains(t2))
-            .enumerate()
-            .for_each(|(idx, (t1, t2))| {
-                timestamps.push((idx, t1));
-                timestamps.push((idx, t2));
-            });
+        let mut timestamps = vec![];
+        for ex in edge_idxs {
+            let trj = self.graph.edge_weight(ex).unwrap();
+            let (t1, t2) = (trj[0][2], trj[trj.len() - 1][2]);
+            timestamps.push((ex, t1));
+            timestamps.push((ex, t2));
+        }
         timestamps.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
-        let mut visited: HashSet<usize> = HashSet::new();
+        let mut visited: HashSet<EdgeIndex> = HashSet::new();
         for (idx, t) in timestamps.into_iter() {
+            // mark index as visited
             if !visited.insert(idx) {
-                splits.push(t);
+                // if we already visited the edge we can infer
+                // that this must be a split.
+                // (see paper on detour, section on 'Perserving temporal monotonicity')
+                // we add -1ms s.t. the split is just before the end
+                // of the edge
+                splits.push(t - 1.0);
                 visited = HashSet::new();
             }
         }
         splits
     }
 
+    /// Return edge indices connected to node that potentially violates temporal monotonicity
+    /// i.e. their trajectories' temporal start and end lie within bbox of the node.
+    fn get_trjs_in_timeframe(&self, node: NodeIndex) -> Vec<EdgeIndex> {
+        let (box_t1, box_t2) = (self.graph[node].t1, self.graph[node].t2);
+        self.graph
+            .edges(node)
+            .filter(|edge| {
+                let trj = edge.weight();
+                let [t1, t2] = [trj[0][2], trj[trj.len() - 1][2]];
+                (box_t1..=box_t2).contains(&t1) & (box_t1..=box_t2).contains(&t2)
+            })
+            .map(|edge| edge.id())
+            .collect()
+    }
+
     fn split_bbox(bbox: Bbox, splits: &[f64]) -> Vec<Bbox> {
         let mut boxes = vec![];
         let mut bbox = bbox;
         for t in splits {
-            let (box1, box2) = bbox.temporal_split(*t, false);
+            let (box1, box2) = bbox.temporal_split(*t);
             boxes.push(box1);
             bbox = box2;
         }
@@ -267,7 +269,7 @@ impl DetourGraph {
                         nodes[nodes.len() - 1]
                     };
                     for node in nodes {
-                        if self.graph[*node].contains_point(&pt) {
+                        if self.graph[*node].is_in_temporal(&pt) {
                             edges.push((*node, target, trj));
                             break;
                         }
@@ -286,7 +288,7 @@ impl DetourGraph {
                         nodes[0]
                     };
                     for node in nodes {
-                        if self.graph[*node].contains_point(&pt) {
+                        if self.graph[*node].is_in_temporal(&pt) {
                             edges.push((source, *node, trj));
                             break;
                         }
@@ -296,13 +298,11 @@ impl DetourGraph {
             }
         };
         for (source, target, trj) in edges.into_iter() {
-            println!("{:?}->{:?}", source, target);
             self.graph.add_edge(source, target, trj);
         }
     }
 
     fn get_root_case(&mut self, nx_a: NodeIndex, nx_b: NodeIndex) -> RootCase {
-        // Returns node indices: (keep, remove);
         let a = self.get_root_index(nx_a);
         let b = self.get_root_index(nx_b);
         match (a, b) {
@@ -334,8 +334,8 @@ impl DetourGraph {
         self.roots.iter().position(|x| *x == nx)
     }
 
+    /// Returns indices of nodes in self.roots from which nx can be reached
     fn get_dominant_roots(&self, nx: NodeIndex) -> Vec<usize> {
-        // Returns indices of nodes in self.roots from which nx can be reached
         let mut indices: Vec<usize> = vec![];
         for (idx, root) in self.roots.iter().enumerate() {
             let mut bfs = Bfs::new(&self.graph, *root);
@@ -349,16 +349,16 @@ impl DetourGraph {
         indices
     }
 
-    fn copy_edges(&mut self, to: NodeIndex, from: NodeIndex) {
+    fn copy_edges(&mut self, copyer: NodeIndex, copyed: NodeIndex) {
         let mut edges: Vec<(NodeIndex, NodeIndex, Vec<[f64; 3]>)> = vec![];
         // retreive the edges of 'from'
-        for edge in self.graph.edges_directed(from, EdgeDirection::Incoming) {
-            let (s, t) = (edge.source(), to);
+        for edge in self.graph.edges_directed(copyed, EdgeDirection::Incoming) {
+            let (s, t) = (edge.source(), copyer);
             let trj = edge.weight().clone();
             edges.push((s, t, trj));
         }
-        for edge in self.graph.edges_directed(from, EdgeDirection::Outgoing) {
-            let (s, t) = (to, edge.target());
+        for edge in self.graph.edges_directed(copyed, EdgeDirection::Outgoing) {
+            let (s, t) = (copyer, edge.target());
             let trj = edge.weight().clone();
             edges.push((s, t, trj));
         }
@@ -374,12 +374,9 @@ impl DetourGraph {
                 split_nodes.push(nx);
             }
         }
-        print!("Splitting: ");
         for nx in split_nodes.into_iter() {
-            print!(" {:?} ", nx);
             self.split_node(nx);
         }
-        println!();
     }
 
     fn should_split(&self, nx: NodeIndex) -> bool {
@@ -393,7 +390,7 @@ impl DetourGraph {
             match self.verify_node(nx) {
                 (true, true, true) => (),
                 (true, true, false) => {
-                    println!("{:?} is not reachable", nx);
+                    println!("{:?} is not reachable (ttf)", nx);
                     valid = false;
                 }
                 (true, false, true) => {
@@ -414,48 +411,67 @@ impl DetourGraph {
                 }
                 (false, false, true) => (),
                 (false, false, false) => {
-                    println!("{:?} is not reachable", nx);
+                    println!("{:?} is not reachable (fff)", nx);
+                    println!("{:?}", self.roots);
                     valid = false;
                 }
             }
         }
-        valid
+        let temporally_monotone = self.verify_temporal_monotonicity();
+        valid & temporally_monotone
     }
 
+    /// Checks and returns a tuple with the following for the node, nx:
+    /// (is_root, is_orphan, is_root_reachable)
     fn verify_node(&self, nx: NodeIndex) -> (bool, bool, bool) {
-        // If a node is root it must be orphan.
-        // A node that is not root cannot be orphan
-        // Every node must be reachable from a root vertex.
         let is_root = self.get_root_index(nx).is_some();
         let is_orphan = self
             .graph
             .edges_directed(nx, EdgeDirection::Incoming)
             .count()
             == 0;
-        let root_reachable = self.find_match(nx).is_some();
+        let root_reachable = self.root_reachable(nx);
         (is_root, is_orphan, root_reachable)
+    }
+
+    /// If any edge (a,b) breaks temporal monotonicity -> false.
+    fn verify_temporal_monotonicity(&self) -> bool {
+        depth_first_search(&self.graph, self.roots.clone(), |event| match event {
+            DfsEvent::TreeEdge(a, b) => {
+                let a_time = self.graph[a].t2;
+                let b_time = self.graph[b].t1;
+                if a_time >= b_time {
+                    Control::Break(a)
+                } else {
+                    Control::Continue
+                }
+            }
+            _ => Control::Continue,
+        })
+        .break_value()
+        .is_none()
     }
 
     fn find_matching_nodes(&self) -> Option<(NodeIndex, NodeIndex)> {
         for match_nx in self.graph.node_indices() {
             let bbox: Bbox = self.graph[match_nx];
             let roots = self.roots.clone();
-            let result = depth_first_search(&self.graph, roots, |event| {
-                if let DfsEvent::Discover(nx, _) = event {
+            let result = depth_first_search(&self.graph, roots, |event| match event {
+                DfsEvent::Discover(nx, _) => {
                     if self.graph[nx].overlaps(&bbox) && match_nx != nx {
                         Control::Break(nx)
                     } else {
                         Control::Continue
                     }
-                } else if let DfsEvent::TreeEdge(_, nx) = event {
+                }
+                DfsEvent::TreeEdge(_, nx) => {
                     if bbox.is_before(&self.graph[nx]) {
                         Control::Prune
                     } else {
                         Control::Continue
                     }
-                } else {
-                    Control::Continue
                 }
+                _ => Control::Continue,
             });
             if let Some(nx) = result.break_value() {
                 return Some((match_nx, nx));
@@ -464,32 +480,31 @@ impl DetourGraph {
         None
     }
 
-    fn find_match(&self, target: NodeIndex) -> Option<NodeIndex> {
+    fn root_reachable(&self, target: NodeIndex) -> bool {
         let roots = self.roots.clone();
         let bbox = &self.graph[target];
-        let result = depth_first_search(&self.graph, roots, |event| {
-            if let DfsEvent::Discover(nx, _) = event {
+        let result = depth_first_search(&self.graph, roots, |event| match event {
+            DfsEvent::Discover(nx, _) => {
                 if target == nx {
                     Control::Break(nx)
                 } else {
                     Control::Continue
                 }
-            } else if let DfsEvent::TreeEdge(_, nx) = event {
+            }
+            DfsEvent::TreeEdge(_, nx) => {
                 if bbox.is_before(&self.graph[nx]) {
                     Control::Prune
                 } else {
                     Control::Continue
                 }
-            } else {
-                Control::Continue
             }
+            _ => Control::Continue,
         });
-        result.break_value()
+        result.break_value().is_some()
     }
 
-    #[allow(dead_code)]
     pub fn merge_edges(&mut self) {
-        let groups: Vec<((NodeIndex, NodeIndex), Vec<Vec<EdgeIndex>>)> = self
+        let groups: Vec<((NodeIndex, NodeIndex), EdgeClusters)> = self
             .get_edge_groups()
             .iter()
             .map(|((source, target), group)| {
@@ -515,8 +530,7 @@ impl DetourGraph {
         }
     }
 
-    #[allow(dead_code)]
-    fn get_edge_group_clusters(&self, group: &[EdgeIndex]) -> Vec<Vec<EdgeIndex>> {
+    fn get_edge_group_clusters(&self, group: &[EdgeIndex]) -> EdgeClusters {
         let n = group.len();
         let mut dists = vec![vec![0f64; n]; n];
         for i in 0..group.len() {
@@ -531,10 +545,9 @@ impl DetourGraph {
         clusters
             .iter()
             .map(|c| c.iter().map(|idx| group[*idx]).collect::<Vec<EdgeIndex>>())
-            .collect::<Vec<Vec<EdgeIndex>>>()
+            .collect::<EdgeClusters>()
     }
 
-    #[allow(dead_code)]
     fn get_edge_groups(&self) -> HashMap<(NodeIndex, NodeIndex), Vec<EdgeIndex>> {
         let mut groups: HashMap<(NodeIndex, NodeIndex), Vec<EdgeIndex>> = HashMap::new();
         for source in self.graph.node_indices() {
@@ -552,7 +565,6 @@ impl DetourGraph {
         groups
     }
 
-    #[allow(dead_code)]
     fn replace_edges(
         &mut self,
         source: NodeIndex,
@@ -563,24 +575,9 @@ impl DetourGraph {
         group.iter().for_each(|ex| {
             self.graph.remove_edge(*ex);
         });
+        // Simplify the trajectory to avoid an excessive amount of points.
+        //let trj = visvalingam(&trj, self.config.visvalingam_threshold);
         self.graph.add_edge(source, target, trj);
-    }
-
-    #[allow(dead_code)]
-    fn add_endpoints(&self, group: &[EdgeIndex]) -> Vec<Vec<[f64; 3]>> {
-        // This might produce better clusters when we use hausdorff distance
-        // however, if the bboxes are spatially small it's probably not needed.
-        group
-            .iter()
-            .map(|ex| {
-                let (a, b) = self.graph.edge_endpoints(*ex).unwrap();
-                let (ex, (a, b)) = (*ex, (self.graph[a].center(), self.graph[b].center()));
-                let mut trj = self.graph.edge_weight(ex).unwrap().clone();
-                trj.insert(0, a);
-                trj.push(b);
-                trj
-            })
-            .collect::<Vec<Vec<[f64; 3]>>>()
     }
 
     pub fn add_path(&mut self, mut path: Path) {
@@ -591,14 +588,6 @@ impl DetourGraph {
             let trj = route.get_trj().unwrap();
             let bbox = stop.get_bbox().unwrap();
             let b = self.graph.add_node(bbox);
-            // adjust the trj to start and end in the center of the bboxes
-            // at the earliest and latest time, respectively.
-            //let mut center_start = self.graph[a].center();
-            //center_start[2] = self.graph[a].t1;
-            //let mut center_end = self.graph[b].center();
-            //center_end[2] = self.graph[b].t2;
-            //trj.insert(0, center_start);
-            //trj.push(center_end);
             self.graph.add_edge(a, b, trj);
             a = b;
         });

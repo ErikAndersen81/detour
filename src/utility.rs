@@ -18,7 +18,6 @@ pub use bounding_box::Bbox;
 #[doc(inline)]
 pub use ch_filter::CHFilter;
 pub use clustering::Clustering;
-use geo::prelude::HaversineDistance;
 pub use motion_detector::MotionDetector;
 pub use time_guard::clean_stream;
 pub use timeout_handler::TimeoutHandler;
@@ -30,11 +29,7 @@ pub use visvalingam::visvalingam;
 ///
 /// # Examples
 /// todo!
-fn get_distance(from: &[f64; 3], to: &[f64; 3]) -> f64 {
-    // This is the old distance, before we decided to project to UTM
-    //let start = geo::point!(x: from[0],y: from[1]);
-    //let end = geo::point!(x:to[0], y:to[1]);
-    //start.haversine_distance(&end)
+pub fn get_distance(from: &[f64; 3], to: &[f64; 3]) -> f64 {
     ((from[0] - to[0]).powi(2) + (from[1] - to[1]).powi(2)).sqrt()
 }
 

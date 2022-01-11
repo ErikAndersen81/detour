@@ -1,11 +1,12 @@
 use chrono::NaiveDate;
-use geomorph::{coord, utm};
 use regex::Regex;
 use std::str::FromStr;
 
 /// Parses a string containing GPX data.
 ///
-/// Retrieves `lat`, `lon`, and `time` for each point. The date part of `time` is
+/// Creates an array with UTM projected `[easting, northing, time]` for each `<trkpt>`.
+/// See [Coord](crate::Coord) for details on projection.
+/// The date part of `time` is
 /// stripped and the timestamp is converted to milliseconds.
 pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
     let mut trjs: Vec<Vec<[f64; 3]>> = Vec::new();
@@ -38,10 +39,9 @@ pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
     trjs
 }
 
-/// The fields can be set using the [config](parse_config) file.
 #[derive(Clone, Copy, Debug)]
 pub struct Config {
-    /// Number of points used in the [CH-filter](crate::utility::ch_filter)
+    /// Number of points used in the CH-filter.
     pub window_size: usize,
     /// If the object moves slower than this it is considered to be stopped. *Currently unused*.
     pub minimum_velocity: f64,
@@ -59,6 +59,8 @@ pub struct Config {
     pub relax_bbox_meters: f64,
     /// If two trajectories belonging to the same edge have a Hausdorff distance of more than this, they will not be merged.
     pub max_hausdorff_meters: f64,
+    /// Threshhold for Visvalingam algorithm.
+    pub visvalingam_threshold: f64,
 }
 
 impl Default for Config {
@@ -67,12 +69,13 @@ impl Default for Config {
             window_size: 5,
             minimum_velocity: 2.5,
             epsilon_velocity: 0.5,
-            stop_duration_minutes: 15.0,
             connection_timeout: 120000.0,
             stop_diagonal_meters: 50.0,
-            relax_bbox_meters: 50.,
+            stop_duration_minutes: 15.0,
             relax_bbox_minutes: 30.,
+            relax_bbox_meters: 50.,
             max_hausdorff_meters: 100.,
+            visvalingam_threshold: 0.5,
         }
     }
 }
@@ -87,6 +90,7 @@ enum ConfigKeys {
     RelaxBboxMinutes,
     RelaxBboxMeters,
     MaxHausdorffMeters,
+    VisvalingamThreshold,
 }
 
 impl FromStr for ConfigKeys {
@@ -103,6 +107,7 @@ impl FromStr for ConfigKeys {
             "relax_bbox_minutes" => Ok(ConfigKeys::RelaxBboxMinutes),
             "relax_bbox_meters" => Ok(ConfigKeys::RelaxBboxMeters),
             "max_hausdorff_meters" => Ok(ConfigKeys::MaxHausdorffMeters),
+            "visvalingam_threshold" => Ok(ConfigKeys::VisvalingamThreshold),
             _ => Err(()),
         }
     }
@@ -139,6 +144,9 @@ pub fn parse_config(config: String) -> Config {
             }
             Ok(ConfigKeys::MaxHausdorffMeters) => {
                 config.max_hausdorff_meters = key_val[1].parse::<f64>().unwrap()
+            }
+            Ok(ConfigKeys::VisvalingamThreshold) => {
+                config.visvalingam_threshold = key_val[1].parse::<f64>().unwrap()
             }
             Err(_) => {
                 panic!("Mismatched config key: {}", key_val[0])

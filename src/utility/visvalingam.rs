@@ -1,4 +1,4 @@
-use geo::{algorithm::simplifyvw::SimplifyVwIdx, Coordinate, LineString, Point};
+use geo::{algorithm::simplifyvw::SimplifyVwIdx, Coordinate, LineString};
 
 pub fn visvalingam(trj: &[[f64; 3]], epsilon: f64) -> Vec<[f64; 3]> {
     let line_string: LineString<f64> = trj

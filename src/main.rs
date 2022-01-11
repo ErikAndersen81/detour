@@ -14,7 +14,6 @@
 //! Various settings can be adjusted by modifying config.cfg located in
 //! the root folder. Read more about [Config](Config) here.
 #![feature(slice_group_by)]
-use geomorph::{coord, utm};
 pub use parser::Config;
 use std::{
     fs,
@@ -24,31 +23,9 @@ pub use utility::{time_guard, CHFilter, StopDetector};
 mod data_structures;
 mod parser;
 mod utility;
-use std::{env, path::Path};
-
 use crate::{data_structures::get_graph, utility::visvalingam};
-
-pub struct Coord {
-    pub x: f64,
-    pub y: f64,
-    pub t: f64,
-}
-
-impl Coord {
-    pub fn from_gps(pt: &[f64; 3]) -> Self {
-        let c: utm::Utm = coord::Coord::new(pt[1], pt[0]).into();
-        Coord {
-            x: c.easting,
-            y: c.northing,
-            t: pt[2],
-        }
-    }
-    /// Converts to GPS assuming UTM coordinates belong to zone 32 (Denmark)
-    pub fn to_gps(&self) -> [f64; 3] {
-        let c: coord::Coord = utm::Utm::new(self.x, self.y, true, 32, 'U', false).into();
-        [c.lon, c.lat, self.t]
-    }
-}
+pub use data_structures::coord::Coord;
+use std::{env, path::Path};
 
 fn main() {
     let config = parser::parse_config(std::fs::read_to_string("config.cfg").unwrap());
@@ -69,20 +46,12 @@ fn main() {
         .filter(|day| !day.is_empty())
         .map(time_guard::clean_stream)
         .map(|stream| {
-            CHFilter::new(config.window_size, stream.into_iter()).collect::<Vec<[f64; 3]>>()
+            let stream =
+                CHFilter::new(config.window_size, stream.into_iter()).collect::<Vec<[f64; 3]>>();
+            visvalingam(&stream, config.visvalingam_threshold)
         })
         .collect();
     println!("parsed {} days", daily_streams.len());
-
-    /////////////////////////////////////////////////////////////////////
-    // // This is for 'testing' the simplification procedure	       //
-    // for stream in daily_streams.iter() {			       //
-    //     let a = stream.len();				       //
-    //     let b = visvalingam(stream, config.epsilon_velocity).len(); //
-    //     println!("a:{}, b:{}", a, b);			       //
-    // }							       //
-    /////////////////////////////////////////////////////////////////////
-
     let graph = get_graph(daily_streams, config);
     graph.to_csv().expect("Could not write output.");
 }

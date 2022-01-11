@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["graph",""]]});
+initSidebarItems({"mod":[["coord",""],["graph",""]]});

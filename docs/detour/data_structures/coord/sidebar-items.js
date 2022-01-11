@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Coord","Holds coordinates in UTM projection."]]});
