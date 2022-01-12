@@ -4,9 +4,9 @@ use std::str::FromStr;
 pub struct Config {
     /// Number of points used in the CH-filter.
     pub window_size: usize,
-    /// If the object moves slower than this it is considered to be stopped. *Currently unused*.
+    /// If the object moves slower than this it is considered to be stopped.
     pub minimum_velocity: f64,
-    /// If the object moves faster than `minimum_velocity` plus this then it is considered to be moving again. *Currently unused*.
+    /// If the object moves faster than `minimum_velocity` plus this then it is considered to be moving again.
     pub epsilon_velocity: f64,
     /// Maximal number of milliseconds between two measurements before the stream is cut into two.
     pub connection_timeout: f64,
