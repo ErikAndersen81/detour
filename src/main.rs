@@ -14,13 +14,10 @@
 //! Various settings can be adjusted by modifying config.cfg located in
 //! the root folder. Read more about [Config](Config) here.
 #![feature(slice_group_by)]
-pub mod config;
 pub mod arguments;
+pub mod config;
 pub use config::Config;
-use std::{
-    fs,
-    io::{BufReader, Read},
-};
+use std::io::{BufReader, Read};
 pub use utility::{time_guard, CHFilter, StopDetector};
 mod data_structures;
 mod parser;
@@ -44,6 +41,6 @@ fn main() {
         })
         .collect();
     println!("parsed {} days", daily_streams.len());
-    let graph = get_graph(daily_streams, config);
+    let graph = get_graph(daily_streams, &config);
     graph.to_csv().expect("Could not write output.");
 }

@@ -43,14 +43,14 @@ struct TimePairs {
 }
 
 #[derive(Clone)]
-pub struct DetourGraph {
+pub struct DetourGraph<'a> {
     graph: StableDiGraph<Bbox, Vec<[f64; 3]>>,
     roots: Vec<NodeIndex>,
-    config: Config,
+    config: &'a Config,
 }
 
-impl DetourGraph {
-    pub fn new(config: Config) -> DetourGraph {
+impl<'a> DetourGraph<'a> {
+    pub fn new(config: &Config) -> DetourGraph {
         let graph: StableDiGraph<Bbox, Vec<[f64; 3]>> = StableDiGraph::new();
         DetourGraph {
             graph,
@@ -524,7 +524,7 @@ impl DetourGraph {
                 let trj = trjs.pop().unwrap();
                 let trj: Vec<[f64; 3]> = trjs
                     .into_iter()
-                    .fold(trj, |trj_a, trj_b| merge(&trj_a, &trj_b, &self.config));
+                    .fold(trj, |trj_a, trj_b| merge(&trj_a, &trj_b, self.config));
                 self.replace_edges(source, target, &cluster, trj);
             }
         }
@@ -598,10 +598,10 @@ impl DetourGraph {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{data_structures::graph::pathbuilder::PathElement, config::Config};
+    use crate::{config::Config, data_structures::graph::pathbuilder::PathElement};
     #[test]
     fn merge_twins() {
-        let mut graph = DetourGraph::new(Config::default());
+        let mut graph = DetourGraph::new(&Config::default());
         let bbox1 = Bbox::new(&[[0., 0., 0.], [1., 1., 1.]]);
         let bbox2 = Bbox::new(&[[2., 2., 2.], [3., 3., 3.]]);
         let bbox3 = Bbox::new(&[[4., 4., 4.], [5., 5., 5.]]);
@@ -630,7 +630,7 @@ mod test {
 
     #[test]
     fn merge_quadruplets() {
-        let mut graph = DetourGraph::new(Config::default());
+        let mut graph = DetourGraph::new(&Config::default());
         let bbox1 = Bbox::new(&[[0., 0., 0.], [1., 1., 1.]]);
         let bbox2 = Bbox::new(&[[2., 2., 2.], [3., 3., 3.]]);
         let bbox3 = Bbox::new(&[[4., 4., 4.], [5., 5., 5.]]);
@@ -661,7 +661,7 @@ mod test {
 
     #[test]
     fn merge_root_non_root() {
-        let mut graph = DetourGraph::new(Config::default());
+        let mut graph = DetourGraph::new(&Config::default());
         let bbox1 = Bbox::new(&[[0., 0., 0.], [1., 1., 1.]]);
         let bbox2 = Bbox::new(&[[2., 2., 2.], [3., 3., 3.]]);
         let bbox3 = Bbox::new(&[[4., 4., 4.], [5., 5., 5.]]);

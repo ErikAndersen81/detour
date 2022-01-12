@@ -1,6 +1,5 @@
 use chrono::NaiveDate;
 use regex::Regex;
-use std::str::FromStr;
 
 /// Parses a string containing GPX data.
 ///
@@ -38,4 +37,3 @@ pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
     }
     trjs
 }
-
