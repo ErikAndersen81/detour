@@ -81,33 +81,56 @@ pub fn parse_config(config: String) -> Config {
     fn handle_line(line: &str, config: &mut Config) {
         let key_val = line.split('=').collect::<Vec<&str>>();
         match ConfigKeys::from_str(key_val[0]) {
-            Ok(ConfigKeys::WindowSize) => config.window_size = key_val[1].parse::<usize>().unwrap(),
+            Ok(ConfigKeys::WindowSize) => {
+                config.window_size = key_val[1].trim().parse::<usize>().expect("window_size")
+            }
             Ok(ConfigKeys::MinimumVelocity) => {
-                config.minimum_velocity = key_val[1].parse::<f64>().unwrap()
+                config.minimum_velocity =
+                    key_val[1].trim().parse::<f64>().expect("minimum_velocity")
             }
             Ok(ConfigKeys::EpsilonVelocity) => {
-                config.epsilon_velocity = key_val[1].parse::<f64>().unwrap()
+                config.epsilon_velocity =
+                    key_val[1].trim().parse::<f64>().expect("epsilon_velocity")
             }
             Ok(ConfigKeys::StopDurationMinutes) => {
-                config.stop_duration_minutes = key_val[1].parse::<f64>().unwrap()
+                config.stop_duration_minutes = key_val[1]
+                    .trim()
+                    .parse::<f64>()
+                    .expect("stop_duration_minutes")
             }
             Ok(ConfigKeys::ConnectionTimeout) => {
-                config.connection_timeout = key_val[1].parse::<f64>().unwrap()
+                config.connection_timeout = key_val[1]
+                    .trim()
+                    .parse::<f64>()
+                    .expect("connection_timeout")
             }
             Ok(ConfigKeys::StopDiagonalMeters) => {
-                config.stop_diagonal_meters = key_val[1].parse::<f64>().unwrap()
+                config.stop_diagonal_meters = key_val[1]
+                    .trim()
+                    .parse::<f64>()
+                    .expect("stop_diagonal_meters")
             }
             Ok(ConfigKeys::RelaxBboxMinutes) => {
-                config.relax_bbox_minutes = key_val[1].parse::<f64>().unwrap()
+                config.relax_bbox_minutes = key_val[1]
+                    .trim()
+                    .parse::<f64>()
+                    .expect("relax_bbox_minutes")
             }
             Ok(ConfigKeys::RelaxBboxMeters) => {
-                config.relax_bbox_meters = key_val[1].parse::<f64>().unwrap()
+                config.relax_bbox_meters =
+                    key_val[1].trim().parse::<f64>().expect("relax_bbox_meters")
             }
             Ok(ConfigKeys::MaxHausdorffMeters) => {
-                config.max_hausdorff_meters = key_val[1].parse::<f64>().unwrap()
+                config.max_hausdorff_meters = key_val[1]
+                    .trim()
+                    .parse::<f64>()
+                    .expect("max_hausdorff_meters")
             }
             Ok(ConfigKeys::VisvalingamThreshold) => {
-                config.visvalingam_threshold = key_val[1].parse::<f64>().unwrap()
+                config.visvalingam_threshold = key_val[1]
+                    .trim()
+                    .parse::<f64>()
+                    .expect("visvalingam_threshold")
             }
             Err(_) => {
                 panic!("Mismatched config key: {}", key_val[0])
