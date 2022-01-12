@@ -1,5 +1,5 @@
 use super::*;
-use crate::utility::Bbox;
+use crate::utility::{Bbox, MotionDetector};
 use std::fmt;
 
 #[derive(Clone, Debug)]
@@ -82,10 +82,11 @@ pub fn get_paths(stream: Vec<[f64; 3]>, config: &Config) -> Vec<Path> {
 fn build_path(stream: Vec<[f64; 3]>, config: Config) -> Path {
     // This function should be called after split_stream
     let mut sd = StopDetector::new(&config);
+    let mut md = MotionDetector::new(&config);
     let mut builder: PathBuilder = PathBuilder::new();
     stream
         .into_iter()
-        .for_each(|point| builder.add_pt(point, !sd.is_stopped(point)));
+        .for_each(|point| builder.add_pt(point, !sd.is_stopped(point) & !md.is_stopped(point)));
     builder.get_path()
 }
 
