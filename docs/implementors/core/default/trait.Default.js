@@ -1,3 +1,3 @@
 (function() {var implementors = {};
-implementors["detour"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> for <a class=\"struct\" href=\"detour/parser/struct.Config.html\" title=\"struct detour::parser::Config\">Config</a>","synthetic":false,"types":["detour::parser::Config"]}];
+implementors["detour"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> for <a class=\"struct\" href=\"detour/config/struct.Config.html\" title=\"struct detour::config::Config\">Config</a>","synthetic":false,"types":["detour::config::Config"]}];
 if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

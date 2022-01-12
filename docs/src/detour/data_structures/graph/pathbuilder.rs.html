@@ -322,8 +322,9 @@
 <span id="322">322</span>
 <span id="323">323</span>
 <span id="324">324</span>
+<span id="325">325</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utility::Bbox</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utility</span>::{<span class="ident">Bbox</span>, <span class="ident">MotionDetector</span>};
 <span class="kw">use</span> <span class="ident">std::fmt</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
@@ -406,10 +407,11 @@
 <span class="kw">fn</span> <span class="ident">build_path</span>(<span class="ident">stream</span>: <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span>, <span class="ident">config</span>: <span class="ident">Config</span>) -&gt; <span class="ident">Path</span> {
     <span class="comment">// This function should be called after split_stream</span>
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sd</span> <span class="op">=</span> <span class="ident">StopDetector::new</span>(<span class="kw-2">&amp;</span><span class="ident">config</span>);
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">md</span> <span class="op">=</span> <span class="ident">MotionDetector::new</span>(<span class="kw-2">&amp;</span><span class="ident">config</span>);
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span>: <span class="ident">PathBuilder</span> <span class="op">=</span> <span class="ident">PathBuilder::new</span>();
     <span class="ident">stream</span>
         .<span class="ident">into_iter</span>()
-        .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">point</span><span class="op">|</span> <span class="ident">builder</span>.<span class="ident">add_pt</span>(<span class="ident">point</span>, <span class="op">!</span><span class="ident">sd</span>.<span class="ident">is_stopped</span>(<span class="ident">point</span>)));
+        .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">point</span><span class="op">|</span> <span class="ident">builder</span>.<span class="ident">add_pt</span>(<span class="ident">point</span>, <span class="op">!</span><span class="ident">sd</span>.<span class="ident">is_stopped</span>(<span class="ident">point</span>) <span class="op">&amp;</span> <span class="op">!</span><span class="ident">md</span>.<span class="ident">is_stopped</span>(<span class="ident">point</span>)));
     <span class="ident">builder</span>.<span class="ident">get_path</span>()
 }
 
