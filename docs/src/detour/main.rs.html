@@ -44,6 +44,8 @@
 <span id="44">44</span>
 <span id="45">45</span>
 <span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Constructs Detour Graph</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Command line utility for constructing an acyclic graph that represents</span>
@@ -52,10 +54,12 @@
 <span class="doccomment">//! which ensures temporal monotonicity.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! ## Example</span>
-<span class="doccomment">//! Say you have a bunch of GPX files located in /home/user/gpx you want to use as input. Pipe the output to the program and specify an output folder like so:</span>
+<span class="doccomment">//! Say you have a bunch of GPX files located in /home/user/gpx you want to use as input. Pipe the output to the program like:</span>
 <span class="doccomment">//! ``` shell</span>
-<span class="doccomment">//! $ cat /home/user/gpx/* | .detour /home/user/output</span>
+<span class="doccomment">//! $ cat /home/user/gpx/* | .detour -o /home/user/output</span>
 <span class="doccomment">//! ```</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! To use a specific configuration file use the `-c` or `--config` option followed by desired configuration file. By default output is written to a folder called `Output` unless otherwise is specified by using the `-o` or `--output` option.</span>
 <span class="doccomment">//! ## Configuration</span>
 <span class="doccomment">//! Various settings can be adjusted by modifying config.cfg located in</span>
 <span class="doccomment">//! the root folder. Read more about [Config](Config) here.</span>
