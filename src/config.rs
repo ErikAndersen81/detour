@@ -20,7 +20,7 @@ pub struct Config {
     pub relax_bbox_meters: f64,
     /// If two trajectories belonging to the same edge have a Hausdorff distance of more than this, they will not be merged.
     pub max_hausdorff_meters: f64,
-    /// Threshhold for Visvalingam algorithm.
+    /// Threshold for Visvalingam algorithm.
     pub visvalingam_threshold: f64,
 }
 
@@ -29,7 +29,7 @@ impl Default for Config {
         Config {
             window_size: 5,
             minimum_velocity: 2.5,
-            epsilon_velocity: 0.5,
+            epsilon_velocity: 1.5,
             connection_timeout: 120000.0,
             stop_diagonal_meters: 50.0,
             stop_duration_minutes: 15.0,
