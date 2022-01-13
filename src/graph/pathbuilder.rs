@@ -1,5 +1,5 @@
-use super::*;
-use crate::utility::{Bbox, MotionDetector};
+use crate::utility::{trajectory::Monotone, Bbox, MotionDetector, StopDetector};
+use crate::Config;
 use std::fmt;
 
 #[derive(Clone, Debug)]
