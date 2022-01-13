@@ -6,10 +6,12 @@
 //! which ensures temporal monotonicity.
 //!
 //! ## Example
-//! Say you have a bunch of GPX files located in /home/user/gpx you want to use as input. Pipe the output to the program and specify an output folder like so:
+//! Say you have a bunch of GPX files located in /home/user/gpx you want to use as input. Pipe the output to the program like:
 //! ``` shell
-//! $ cat /home/user/gpx/* | .detour /home/user/output
+//! $ cat /home/user/gpx/* | .detour -o /home/user/output
 //! ```
+//!
+//! To use a specific configuration file use the `-c` or `--config` option followed by desired configuration file. By default output is written to a folder called `Output` unless otherwise is specified by using the `-o` or `--output` option.
 //! ## Configuration
 //! Various settings can be adjusted by modifying config.cfg located in
 //! the root folder. Read more about [Config](Config) here.
