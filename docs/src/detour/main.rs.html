@@ -46,6 +46,7 @@
 <span id="46">46</span>
 <span id="47">47</span>
 <span id="48">48</span>
+<span id="49">49</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Constructs Detour Graph</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Command line utility for constructing an acyclic graph that represents</span>
@@ -69,11 +70,12 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">config::Config</span>;
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">BufReader</span>, <span class="ident">Read</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">utility</span>::{<span class="ident">time_guard</span>, <span class="ident">CHFilter</span>, <span class="ident">StopDetector</span>};
-<span class="kw">mod</span> <span class="ident">data_structures</span>;
+<span class="kw">mod</span> <span class="ident">coord</span>;
+<span class="kw">mod</span> <span class="ident">graph</span>;
 <span class="kw">mod</span> <span class="ident">parser</span>;
 <span class="kw">mod</span> <span class="ident">utility</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">data_structures::get_graph</span>, <span class="ident">utility::visvalingam</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">data_structures::coord::Coord</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">graph::get_graph</span>, <span class="ident">utility::visvalingam</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">coord::Coord</span>;
 
 <span class="kw">fn</span> <span class="ident">main</span>() {
     <span class="kw">let</span> <span class="ident">config</span> <span class="op">=</span> <span class="ident">arguments::parse_arguments</span>();

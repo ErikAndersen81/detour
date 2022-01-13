@@ -21,11 +21,12 @@ pub mod config;
 pub use config::Config;
 use std::io::{BufReader, Read};
 pub use utility::{time_guard, CHFilter, StopDetector};
-mod data_structures;
+mod coord;
+mod graph;
 mod parser;
 mod utility;
-use crate::{data_structures::get_graph, utility::visvalingam};
-pub use data_structures::coord::Coord;
+use crate::{graph::get_graph, utility::visvalingam};
+pub use coord::Coord;
 
 fn main() {
     let config = arguments::parse_arguments();

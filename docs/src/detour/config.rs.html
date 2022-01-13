@@ -164,7 +164,7 @@
     <span class="kw">pub</span> <span class="ident">relax_bbox_meters</span>: <span class="ident">f64</span>,
     <span class="doccomment">/// If two trajectories belonging to the same edge have a Hausdorff distance of more than this, they will not be merged.</span>
     <span class="kw">pub</span> <span class="ident">max_hausdorff_meters</span>: <span class="ident">f64</span>,
-    <span class="doccomment">/// Threshhold for Visvalingam algorithm.</span>
+    <span class="doccomment">/// Threshold for Visvalingam algorithm.</span>
     <span class="kw">pub</span> <span class="ident">visvalingam_threshold</span>: <span class="ident">f64</span>,
 }
 
@@ -173,7 +173,7 @@
         <span class="ident">Config</span> {
             <span class="ident">window_size</span>: <span class="number">5</span>,
             <span class="ident">minimum_velocity</span>: <span class="number">2.5</span>,
-            <span class="ident">epsilon_velocity</span>: <span class="number">0.5</span>,
+            <span class="ident">epsilon_velocity</span>: <span class="number">1.5</span>,
             <span class="ident">connection_timeout</span>: <span class="number">120000.0</span>,
             <span class="ident">stop_diagonal_meters</span>: <span class="number">50.0</span>,
             <span class="ident">stop_duration_minutes</span>: <span class="number">15.0</span>,
