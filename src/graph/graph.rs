@@ -345,7 +345,7 @@ impl<'a> DetourGraph<'a> {
 
     fn copy_edges(&mut self, copyer: NodeIndex, copyed: NodeIndex) {
         let mut edges: Vec<(NodeIndex, NodeIndex, Vec<[f64; 3]>)> = vec![];
-        // retreive the edges of 'from'
+        // retreive the edges of 'copyed'
         for edge in self.graph.edges_directed(copyed, EdgeDirection::Incoming) {
             let (s, t) = (edge.source(), copyer);
             let trj = edge.weight().clone();

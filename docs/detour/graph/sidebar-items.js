@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["RootCase",""]],"mod":[["graph_builder",""],["pathbuilder",""]],"struct":[["DetourGraph",""],["TimePairs",""]],"type":[["EdgeClusters",""]]});
+initSidebarItems({"mod":[["graph",""],["graph_builder",""],["pathbuilder",""]]});

@@ -323,8 +323,8 @@
 <span id="323">323</span>
 <span id="324">324</span>
 <span id="325">325</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utility</span>::{<span class="ident">Bbox</span>, <span class="ident">MotionDetector</span>};
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utility</span>::{<span class="ident">trajectory::Monotone</span>, <span class="ident">Bbox</span>, <span class="ident">MotionDetector</span>, <span class="ident">StopDetector</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Config</span>;
 <span class="kw">use</span> <span class="ident">std::fmt</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
