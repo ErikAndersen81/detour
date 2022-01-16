@@ -36,11 +36,19 @@ struct TimePairs {
     b: bool,
 }
 
+#[derive(Debug, Default, Clone)]
+struct Statistics {
+    pub node_merges:usize,
+    pub edge_merges:usize,
+    pub node_splits:usize,
+}
+
 #[derive(Clone)]
 pub struct DetourGraph<'a> {
     graph: StableDiGraph<Bbox, Vec<[f64; 3]>>,
     roots: Vec<NodeIndex>,
     config: &'a Config,
+    stats: Statistics,
 }
 
 impl<'a> DetourGraph<'a> {
@@ -50,6 +58,7 @@ impl<'a> DetourGraph<'a> {
             graph,
             roots: vec![],
             config,
+	    stats:Statistics::default(),
         }
     }
 
@@ -99,12 +108,17 @@ impl<'a> DetourGraph<'a> {
             let mut f = BufWriter::new(f);
             write!(f, "x,y,t\n{}", trj)?;
         }
+
+	let f = File::create("stats")?;
+        let mut f = BufWriter::new(f);
+        write!(f, "{:?}", self.stats)?;
         Ok(())
     }
 
     pub fn merge_nodes(&mut self) {
         while let Some((a, b)) = self.find_matching_nodes() {
             assert!(self.verify_constraints(), "Not root reachable!");
+	    self.stats.node_merges += 1;
             let root_case = self.get_root_case(a, b);
             match root_case {
                 RootCase::DifferentRoot(root_idx) => {
@@ -137,6 +151,7 @@ impl<'a> DetourGraph<'a> {
 
     fn split_node(&mut self, split_node: NodeIndex) {
         let splits = self.get_temporal_splits(split_node);
+	self.stats.node_splits += splits.len();
         let nodes: Vec<NodeIndex> = DetourGraph::split_bbox(self.graph[split_node], &splits)
             .into_iter()
             .map(|bbox| self.graph.add_node(bbox))
@@ -515,6 +530,7 @@ impl<'a> DetourGraph<'a> {
                     .iter()
                     .map(|ex| self.graph.edge_weight(*ex).unwrap().clone())
                     .collect();
+		self.stats.edge_merges += if trjs.is_empty() {0} else {trjs.len() -1};
                 let trj = trjs.pop().unwrap();
                 let trj: Vec<[f64; 3]> = trjs
                     .into_iter()
