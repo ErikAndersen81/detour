@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, fmt::Display};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Config {
@@ -38,6 +38,22 @@ impl Default for Config {
             max_hausdorff_meters: 100.,
             visvalingam_threshold: 0.5,
         }
+    }
+}
+
+impl Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "window_size={}", self.window_size)?;
+	writeln!(f, "minimum_velocity={}", self.minimum_velocity)?;
+	writeln!(f, "epsilon_velocity={}", self.epsilon_velocity)?;
+	writeln!(f, "connection_timeout={}", self.connection_timeout)?;
+	writeln!(f, "stop_diagonal_meters={}", self.stop_diagonal_meters)?;
+	writeln!(f, "stop_duration_minutes={}", self.stop_duration_minutes)?;
+	writeln!(f, "relax_bbox_minutes={}", self.relax_bbox_minutes)?;
+	writeln!(f, "relax_bbox_meters={}", self.relax_bbox_meters)?;
+	writeln!(f, "max_hausdorff_meters={}", self.max_hausdorff_meters)?;
+	writeln!(f, "visvalingam_threshold={}", self.visvalingam_threshold)?;
+	Ok(())
     }
 }
 
