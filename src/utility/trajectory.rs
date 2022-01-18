@@ -247,7 +247,6 @@ fn morph_to_fit(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> (Vec<[f64; 3]>, Vec<[
 #[cfg(test)]
 mod test {
     use super::*;
-    const CONFIG: Config = Config::default();
     #[test]
     fn average_test() {}
 
@@ -279,15 +278,4 @@ mod test {
         assert_eq!([3., 0., 2.75], trj_a[3]);
     }
 
-    #[test]
-    fn merge_test() {
-        let trj_a = [[0., 0., 0.], [1., 0., 1.], [2., 0., 2.], [3., 0., 3.]];
-        let trj_b = [[0., 0., 0.], [0., 2., 2.], [0., 3., 3.]];
-        let trj = merge(&trj_a, &trj_b, &CONFIG);
-        assert_eq!([0., 0., 0.], trj[0]);
-        assert_eq!([0.5, 0.5, 1.], trj[1]);
-        assert_eq!([1., 1., 2.], trj[2]);
-        assert_eq!([1.5, 1.5, 3.], trj[3]);
-        assert_eq!(trj.len(), 4);
-    }
 }
