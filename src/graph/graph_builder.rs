@@ -1,3 +1,5 @@
+use std::alloc::Allocator;
+
 use super::{pathbuilder::get_paths, DetourGraph};
 use crate::config::Config;
 

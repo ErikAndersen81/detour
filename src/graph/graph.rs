@@ -8,12 +8,14 @@ use crate::utility::{clustering, Bbox};
 use clustering::Clustering;
 use itertools::Itertools;
 use petgraph::dot::Dot;
-use petgraph::graph::NodeIndex;
+use petgraph::graph::{Node, NodeIndex};
 use petgraph::prelude::EdgeIndex;
 
 use super::pathbuilder::Path;
 use petgraph::stable_graph::StableDiGraph;
-use petgraph::visit::{depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences};
+use petgraph::visit::{
+    depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences, IntoEdgesDirected,
+};
 use petgraph::EdgeDirection;
 use trajectory_similarity::hausdorff;
 
@@ -38,9 +40,9 @@ struct TimePairs {
 
 #[derive(Debug, Default, Clone)]
 struct Statistics {
-    pub node_merges:usize,
-    pub edge_merges:usize,
-    pub node_splits:usize,
+    pub node_merges: usize,
+    pub edge_merges: usize,
+    pub node_splits: usize,
 }
 
 #[derive(Clone)]
@@ -58,7 +60,7 @@ impl<'a> DetourGraph<'a> {
             graph,
             roots: vec![],
             config,
-	    stats:Statistics::default(),
+            stats: Statistics::default(),
         }
     }
 
@@ -67,7 +69,10 @@ impl<'a> DetourGraph<'a> {
     /// - The graph structure is stored in 'graph.dot'.
     /// - Nodes are stored in 'nodes.csv'. Values in the column *label* corresponds to the node labels in 'graph.dot'.
     /// - Each edge is stored in an 'edge_{label}.csv' file. Here, *label* correspond to the an edge label in 'graph.dot'.
+    /// - Information about splits and merges of nodes/edges are stored in 'stats'.
+    /// - Configuration is written to 'config' for reference purposes.
     pub fn to_csv(&self) -> Result<()> {
+	println!("Writing data...");
         // Write the graph in graphviz format
         let dot = Dot::with_config(
             &self.graph,
@@ -108,51 +113,106 @@ impl<'a> DetourGraph<'a> {
             let mut f = BufWriter::new(f);
             write!(f, "x,y,t\n{}", trj)?;
         }
-
-	let f = File::create("stats")?;
+        // Write Statistics
+        let f = File::create("stats")?;
         let mut f = BufWriter::new(f);
         write!(f, "{:?}", self.stats)?;
+        // Write Configuration
+        let f = File::create("config")?;
+        let mut f = BufWriter::new(f);
+        write!(f, "{}", self.config)?;
         Ok(())
+    }
+
+    /// Merges a pair of nodes and returns the new node index
+    fn merge_node_pair(&mut self, a: NodeIndex, b: NodeIndex) -> NodeIndex {
+        let root_case = self.get_root_case(a, b);
+        match root_case {
+            RootCase::DifferentRoot(root_idx) => {
+                self.roots.remove(root_idx);
+                self.graph[a] = self.graph[a].union(&self.graph[b]);
+                self.copy_edges(a, b);
+                self.graph.remove_node(b);
+            }
+            RootCase::SameRoot(root_idx) => {
+                self.roots[root_idx] = a;
+                self.graph[a] = self.graph[a].union(&self.graph[b]);
+                self.copy_edges(a, b);
+                self.graph.remove_node(b);
+            }
+            RootCase::NonRoots => {
+                self.graph[a] = self.graph[a].union(&self.graph[b]);
+                self.copy_edges(a, b);
+                self.graph.remove_node(b);
+            }
+            RootCase::DoubleRoot((root_a, root_b)) => {
+                self.roots[root_a] = a;
+                self.roots.remove(root_b);
+                self.graph[a] = self.graph[a].union(&self.graph[b]);
+                self.copy_edges(a, b);
+                self.graph.remove_node(b);
+            }
+        }
+        a
     }
 
     pub fn merge_nodes(&mut self) {
         while let Some((a, b)) = self.find_matching_nodes() {
-            assert!(self.verify_constraints(), "Not root reachable!");
-	    self.stats.node_merges += 1;
-            let root_case = self.get_root_case(a, b);
-            match root_case {
-                RootCase::DifferentRoot(root_idx) => {
-                    self.roots.remove(root_idx);
-                    self.graph[a] = self.graph[a].union(&self.graph[b]);
-                    self.copy_edges(a, b);
-                    self.graph.remove_node(b);
-                }
-                RootCase::SameRoot(_) => {
-                    self.graph[a] = self.graph[a].union(&self.graph[b]);
-                    self.copy_edges(a, b);
-                    self.graph.remove_node(b);
-                    self.split_node(a);
-                }
-                RootCase::NonRoots => {
-                    self.graph[a] = self.graph[a].union(&self.graph[b]);
-                    self.copy_edges(a, b);
-                    self.graph.remove_node(b);
-                }
-                RootCase::DoubleRoot((_, root_idx)) => {
-                    self.roots.remove(root_idx);
-                    self.graph[a] = self.graph[a].union(&self.graph[b]);
-                    self.copy_edges(a, b);
-                    self.graph.remove_node(b);
-                }
+            assert!(
+                self.verify_constraints(),
+                "Failed to verify constraints! {:?}",
+                self.stats
+            );
+            self.stats.node_merges += 1;
+            let a = self.merge_node_pair(a, b);
+            if self.should_split(a) {
+                self.split_node(a);
+            }
+            while !self.verify_temporal_monotonicity() {
+                self.fix_temporal_monotonicity();
             }
         }
         assert!(self.verify_constraints(), "Invalid graph structure!");
     }
 
-    fn split_node(&mut self, split_node: NodeIndex) {
-        let splits = self.get_temporal_splits(split_node);
-	self.stats.node_splits += splits.len();
-        let nodes: Vec<NodeIndex> = DetourGraph::split_bbox(self.graph[split_node], &splits)
+    fn should_split(&self, nx: NodeIndex) -> bool {
+        let bbox = self.graph[nx];
+        for edge in self.graph.edges_directed(nx, EdgeDirection::Incoming) {
+            let source = self.graph[edge.source()];
+            if source.t2 >= bbox.t1 {
+                return true;
+            }
+        }
+        for edge in self.graph.edges_directed(nx, EdgeDirection::Outgoing) {
+            let target = self.graph[edge.target()];
+            if bbox.t2 >= target.t1 {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn get_special_split(&self, nx: NodeIndex) -> Vec<(NodeIndex, f64)> {
+        let mut splits = vec![];
+        let bbox = self.graph[nx];
+        for edge in self.graph.edges_directed(nx, EdgeDirection::Incoming) {
+            let source = self.graph[edge.source()];
+            if source.t2 >= bbox.t1 {
+                splits.push((edge.source(), bbox.t1));
+            }
+        }
+        for edge in self.graph.edges_directed(nx, EdgeDirection::Outgoing) {
+            let target = self.graph[edge.target()];
+            if bbox.t2 >= target.t1 {
+                splits.push((edge.target(), bbox.t2));
+            }
+        }
+        splits
+    }
+
+    fn split_node_at(&mut self, split_node: NodeIndex, splits: &[f64]) {
+        self.stats.node_splits += splits.len();
+        let nodes: Vec<NodeIndex> = DetourGraph::split_bbox(self.graph[split_node], splits)
             .into_iter()
             .map(|bbox| self.graph.add_node(bbox))
             .collect();
@@ -174,35 +234,40 @@ impl<'a> DetourGraph<'a> {
                         == 0)
             })
             .collect();
-        for nx in no_edge_nodes {
-            self.graph.remove_node(*nx);
+        for nx in no_edge_nodes.iter() {
+            self.graph.remove_node(**nx);
         }
-
         // If the split node was in root, remove its reference from the root list
         if let Some(root_idx) = self.get_root_index(split_node) {
             self.roots.remove(root_idx);
         }
         // remove the now unused split node
         self.graph.remove_node(split_node);
-
         // Add orphan nodes to the root list
-        let orphan_nodes: Vec<NodeIndex> = nodes
-            .into_iter()
+        let orphan_nodes: Vec<&NodeIndex> = nodes
+            .iter()
             .filter(|nx| {
                 (self
                     .graph
-                    .edges_directed(*nx, EdgeDirection::Incoming)
+                    .edges_directed(**nx, EdgeDirection::Incoming)
                     .count()
                     == 0)
                     & (self
                         .graph
-                        .edges_directed(*nx, EdgeDirection::Outgoing)
+                        .edges_directed(**nx, EdgeDirection::Outgoing)
                         .count()
                         > 0)
             })
             .collect();
         for nx in orphan_nodes {
-            self.roots.push(nx)
+            self.roots.push(*nx);
+        }
+    }
+
+    fn split_node(&mut self, split_node: NodeIndex) {
+        let splits = self.get_temporal_splits(split_node);
+        if !splits.is_empty() {
+            self.split_node_at(split_node, &splits);
         }
     }
 
@@ -210,11 +275,11 @@ impl<'a> DetourGraph<'a> {
         let edge_idxs = self.get_trjs_in_timeframe(split_node);
         let mut splits = vec![];
         let mut timestamps = vec![];
-        for ex in edge_idxs {
-            let trj = self.graph.edge_weight(ex).unwrap();
+        for idx in edge_idxs {
+            let trj = self.graph.edge_weight(idx).unwrap();
             let (t1, t2) = (trj[0][2], trj[trj.len() - 1][2]);
-            timestamps.push((ex, t1));
-            timestamps.push((ex, t2));
+            timestamps.push((idx, t1));
+            timestamps.push((idx, t2));
         }
         timestamps.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
         let mut visited: HashSet<EdgeIndex> = HashSet::new();
@@ -237,15 +302,28 @@ impl<'a> DetourGraph<'a> {
     /// i.e. their trajectories' temporal start and end lie within bbox of the node.
     fn get_trjs_in_timeframe(&self, node: NodeIndex) -> Vec<EdgeIndex> {
         let (box_t1, box_t2) = (self.graph[node].t1, self.graph[node].t2);
-        self.graph
-            .edges(node)
+        let mut incoming: Vec<EdgeIndex> = self
+            .graph
+            .edges_directed(node, EdgeDirection::Incoming)
             .filter(|edge| {
                 let trj = edge.weight();
                 let [t1, t2] = [trj[0][2], trj[trj.len() - 1][2]];
                 (box_t1..=box_t2).contains(&t1) & (box_t1..=box_t2).contains(&t2)
             })
             .map(|edge| edge.id())
-            .collect()
+            .collect();
+        let outgoing: Vec<EdgeIndex> = self
+            .graph
+            .edges_directed(node, EdgeDirection::Outgoing)
+            .filter(|edge| {
+                let trj = edge.weight();
+                let [t1, t2] = [trj[0][2], trj[trj.len() - 1][2]];
+                (box_t1..=box_t2).contains(&t1) & (box_t1..=box_t2).contains(&t2)
+            })
+            .map(|edge| edge.id())
+            .collect();
+        incoming.extend(outgoing);
+        incoming
     }
 
     fn split_bbox(bbox: Bbox, splits: &[f64]) -> Vec<Bbox> {
@@ -338,8 +416,8 @@ impl<'a> DetourGraph<'a> {
         }
     }
 
+    /// Returns Some(index) of `nx` in the roots list or None
     fn get_root_index(&self, nx: NodeIndex) -> Option<usize> {
-        // Returns Some(index) of nx in the roots list or None
         self.roots.iter().position(|x| *x == nx)
     }
 
@@ -388,11 +466,6 @@ impl<'a> DetourGraph<'a> {
         }
     }
 
-    fn should_split(&self, nx: NodeIndex) -> bool {
-        let splits = self.get_temporal_splits(nx);
-        !splits.is_empty()
-    }
-
     fn verify_constraints(&self) -> bool {
         let mut valid = true;
         for nx in self.graph.node_indices() {
@@ -426,8 +499,7 @@ impl<'a> DetourGraph<'a> {
                 }
             }
         }
-        let temporally_monotone = self.verify_temporal_monotonicity();
-        valid & temporally_monotone
+        valid & self.verify_temporal_monotonicity()
     }
 
     /// Checks and returns a tuple with the following for the node, nx:
@@ -459,6 +531,30 @@ impl<'a> DetourGraph<'a> {
         })
         .break_value()
         .is_none()
+    }
+
+    /// If any edge (a,b) breaks temporal monotonicity -> false.
+    fn fix_temporal_monotonicity(&mut self) {
+        let broken_pair =
+            depth_first_search(&self.graph, self.roots.clone(), |event| match event {
+                DfsEvent::TreeEdge(a, b) => {
+                    let a_time = self.graph[a].t2;
+                    let b_time = self.graph[b].t1;
+                    if a_time >= b_time {
+                        Control::Break((a, b))
+                    } else {
+                        Control::Continue
+                    }
+                }
+                _ => Control::Continue,
+            })
+            .break_value();
+        if let Some((a, b)) = broken_pair {
+            let split_b = self.graph[a].t2;
+            let split_a = self.graph[b].t1;
+            self.split_node_at(b, &[split_b]);
+            self.split_node_at(a, &[split_a]);
+        }
     }
 
     fn find_matching_nodes(&self) -> Option<(NodeIndex, NodeIndex)> {
@@ -530,7 +626,7 @@ impl<'a> DetourGraph<'a> {
                     .iter()
                     .map(|ex| self.graph.edge_weight(*ex).unwrap().clone())
                     .collect();
-		self.stats.edge_merges += if trjs.is_empty() {0} else {trjs.len() -1};
+                self.stats.edge_merges += if trjs.is_empty() { 0 } else { trjs.len() - 1 };
                 let trj = trjs.pop().unwrap();
                 let trj: Vec<[f64; 3]> = trjs
                     .into_iter()
@@ -608,10 +704,11 @@ impl<'a> DetourGraph<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{config::Config, graph::graph::pathbuilder::PathElement};
+    use crate::{config::Config, graph::pathbuilder::PathElement};
     #[test]
     fn merge_twins() {
-        let mut graph = DetourGraph::new(&Config::default());
+        let config = Config::default();
+        let mut graph = DetourGraph::new(&config);
         let bbox1 = Bbox::new(&[[0., 0., 0.], [1., 1., 1.]]);
         let bbox2 = Bbox::new(&[[2., 2., 2.], [3., 3., 3.]]);
         let bbox3 = Bbox::new(&[[4., 4., 4.], [5., 5., 5.]]);
@@ -626,21 +723,16 @@ mod test {
         ];
         graph.add_path(path.clone());
         graph.add_path(path);
-        let mut found_n: usize = 0;
-        while let Some((a, b)) = graph.find_matching_nodes() {
-            found_n += 1;
-            graph.get_root_case(a, b);
-            graph.copy_edges(a, b);
-            graph.graph.remove_node(b);
-        }
+        let a = graph.roots[0];
+        let b = graph.roots[1];
+        graph.merge_node_pair(a, b);
         assert!(graph.verify_constraints());
-        assert_eq!(graph.roots.len(), 1);
-        assert_eq!(found_n, 3);
     }
 
     #[test]
     fn merge_quadruplets() {
-        let mut graph = DetourGraph::new(&Config::default());
+        let config = Config::default();
+        let mut graph = DetourGraph::new(&config);
         let bbox1 = Bbox::new(&[[0., 0., 0.], [1., 1., 1.]]);
         let bbox2 = Bbox::new(&[[2., 2., 2.], [3., 3., 3.]]);
         let bbox3 = Bbox::new(&[[4., 4., 4.], [5., 5., 5.]]);
@@ -657,21 +749,13 @@ mod test {
         graph.add_path(path1.clone());
         graph.add_path(path1.clone());
         graph.add_path(path1);
-        let mut found_n: usize = 0;
-        while let Some((a, b)) = graph.find_matching_nodes() {
-            found_n += 1;
-            graph.get_root_case(a, b);
-            graph.copy_edges(a, b);
-            graph.graph.remove_node(b);
-        }
         assert!(graph.verify_constraints());
-        assert_eq!(graph.roots.len(), 1);
-        assert_eq!(found_n, 9);
     }
 
     #[test]
     fn merge_root_non_root() {
-        let mut graph = DetourGraph::new(&Config::default());
+        let config = Config::default();
+        let mut graph = DetourGraph::new(&config);
         let bbox1 = Bbox::new(&[[0., 0., 0.], [1., 1., 1.]]);
         let bbox2 = Bbox::new(&[[2., 2., 2.], [3., 3., 3.]]);
         let bbox3 = Bbox::new(&[[4., 4., 4.], [5., 5., 5.]]);
@@ -695,21 +779,13 @@ mod test {
         ];
         graph.add_path(path1);
         graph.add_path(path2);
-        let mut found_n: usize = 0;
-        while let Some((a, b)) = graph.find_matching_nodes() {
-            found_n += 1;
-            graph.get_root_case(a, b);
-            graph.copy_edges(a, b);
-            graph.graph.remove_node(b);
-        }
-        assert_eq!(graph.roots.len(), 2);
         assert!(graph.verify_constraints());
-        assert_eq!(found_n, 2);
     }
 
     #[test]
     fn merge_skip_one() {
-        let mut graph = DetourGraph::new(Config::default());
+        let config = Config::default();
+        let mut graph = DetourGraph::new(&config);
         let bbox1 = Bbox::new(&[[0., 0., 0.], [1., 1., 1.]]);
         let bbox2 = Bbox::new(&[[2., 2., 2.], [3., 3., 3.]]);
         let bbox3 = Bbox::new(&[[4., 4., 4.], [5., 5., 5.]]);
@@ -731,15 +807,6 @@ mod test {
         graph.add_path(path2);
         graph.add_path(path1.clone());
         graph.add_path(path1);
-        let mut found_n: usize = 0;
-        while let Some((a, b)) = graph.find_matching_nodes() {
-            found_n += 1;
-            graph.get_root_case(a, b);
-            graph.copy_edges(a, b);
-            graph.graph.remove_node(b);
-        }
-        assert_eq!(graph.roots.len(), 1);
-        assert_eq!(found_n, 5);
         assert!(graph.verify_constraints());
     }
 }
