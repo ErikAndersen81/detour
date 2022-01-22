@@ -11,6 +11,7 @@ pub struct Coord {
 
 impl Coord {
     /// Create a UTM projected coordinate from GPS-Coordinates '(lon, lat, time)'.
+    /// We center on Denmark, i.e. we extend zone 32.
     pub fn from_gps(pt: &[f64; 3]) -> Self {
         let c: utm::Utm = coord::Coord::new(pt[1], pt[0]).into();
         Coord {
@@ -21,7 +22,8 @@ impl Coord {
     }
     /// Converts to GPS '(lon, lat, time)' assuming UTM coordinates belong to zone 32 (Denmark)
     pub fn to_gps(&self) -> [f64; 3] {
-        let c: coord::Coord = utm::Utm::new(self.x, self.y, true, 32, 'U', false).into();
+        let zone = if self.x < 450000.0 { 33 } else { 32 };
+        let c: coord::Coord = utm::Utm::new(self.x, self.y, true, zone, 'U', false).into();
         [c.lon, c.lat, self.t]
     }
 }
