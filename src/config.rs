@@ -8,6 +8,8 @@ pub struct Config {
     pub minimum_velocity: f64,
     /// If the object moves faster than `minimum_velocity` plus this then it is considered to be moving again.
     pub epsilon_velocity: f64,
+    /// The timespan used by the `MotionDetector` to calculate average velocity.
+    pub motion_detector_timespan: f64,
     /// Maximal number of milliseconds between two measurements before the stream is cut into two.
     pub connection_timeout: f64,
     /// Maximal diagonal size of a geofenced region. If movement occurs within a region of this size it is eligible to be considered a stop.
@@ -30,6 +32,7 @@ impl Default for Config {
             window_size: 5,
             minimum_velocity: 2.5,
             epsilon_velocity: 1.5,
+	    motion_detector_timespan: 60000.0,
             connection_timeout: 120000.0,
             stop_diagonal_meters: 50.0,
             stop_duration_minutes: 15.0,
@@ -46,6 +49,7 @@ impl Display for Config {
         writeln!(f, "window_size={}", self.window_size)?;
 	writeln!(f, "minimum_velocity={}", self.minimum_velocity)?;
 	writeln!(f, "epsilon_velocity={}", self.epsilon_velocity)?;
+	writeln!(f, "motion_detector_timespan={}", self.motion_detector_timespan)?;
 	writeln!(f, "connection_timeout={}", self.connection_timeout)?;
 	writeln!(f, "stop_diagonal_meters={}", self.stop_diagonal_meters)?;
 	writeln!(f, "stop_duration_minutes={}", self.stop_duration_minutes)?;
@@ -61,6 +65,7 @@ enum ConfigKeys {
     WindowSize,
     MinimumVelocity,
     EpsilonVelocity,
+    MotionDetectorTimespan,
     StopDurationMinutes,
     ConnectionTimeout,
     StopDiagonalMeters,
@@ -78,6 +83,7 @@ impl FromStr for ConfigKeys {
             "window_size" => Ok(ConfigKeys::WindowSize),
             "minimum_velocity" => Ok(ConfigKeys::MinimumVelocity),
             "epsilon_velocity" => Ok(ConfigKeys::EpsilonVelocity),
+	    "motion_detector_timespan" => Ok(ConfigKeys::MotionDetectorTimespan),
             "stop_duration_minutes" => Ok(ConfigKeys::StopDurationMinutes),
             "connection_timeout" => Ok(ConfigKeys::ConnectionTimeout),
             "stop_diagonal_meters" => Ok(ConfigKeys::StopDiagonalMeters),
@@ -107,6 +113,10 @@ pub fn parse_config(config: String) -> Config {
             Ok(ConfigKeys::EpsilonVelocity) => {
                 config.epsilon_velocity =
                     key_val[1].trim().parse::<f64>().expect("epsilon_velocity")
+            }
+	    Ok(ConfigKeys::MotionDetectorTimespan) => {
+                config.motion_detector_timespan =
+                    key_val[1].trim().parse::<f64>().expect("motion_detector_timespan")
             }
             Ok(ConfigKeys::StopDurationMinutes) => {
                 config.stop_duration_minutes = key_val[1]
