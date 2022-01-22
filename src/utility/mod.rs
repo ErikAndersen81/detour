@@ -24,6 +24,7 @@ pub use timeout_handler::TimeoutHandler;
 
 pub use line::Line;
 pub use visvalingam::visvalingam;
+pub use stop_detector::IsStopped;
 
 /// Returns Euclidean distance in meters
 ///

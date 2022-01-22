@@ -72,7 +72,7 @@ impl<'a> DetourGraph<'a> {
     /// - Information about splits and merges of nodes/edges are stored in 'stats'.
     /// - Configuration is written to 'config' for reference purposes.
     pub fn to_csv(&self) -> Result<()> {
-	println!("Writing data...");
+        println!("Writing data...");
         // Write the graph in graphviz format
         let dot = Dot::with_config(
             &self.graph,
