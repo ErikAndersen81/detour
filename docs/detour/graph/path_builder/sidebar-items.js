@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["build_path","Classify stops and routes of a stream"],["get_paths","Returns a vector of paths given a stream"],["split_stream_on_timeout",""]],"struct":[["PathBuilder",""],["PointsForElement","Stores points until we can classify them as either `Stop` or `Route`"]]});

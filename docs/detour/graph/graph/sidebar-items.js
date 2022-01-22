@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["RootCase",""]],"struct":[["DetourGraph",""],["TimePairs",""]],"type":[["EdgeClusters",""]]});
+initSidebarItems({"enum":[["RootCase",""]],"struct":[["DetourGraph",""],["Statistics",""],["TimePairs",""]],"type":[["EdgeClusters",""]]});

@@ -33,18 +33,6 @@
 <span id="33">33</span>
 <span id="34">34</span>
 <span id="35">35</span>
-<span id="36">36</span>
-<span id="37">37</span>
-<span id="38">38</span>
-<span id="39">39</span>
-<span id="40">40</span>
-<span id="41">41</span>
-<span id="42">42</span>
-<span id="43">43</span>
-<span id="44">44</span>
-<span id="45">45</span>
-<span id="46">46</span>
-<span id="47">47</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Various utilities</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Contains several functions that may be useful in other scenarios as well.</span>
@@ -71,6 +59,7 @@
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">line::Line</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">visvalingam::visvalingam</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">stop_detector::IsStopped</span>;
 
 <span class="doccomment">/// Returns Euclidean distance in meters</span>
 <span class="doccomment">///</span>
@@ -78,19 +67,6 @@
 <span class="doccomment">/// todo!</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_distance</span>(<span class="ident">from</span>: <span class="kw-2">&amp;</span>[<span class="ident">f64</span>; <span class="number">3</span>], <span class="ident">to</span>: <span class="kw-2">&amp;</span>[<span class="ident">f64</span>; <span class="number">3</span>]) -&gt; <span class="ident">f64</span> {
     ((<span class="ident">from</span>[<span class="number">0</span>] <span class="op">-</span> <span class="ident">to</span>[<span class="number">0</span>]).<span class="ident">powi</span>(<span class="number">2</span>) <span class="op">+</span> (<span class="ident">from</span>[<span class="number">1</span>] <span class="op">-</span> <span class="ident">to</span>[<span class="number">1</span>]).<span class="ident">powi</span>(<span class="number">2</span>)).<span class="ident">sqrt</span>()
-}
-
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">test</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">distance_test</span>() {
-        <span class="comment">// According to google these two points are approximately 2 km apart</span>
-        <span class="kw">let</span> <span class="ident">from</span> <span class="op">=</span> <span class="kw-2">&amp;</span>[<span class="number">10.128126551731393</span>, <span class="number">55.39057912238903</span>, <span class="number">0.</span>];
-        <span class="kw">let</span> <span class="ident">to</span> <span class="op">=</span> <span class="kw-2">&amp;</span>[<span class="number">10.159840991123847</span>, <span class="number">55.386813002794774</span>, <span class="number">1.</span>];
-        <span class="kw">let</span> <span class="ident">google_distance</span> <span class="op">=</span> <span class="number">2000.</span>;
-        <span class="macro">assert!</span>((<span class="ident">get_distance</span>(<span class="ident">from</span>, <span class="ident">to</span>) <span class="op">-</span> <span class="ident">google_distance</span>).<span class="ident">abs</span>() <span class="op">&lt;</span> <span class="number">50.</span>);
-    }
 }
 </code></pre></div>
 </section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="detour" data-search-index-js="../../../search-index.js" data-search-js="../../../search.js"></div>

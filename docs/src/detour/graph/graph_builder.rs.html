@@ -19,7 +19,9 @@
 <span id="19">19</span>
 <span id="20">20</span>
 <span id="21">21</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">pathbuilder::get_paths</span>, <span class="ident">DetourGraph</span>};
+<span id="22">22</span>
+<span id="23">23</span>
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">path_builder::get_paths</span>, <span class="ident">DetourGraph</span>, <span class="ident">PathBuilderStats</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::config::Config</span>;
 
 <span class="doccomment">/// Returns a detour graph when given a vector of preprocessed streams.</span>
@@ -30,14 +32,16 @@
 <span class="doccomment">/// merged. The graph is then made acyclic and finally the edges are merged.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_graph</span>(<span class="ident">streams</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="ident">Config</span>) -&gt; <span class="ident">DetourGraph</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">graph</span> <span class="op">=</span> <span class="ident">DetourGraph::new</span>(<span class="ident">config</span>);
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">path_stats</span> <span class="op">=</span> <span class="ident">PathBuilderStats::default</span>();
     <span class="ident">streams</span>
         .<span class="ident">into_iter</span>()
-        .<span class="ident">flat_map</span>(<span class="op">|</span><span class="ident">stream</span><span class="op">|</span> <span class="ident">get_paths</span>(<span class="ident">stream</span>, <span class="ident">config</span>))
+        .<span class="ident">flat_map</span>(<span class="op">|</span><span class="ident">stream</span><span class="op">|</span> <span class="ident">get_paths</span>(<span class="ident">stream</span>, <span class="ident">config</span>, <span class="kw-2">&amp;mut</span> <span class="ident">path_stats</span>))
         .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">path</span><span class="op">|</span> <span class="ident">path</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">1</span>)
         .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">path</span><span class="op">|</span> <span class="ident">graph</span>.<span class="ident">add_path</span>(<span class="ident">path</span>));
     <span class="ident">graph</span>.<span class="ident">merge_nodes</span>();
-    <span class="ident">graph</span>.<span class="ident">make_acyclic</span>();
-    <span class="ident">graph</span>.<span class="ident">merge_edges</span>();
+    <span class="comment">//graph.make_acyclic();</span>
+    <span class="comment">//graph.merge_edges();</span>
+    <span class="macro">println!</span>(<span class="string">&quot;Path builder stats:\n{}&quot;</span>, <span class="ident">path_stats</span>);
     <span class="ident">graph</span>
 }
 </code></pre></div>

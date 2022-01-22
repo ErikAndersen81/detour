@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["graph",""],["graph_builder",""],["pathbuilder",""]]});
+initSidebarItems({"mod":[["graph",""],["graph_builder",""],["path",""],["path_builder",""],["path_builder_stats",""],["path_element",""]]});

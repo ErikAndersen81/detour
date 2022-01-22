@@ -185,6 +185,21 @@
 <span id="185">185</span>
 <span id="186">186</span>
 <span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">get_distance</span>, <span class="ident">Line</span>};
 <span class="kw">use</span> <span class="ident">std::fmt::Display</span>;
 
@@ -282,6 +297,18 @@
         <span class="ident">vertical</span> <span class="op">&amp;</span> <span class="ident">horizontal</span> <span class="op">&amp;</span> <span class="ident">temporal</span>
     }
 
+    <span class="doccomment">/// Inserts `point` and expands `Bbox` if neccesary.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">insert_point</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">point</span>: <span class="kw-2">&amp;</span>[<span class="ident">f64</span>; <span class="number">3</span>]) {
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">contains_point</span>(<span class="ident">point</span>) {
+            <span class="self">self</span>.<span class="ident">x1</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">x1</span>.<span class="ident">min</span>(<span class="ident">point</span>[<span class="number">0</span>]);
+            <span class="self">self</span>.<span class="ident">x2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">x2</span>.<span class="ident">max</span>(<span class="ident">point</span>[<span class="number">0</span>]);
+            <span class="self">self</span>.<span class="ident">y1</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">y1</span>.<span class="ident">min</span>(<span class="ident">point</span>[<span class="number">1</span>]);
+            <span class="self">self</span>.<span class="ident">y2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">y2</span>.<span class="ident">max</span>(<span class="ident">point</span>[<span class="number">1</span>]);
+            <span class="self">self</span>.<span class="ident">t1</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">t1</span>.<span class="ident">min</span>(<span class="ident">point</span>[<span class="number">2</span>]);
+            <span class="self">self</span>.<span class="ident">t2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">t2</span>.<span class="ident">max</span>(<span class="ident">point</span>[<span class="number">2</span>]);
+        }
+    }
+
     <span class="doccomment">/// Determine if other &#39;Bbox&#39; is temporally before &#39;self&#39;.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Specifically, for Bboxes x and y; if x ends before y starts, return true</span>
@@ -299,8 +326,7 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">contains_point</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">pt</span>: <span class="kw-2">&amp;</span>[<span class="ident">f64</span>; <span class="number">3</span>]) -&gt; <span class="ident">bool</span> {
-        <span class="kw">let</span> <span class="ident">temporally_overlapping</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">t1</span>..<span class="self">self</span>.<span class="ident">t2</span>).<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">pt</span>[<span class="number">2</span>]);
-        <span class="self">self</span>.<span class="ident">is_in_spatial</span>(<span class="ident">pt</span>) <span class="op">&amp;</span> <span class="ident">temporally_overlapping</span>
+        <span class="self">self</span>.<span class="ident">is_in_spatial</span>(<span class="ident">pt</span>) <span class="op">&amp;</span> <span class="self">self</span>.<span class="ident">is_in_temporal</span>(<span class="ident">pt</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_in_temporal</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">pt</span>: <span class="kw-2">&amp;</span>[<span class="ident">f64</span>; <span class="number">3</span>]) -&gt; <span class="ident">bool</span> {
@@ -331,10 +357,14 @@
         <span class="self">self</span>.<span class="ident">t2</span> <span class="op">+</span><span class="op">=</span> <span class="ident">minutes</span> <span class="op">*</span> <span class="number">60000.</span>;
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_diameter</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">f64</span> {
-        <span class="kw">let</span> <span class="ident">a</span>: [<span class="ident">f64</span>; <span class="number">3</span>] <span class="op">=</span> [<span class="self">self</span>.<span class="ident">x1</span>, <span class="self">self</span>.<span class="ident">y1</span>, <span class="self">self</span>.<span class="ident">t1</span>];
-        <span class="kw">let</span> <span class="ident">b</span>: [<span class="ident">f64</span>; <span class="number">3</span>] <span class="op">=</span> [<span class="self">self</span>.<span class="ident">x2</span>, <span class="self">self</span>.<span class="ident">y2</span>, <span class="self">self</span>.<span class="ident">t2</span>];
-        <span class="ident">get_distance</span>(<span class="kw-2">&amp;</span><span class="ident">a</span>, <span class="kw-2">&amp;</span><span class="ident">b</span>)
+    <span class="doccomment">/// Returns the longer of width and height</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_spatialspan</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">f64</span> {
+        (<span class="self">self</span>.<span class="ident">x2</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">x1</span>).<span class="ident">max</span>(<span class="self">self</span>.<span class="ident">y2</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">y1</span>)
+    }
+
+    <span class="doccomment">/// Returns timespan in ms</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_timespan</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">f64</span> {
+        <span class="self">self</span>.<span class="ident">t2</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">t1</span>
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">union</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="self">Self</span> {
