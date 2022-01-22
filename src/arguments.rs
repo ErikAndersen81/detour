@@ -29,7 +29,7 @@ pub fn parse_arguments() -> Config {
             parse_config(std::fs::read_to_string(config).unwrap())
         }
         None => {
-            println!("using standard configuration (config.cfg)");
+            println!("Using standard configuration (config.cfg)");
             parse_config(std::fs::read_to_string("config.cfg").unwrap())
         }
     };
@@ -37,7 +37,7 @@ pub fn parse_arguments() -> Config {
     // NOTE: We set the working path here!
     if let Some(out_path) = matches.value_of("out_path") {
         fs::create_dir_all(&out_path).expect("Cant write to specified output folder");
-        println!("Writing output to: {}", &out_path);
+        println!("Setting output directory: {}", &out_path);
         let out_path = Path::new(&out_path);
         assert!(env::set_current_dir(&out_path).is_ok());
     } else {
