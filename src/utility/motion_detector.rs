@@ -1,4 +1,4 @@
-use super::get_distance;
+use super::{get_distance, IsStopped};
 use crate::config::Config;
 
 pub struct MotionDetector {
@@ -7,7 +7,7 @@ pub struct MotionDetector {
     /// Minimum velocity in km/h
     min_velocity: f64,
     /// Was the last point a 'stop'
-    was_stopped: bool,
+    was_stopped: IsStopped,
     /// If (min_velocity + eps > average velocity) then it is moving
     eps: f64,
     /// Temporal intervals in timespan
@@ -21,9 +21,9 @@ pub struct MotionDetector {
 impl MotionDetector {
     pub fn new(config: &Config) -> MotionDetector {
         MotionDetector {
-            timespan: config.stop_duration_minutes,
+            timespan: config.motion_detector_timespan,
             min_velocity: config.minimum_velocity,
-            was_stopped: true,
+            was_stopped: IsStopped::Maybe,
             eps: config.epsilon_velocity,
             tmp_ivls: Vec::new(),
             spt_ivls: Vec::new(),
@@ -41,10 +41,10 @@ impl MotionDetector {
     }
 
     /// Returns true if the object is stopped.
-    pub fn is_stopped(&mut self, point: [f64; 3]) -> bool {
+    pub fn is_stopped(&mut self, point: &[f64; 3]) -> IsStopped {
         if let Some(from) = self.ref_pt {
-            let dist: f64 = get_distance(&from, &point);
-            self.ref_pt = Some(point);
+            let dist: f64 = get_distance(&from, point);
+            self.ref_pt = Some(*point);
             let span: f64 = point[2] - from[2];
             self.spt_ivls.push(dist);
             self.tmp_ivls.push(span);
@@ -60,14 +60,18 @@ impl MotionDetector {
                 }
             }
             let km_h = self.get_avg_velocity();
-            if self.was_stopped && ((self.min_velocity + self.eps) < km_h) {
-                self.was_stopped = false;
-            } else if !self.was_stopped && (self.min_velocity > km_h) {
-                self.was_stopped = true;
+            let is_stopped = (self.min_velocity + self.eps) < km_h;
+            match (is_stopped, self.was_stopped) {
+                (true, IsStopped::Maybe) => self.was_stopped = IsStopped::Yes,
+                (true, IsStopped::Yes) | (false, IsStopped::No) => {}
+                (true, IsStopped::No) | (false, IsStopped::Yes) => {
+                    self.was_stopped = IsStopped::Maybe
+                }
+                (false, IsStopped::Maybe) => self.was_stopped = IsStopped::No,
             }
         } else {
-            self.ref_pt = Some(point);
-            self.was_stopped = true;
+            self.ref_pt = Some(*point);
+            self.was_stopped = IsStopped::Maybe;
         }
         self.was_stopped
     }

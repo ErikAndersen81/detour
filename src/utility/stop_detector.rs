@@ -15,33 +15,113 @@ use crate::config::Config;
 /// // Returns a list of tuples containing a coordinate and a boolean
 /// // indicating whether the object is stopped at the given point.
 /// ```
+#[derive(Debug)]
 pub struct StopDetector {
-    duration_ms: f64,
-    diagonal_meters: f64,  // Maximal length of Bbox diagonal (spatially)
-    points: Vec<[f64; 3]>, // last read points spanning no more than timespan
+    min_duration_ms: f64,     // Minimum time a stop must last
+    max_diagonal_meters: f64, // Maximum width/length of a stop.
+    current_bbox: Option<Bbox>,
 }
 
 impl StopDetector {
     pub fn new(config: &Config) -> StopDetector {
         StopDetector {
-            duration_ms: config.stop_duration_minutes * 60. * 1000.0,
-            diagonal_meters: config.stop_diagonal_meters,
-            points: vec![],
+            min_duration_ms: config.stop_duration_minutes * 60. * 1000.0,
+            max_diagonal_meters: config.stop_diagonal_meters,
+            current_bbox: None,
         }
     }
 
-    pub fn is_stopped(&mut self, point: [f64; 3]) -> bool {
-        self.points.push(point);
-        self.fit_to_timespan();
-        let bbox = Bbox::new(&self.points);
-        bbox.get_diameter() < self.diagonal_meters
+    pub fn is_stopped(&mut self, point: &[f64; 3]) -> IsStopped {
+        if let Some(mut bbox) = self.current_bbox {
+            bbox.insert_point(point);
+            self.current_bbox = Some(bbox);
+        } else {
+            self.current_bbox = Some(Bbox::new(&[*point]));
+        }
+        let spatial_fit = self.current_bbox.unwrap().get_spatialspan() < self.max_diagonal_meters;
+        let temporal_fit = self.current_bbox.unwrap().get_timespan() > self.min_duration_ms;
+        match (spatial_fit, temporal_fit) {
+            (true, true) => IsStopped::Yes,
+            (true, false) => IsStopped::Maybe,
+            (false, true) | (false, false) => IsStopped::No,
+        }
     }
 
-    fn fit_to_timespan(&mut self) {
-        while self.points.len() > 1
-            && self.points[self.points.len() - 1][2] - self.points[0][2] > self.duration_ms
-        {
-            self.points.remove(0);
+    /// Clear the bbox used for detection.
+    pub fn reset(&mut self) {
+        self.current_bbox = None;
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum IsStopped {
+    Maybe,
+    Yes,
+    No,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn too_litle_time() {
+        let config = Config::default();
+        // Default time limit is 15 minutes
+        let mut sd = StopDetector::new(&config);
+        let points = vec![[0., 0., 0.], [0., 0., 5. * 60000.], [0., 0., 10. * 60000.]];
+        for point in points {
+            assert_eq!(sd.is_stopped(&point), IsStopped::Maybe, "t:{}", point[2]);
         }
+    }
+
+    #[test]
+    fn too_large_area() {
+        let config = Config::default();
+        // Default size limit is 50 meters
+        let mut sd = StopDetector::new(&config);
+        let points = vec![[0., 0., 0.], [0., 51., 5. * 60000.]];
+        assert_eq!(sd.is_stopped(&points[0]), IsStopped::Maybe);
+        assert_eq!(sd.is_stopped(&points[1]), IsStopped::No);
+    }
+
+    #[test]
+    fn perfect_fit() {
+        let config = Config::default();
+        // Default time limit is 15 minutes
+        // Default size limit is 50 meters
+        let mut sd = StopDetector::new(&config);
+        let points = vec![
+            [0., 0., 0.],
+            [0., 10., 5. * 60000.],
+            [10., 10., 10. * 60000.],
+            [15., 15., 16. * 60000.],
+            [20., 35., 20. * 60000.],
+        ];
+        assert_eq!(sd.is_stopped(&points[0]), IsStopped::Maybe);
+        assert_eq!(sd.is_stopped(&points[1]), IsStopped::Maybe);
+        assert_eq!(sd.is_stopped(&points[2]), IsStopped::Maybe);
+        assert_eq!(sd.is_stopped(&points[3]), IsStopped::Yes);
+        assert_eq!(sd.is_stopped(&points[4]), IsStopped::Yes);
+    }
+
+    #[test]
+    fn reset_after_start() {
+        // Once an object started moving, reset the Bbox
+        let config = Config::default();
+        // Default time limit is 15 minutes
+        // Default size limit is 50 meters
+        let mut sd = StopDetector::new(&config);
+        let points = vec![
+            [0., 0., 0.],             // Maybe
+            [0., 10., 20. * 60000.],  // Yes
+            [0., 51., 25. * 60000.],  // No
+            [15., 51., 30. * 60000.], // Maybe
+            [25., 25., 41. * 60000.], // Yes
+        ];
+        assert_eq!(sd.is_stopped(&points[0]), IsStopped::Maybe);
+        assert_eq!(sd.is_stopped(&points[1]), IsStopped::Yes);
+        assert_eq!(sd.is_stopped(&points[2]), IsStopped::No);
+        assert_eq!(sd.is_stopped(&points[3]), IsStopped::Maybe);
+        assert_eq!(sd.is_stopped(&points[4]), IsStopped::Yes, "{:?}", sd);
     }
 }

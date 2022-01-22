@@ -8,14 +8,12 @@ use crate::utility::{clustering, Bbox};
 use clustering::Clustering;
 use itertools::Itertools;
 use petgraph::dot::Dot;
-use petgraph::graph::{Node, NodeIndex};
+use petgraph::graph::NodeIndex;
 use petgraph::prelude::EdgeIndex;
 
-use super::pathbuilder::Path;
+use super::Path;
 use petgraph::stable_graph::StableDiGraph;
-use petgraph::visit::{
-    depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences, IntoEdgesDirected,
-};
+use petgraph::visit::{depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences};
 use petgraph::EdgeDirection;
 use trajectory_similarity::hausdorff;
 
@@ -190,24 +188,6 @@ impl<'a> DetourGraph<'a> {
             }
         }
         false
-    }
-
-    fn get_special_split(&self, nx: NodeIndex) -> Vec<(NodeIndex, f64)> {
-        let mut splits = vec![];
-        let bbox = self.graph[nx];
-        for edge in self.graph.edges_directed(nx, EdgeDirection::Incoming) {
-            let source = self.graph[edge.source()];
-            if source.t2 >= bbox.t1 {
-                splits.push((edge.source(), bbox.t1));
-            }
-        }
-        for edge in self.graph.edges_directed(nx, EdgeDirection::Outgoing) {
-            let target = self.graph[edge.target()];
-            if bbox.t2 >= target.t1 {
-                splits.push((edge.target(), bbox.t2));
-            }
-        }
-        splits
     }
 
     fn split_node_at(&mut self, split_node: NodeIndex, splits: &[f64]) {
@@ -687,16 +667,14 @@ impl<'a> DetourGraph<'a> {
     }
 
     pub fn add_path(&mut self, mut path: Path) {
-        let bbox = path.remove(0).get_bbox().unwrap();
+        let bbox = path.remove_first().get_bbox().unwrap();
         let mut a: NodeIndex = self.graph.add_node(bbox);
         self.roots.push(a);
-        path.iter().tuples().for_each(|(route, stop)| {
-            let trj = route.get_trj().unwrap();
-            let bbox = stop.get_bbox().unwrap();
+        while let Some((trj, bbox)) = path.next_trj_stop() {
             let b = self.graph.add_node(bbox);
             self.graph.add_edge(a, b, trj);
             a = b;
-        });
+        }
         assert!(self.verify_constraints(), "Invalid graph structure!");
     }
 }
@@ -704,7 +682,7 @@ impl<'a> DetourGraph<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{config::Config, graph::pathbuilder::PathElement};
+    use crate::{config::Config, graph::path_builder::PathElement};
     #[test]
     fn merge_twins() {
         let config = Config::default();

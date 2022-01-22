@@ -95,6 +95,18 @@ impl Bbox {
         vertical & horizontal & temporal
     }
 
+    /// Inserts `point` and expands `Bbox` if neccesary.
+    pub fn insert_point(&mut self, point: &[f64; 3]) {
+        if !self.contains_point(point) {
+            self.x1 = self.x1.min(point[0]);
+            self.x2 = self.x2.max(point[0]);
+            self.y1 = self.y1.min(point[1]);
+            self.y2 = self.y2.max(point[1]);
+            self.t1 = self.t1.min(point[2]);
+            self.t2 = self.t2.max(point[2]);
+        }
+    }
+
     /// Determine if other 'Bbox' is temporally before 'self'.
     ///
     /// Specifically, for Bboxes x and y; if x ends before y starts, return true
@@ -112,8 +124,7 @@ impl Bbox {
     }
 
     pub fn contains_point(&self, pt: &[f64; 3]) -> bool {
-        let temporally_overlapping = (self.t1..self.t2).contains(&pt[2]);
-        self.is_in_spatial(pt) & temporally_overlapping
+        self.is_in_spatial(pt) & self.is_in_temporal(pt)
     }
 
     pub fn is_in_temporal(&self, pt: &[f64; 3]) -> bool {
@@ -144,10 +155,14 @@ impl Bbox {
         self.t2 += minutes * 60000.;
     }
 
-    pub fn get_diameter(&self) -> f64 {
-        let a: [f64; 3] = [self.x1, self.y1, self.t1];
-        let b: [f64; 3] = [self.x2, self.y2, self.t2];
-        get_distance(&a, &b)
+    /// Returns the longer of width and height
+    pub fn get_spatialspan(&self) -> f64 {
+        (self.x2 - self.x1).max(self.y2 - self.y1)
+    }
+
+    /// Returns timespan in ms
+    pub fn get_timespan(&self) -> f64 {
+        self.t2 - self.t1
     }
 
     pub fn union(&self, other: &Self) -> Self {

@@ -1,5 +1,11 @@
 mod graph;
 mod graph_builder;
-mod pathbuilder;
+mod path;
+mod path_builder;
+mod path_builder_stats;
+mod path_element;
 pub use graph::DetourGraph;
 pub use graph_builder::get_graph;
+pub use path::Path;
+pub use path_builder_stats::PathBuilderStats;
+pub use path_element::PathElement;
