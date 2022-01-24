@@ -174,15 +174,15 @@ impl<'a> DetourGraph<'a> {
     }
 
     fn should_split(&self, nx: NodeIndex) -> bool {
-        let bbox = self.graph[nx];
+        let bbox = self.graph[nx].clone();
         for edge in self.graph.edges_directed(nx, EdgeDirection::Incoming) {
-            let source = self.graph[edge.source()];
+            let source = self.graph[edge.source()].clone();
             if source.t2 >= bbox.t1 {
                 return true;
             }
         }
         for edge in self.graph.edges_directed(nx, EdgeDirection::Outgoing) {
-            let target = self.graph[edge.target()];
+            let target = self.graph[edge.target()].clone();
             if bbox.t2 >= target.t1 {
                 return true;
             }
@@ -192,7 +192,7 @@ impl<'a> DetourGraph<'a> {
 
     fn split_node_at(&mut self, split_node: NodeIndex, splits: &[f64]) {
         self.stats.node_splits += splits.len();
-        let nodes: Vec<NodeIndex> = DetourGraph::split_bbox(self.graph[split_node], splits)
+        let nodes: Vec<NodeIndex> = DetourGraph::split_bbox(self.graph[split_node].clone(), splits)
             .into_iter()
             .map(|bbox| self.graph.add_node(bbox))
             .collect();
@@ -539,7 +539,7 @@ impl<'a> DetourGraph<'a> {
 
     fn find_matching_nodes(&self) -> Option<(NodeIndex, NodeIndex)> {
         for match_nx in self.graph.node_indices() {
-            let bbox: Bbox = self.graph[match_nx];
+            let bbox: Bbox = self.graph[match_nx].clone();
             let roots = self.roots.clone();
             let result = depth_first_search(&self.graph, roots, |event| match event {
                 DfsEvent::Discover(nx, _) => {
@@ -667,7 +667,7 @@ impl<'a> DetourGraph<'a> {
     }
 
     pub fn add_path(&mut self, mut path: Path) {
-        let bbox = path.remove_first().get_bbox().unwrap();
+        let bbox = path.remove_first().copy_bbox().unwrap();
         let mut a: NodeIndex = self.graph.add_node(bbox);
         self.roots.push(a);
         while let Some((trj, bbox)) = path.next_trj_stop() {
