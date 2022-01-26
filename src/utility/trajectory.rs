@@ -1,5 +1,5 @@
 use crate::visvalingam;
-use crate::Config;
+use crate::CONFIG;
 use std::iter::Peekable;
 
 pub trait Monotone {
@@ -102,11 +102,11 @@ pub fn align_time_to_zero(trj: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
         .collect::<Vec<[f64; 3]>>()
 }
 
-pub fn merge(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]], config: &Config) -> Vec<[f64; 3]> {
+pub fn merge(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> Vec<[f64; 3]> {
     let (trj_a, trj_b) = align_start_time(trj_a, trj_b);
     let (trj_a, trj_b) = morph_to_fit(&trj_a, &trj_b);
     let trj = average(&trj_a, &trj_b);
-    visvalingam(&trj, config.visvalingam_threshold)
+    visvalingam(&trj, CONFIG.visvalingam_threshold)
 }
 
 fn average(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> Vec<[f64; 3]> {
@@ -277,5 +277,4 @@ mod test {
         assert_eq!([2., 0., 1.75], trj_a[2]);
         assert_eq!([3., 0., 2.75], trj_a[3]);
     }
-
 }

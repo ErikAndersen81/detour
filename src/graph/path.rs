@@ -67,6 +67,16 @@ impl Path {
         }
     }
 
+    /// Replace the `Bbox` last in the path.
+    pub fn replace_last_bbox(&mut self, bbox: Bbox) {
+        let last = self.path.len() - 1;
+        assert!(
+            matches!(self.path[last], PathElement::Stop(..)),
+            "Cant replace Route with Stop!"
+        );
+        self.path[last] = PathElement::Stop(bbox);
+    }
+
     pub fn len(&self) -> usize {
         self.path.len()
     }

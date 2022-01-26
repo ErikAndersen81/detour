@@ -1,5 +1,5 @@
 use super::Bbox;
-use crate::config::Config;
+use crate::CONFIG;
 
 /// Detect if the object is stopped.
 /// If the movements of the object within a time frame of `min_duration_ms` is limited to a geofenced location with a diagonal of `max_diagonal_meters` the object is considered to be stopped.
@@ -23,10 +23,10 @@ pub struct StopDetector {
 }
 
 impl StopDetector {
-    pub fn new(config: &Config) -> StopDetector {
+    pub fn new() -> StopDetector {
         StopDetector {
-            min_duration_ms: config.stop_duration_minutes * 60. * 1000.0,
-            max_diagonal_meters: config.stop_diagonal_meters,
+            min_duration_ms: CONFIG.stop_duration_minutes * 60. * 1000.0,
+            max_diagonal_meters: CONFIG.stop_diagonal_meters,
             current_bbox: None,
         }
     }

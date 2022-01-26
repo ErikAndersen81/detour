@@ -23,8 +23,8 @@ pub use time_guard::clean_stream;
 pub use timeout_handler::TimeoutHandler;
 
 pub use line::Line;
-pub use visvalingam::visvalingam;
 pub use stop_detector::IsStopped;
+pub use visvalingam::visvalingam;
 
 /// Returns Euclidean distance in meters
 ///

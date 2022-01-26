@@ -11,11 +11,14 @@
 //! $ cat /home/user/gpx/* | .detour -o /home/user/output
 //! ```
 //!
-//! To use a specific configuration file use the `-c` or `--config` option followed by desired configuration file. By default output is written to a folder called `Output` unless otherwise is specified by using the `-o` or `--output` option.
+//! To use a specific configuration file use the `-c` or `--config` option followed by desired configuration file.
+//! By default output is written to a folder called `Output` unless otherwise is specified by using the `-o` or `--output` option.
 //! ## Configuration
 //! Various settings can be adjusted by modifying config.cfg located in
 //! the root folder. Read more about [Config](Config) here.
-#![feature(slice_group_by)]
+#[macro_use]
+extern crate lazy_static;
+
 pub mod arguments;
 pub mod config;
 pub use config::Config;
@@ -28,22 +31,26 @@ mod utility;
 use crate::{graph::get_graph, utility::visvalingam};
 pub use coord::Coord;
 
+lazy_static! {
+    pub static ref CONFIG: Config = arguments::parse_arguments();
+}
+
 fn main() {
-    let config = arguments::parse_arguments();
     let mut buf_reader = BufReader::new(std::io::stdin());
     let mut contents = String::new();
     buf_reader
         .read_to_string(&mut contents)
         .expect("can't read from stdin");
-    let daily_streams: Vec<Vec<[f64; 3]>> = parser::parse_gpx(contents)
+    println!("Parsing input...");
+    let daily_streams: Vec<Vec<[f64; 3]>> = parser::parse_plt(contents)
         .into_iter()
         .filter(|day| !day.is_empty())
         .map(time_guard::clean_stream)
         .map(|stream| {
-            CHFilter::new(config.window_size, stream.into_iter()).collect::<Vec<[f64; 3]>>()
+            CHFilter::new(CONFIG.window_size, stream.into_iter()).collect::<Vec<[f64; 3]>>()
         })
         .collect();
-    println!("parsed {} days", daily_streams.len());
-    let graph = get_graph(daily_streams, &config);
+    println!("Constructing graph...");
+    let graph = get_graph(daily_streams);
     graph.to_csv().expect("Could not write output.");
 }

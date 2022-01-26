@@ -1,15 +1,14 @@
-use std::collections::{HashMap, HashSet};
-use std::fs::File;
-use std::io::{BufWriter, Result, Write};
-
-use crate::config::Config;
 use crate::utility::trajectory::merge;
 use crate::utility::{clustering, Bbox};
+use crate::{Config, CONFIG};
 use clustering::Clustering;
 use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
 use petgraph::prelude::EdgeIndex;
+use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::{BufWriter, Result, Write};
 
 use super::Path;
 use petgraph::stable_graph::StableDiGraph;
@@ -44,20 +43,18 @@ struct Statistics {
 }
 
 #[derive(Clone)]
-pub struct DetourGraph<'a> {
+pub struct DetourGraph {
     graph: StableDiGraph<Bbox, Vec<[f64; 3]>>,
     roots: Vec<NodeIndex>,
-    config: &'a Config,
     stats: Statistics,
 }
 
-impl<'a> DetourGraph<'a> {
-    pub fn new(config: &Config) -> DetourGraph {
+impl DetourGraph {
+    pub fn new() -> DetourGraph {
         let graph: StableDiGraph<Bbox, Vec<[f64; 3]>> = StableDiGraph::new();
         DetourGraph {
             graph,
             roots: vec![],
-            config,
             stats: Statistics::default(),
         }
     }
@@ -99,12 +96,12 @@ impl<'a> DetourGraph<'a> {
                 .weight()
                 .iter()
                 .map(|[x, y, t]| {
-                    let c = crate::Coord {
+                    let coord = crate::Coord {
                         x: *x,
                         y: *y,
                         t: *t,
                     };
-                    let [x, y, t] = c.to_gps();
+                    let [x, y, t] = coord.to_gps();
                     format!("{},{},{}", x, y, t)
                 })
                 .join("\n");
@@ -118,7 +115,7 @@ impl<'a> DetourGraph<'a> {
         // Write Configuration
         let f = File::create("config")?;
         let mut f = BufWriter::new(f);
-        write!(f, "{}", self.config)?;
+        write!(f, "{}", *CONFIG)?;
         Ok(())
     }
 
@@ -539,7 +536,7 @@ impl<'a> DetourGraph<'a> {
 
     fn find_matching_nodes(&self) -> Option<(NodeIndex, NodeIndex)> {
         for match_nx in self.graph.node_indices() {
-            let bbox: Bbox = self.graph[match_nx].clone();
+            let bbox: Bbox = self.graph[match_nx];
             let roots = self.roots.clone();
             let result = depth_first_search(&self.graph, roots, |event| match event {
                 DfsEvent::Discover(nx, _) => {
@@ -610,7 +607,7 @@ impl<'a> DetourGraph<'a> {
                 let trj = trjs.pop().unwrap();
                 let trj: Vec<[f64; 3]> = trjs
                     .into_iter()
-                    .fold(trj, |trj_a, trj_b| merge(&trj_a, &trj_b, self.config));
+                    .fold(trj, |trj_a, trj_b| merge(&trj_a, &trj_b));
                 self.replace_edges(source, target, &cluster, trj);
             }
         }
@@ -627,7 +624,7 @@ impl<'a> DetourGraph<'a> {
                 dists[j][i] = dists[i][j];
             }
         }
-        let clusters = Clustering::new(dists, self.config.max_hausdorff_meters).clusters;
+        let clusters = Clustering::new(dists, CONFIG.max_hausdorff_meters).clusters;
         clusters
             .iter()
             .map(|c| c.iter().map(|idx| group[*idx]).collect::<Vec<EdgeIndex>>())
@@ -667,6 +664,7 @@ impl<'a> DetourGraph<'a> {
     }
 
     pub fn add_path(&mut self, mut path: Path) {
+        print!("add_path, ");
         let bbox = path.remove_first().copy_bbox().unwrap();
         let mut a: NodeIndex = self.graph.add_node(bbox);
         self.roots.push(a);

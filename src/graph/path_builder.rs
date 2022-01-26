@@ -1,24 +1,21 @@
 use crate::graph::{Path, PathBuilderStats, PathElement};
 use crate::utility::IsStopped;
 use crate::utility::{Bbox, MotionDetector, StopDetector};
-use crate::Config;
+use crate::CONFIG;
 
 /// Returns a vector of paths given a stream
 ///
 /// The stream is split between two points if their temporal difference exceeds
 /// `connection_timeout` as it is set in the [config](Config) file.
 /// Then, paths are constructed from the stream using a [stop detector](StopDetector).
-pub fn get_paths(
-    stream: Vec<[f64; 3]>,
-    config: &Config,
-    stats: &mut PathBuilderStats,
-) -> Vec<Path> {
+pub fn get_paths(stream: Vec<[f64; 3]>, stats: &mut PathBuilderStats) -> Vec<Path> {
+    print!("get_path, ");
     stats.streams_handled += 1;
-    let splitted_streams = split_stream_on_timeout(&stream, config.connection_timeout, stats);
+    let splitted_streams = split_stream_on_timeout(&stream, stats);
     let paths: Vec<Path> = splitted_streams
         .into_iter()
         .map(|stream| {
-            let path = build_path(stream, *config);
+            let path = build_path(stream);
             stats.path_lens.push(path.len());
             path
         })
@@ -29,38 +26,25 @@ pub fn get_paths(
 /// Classify stops and routes of a stream
 ///
 /// Should be called after `split_stream`.
-fn build_path(stream: Vec<[f64; 3]>, config: Config) -> Path {
+fn build_path(stream: Vec<[f64; 3]>) -> Path {
     // This function should be called after split_stream
-    let mut sd = StopDetector::new(&config);
-    let mut md = MotionDetector::new(&config);
-    let mut builder: PathBuilder = PathBuilder::new(&config);
+    let mut sd = StopDetector::new();
+    let mut md = MotionDetector::new();
+    let mut builder: PathBuilder = PathBuilder::new();
     stream.into_iter().for_each(|point| {
         let sd_stop: IsStopped = sd.is_stopped(&point);
         let md_stop: IsStopped = md.is_stopped(&point);
         // The stop detector switches to `IsStopped::No` when its spatial
         // limit is exceeded. Then, it is `reset` once the motion detector
-        // senses movement is below some threshold.
+        // senses movement speed is above a fixed threshold.
         // Note that classification of `IsStopped::Maybe` is postponed
         // until either a `IsStopped::Yes` or `IsStopped::No`
         // is sent to `PathBuilder`.
-        let is_stopped: IsStopped = match (sd_stop, md_stop) {
-            (IsStopped::Maybe, IsStopped::Maybe) => IsStopped::Maybe,
-            (IsStopped::Maybe, IsStopped::Yes) => IsStopped::Maybe,
-            (IsStopped::Maybe, IsStopped::No) => IsStopped::Maybe,
-            (IsStopped::Yes, IsStopped::Maybe) => IsStopped::Yes,
-            (IsStopped::Yes, IsStopped::Yes) => IsStopped::Yes,
-            (IsStopped::Yes, IsStopped::No) => IsStopped::Yes,
-            (IsStopped::No, IsStopped::Maybe) => {
-                sd.reset();
-                IsStopped::Maybe
-            }
-            (IsStopped::No, IsStopped::Yes) => {
-                sd.reset();
-                IsStopped::Maybe
-            }
-            (IsStopped::No, IsStopped::No) => IsStopped::No,
-        };
-        builder.add_pt(point, is_stopped)
+        match md_stop {
+            IsStopped::Maybe | IsStopped::Yes => (),
+            IsStopped::No => sd.reset(),
+        }
+        builder.add_pt(point, sd_stop);
     });
     let path = builder.get_path();
     path.verify();
@@ -69,9 +53,9 @@ fn build_path(stream: Vec<[f64; 3]>, config: Config) -> Path {
 
 fn split_stream_on_timeout(
     stream: &[[f64; 3]],
-    connection_timeout: f64,
     stats: &mut PathBuilderStats,
 ) -> Vec<Vec<[f64; 3]>> {
+    let connection_timeout = CONFIG.connection_timeout;
     let mut last_timestamp = stream[0][2];
     let mut result = vec![];
     let mut partial_result = vec![];
@@ -117,20 +101,18 @@ impl PointsForElement {
     }
 }
 
-struct PathBuilder<'a> {
+struct PathBuilder {
     path: Path,
     last_point_in_stop: Option<[f64; 3]>,
     points: PointsForElement,
-    config: &'a Config,
 }
 
-impl<'a> PathBuilder<'a> {
-    pub fn new(config: &'a Config) -> PathBuilder {
+impl PathBuilder {
+    pub fn new() -> PathBuilder {
         PathBuilder {
             path: Path::new(),
             last_point_in_stop: None,
             points: PointsForElement { pts: vec![] },
-            config,
         }
     }
     /// If we don't know if we are building a `PathElement`
@@ -154,41 +136,40 @@ impl<'a> PathBuilder<'a> {
 
     fn handle_points(&mut self) {
         let last_element = self.path.last_element().unwrap();
+        let max_span = CONFIG.stop_diagonal_meters;
+        let min_duration = CONFIG.stop_duration_minutes;
         match last_element {
             PathElement::Stop(bbox) => {
-                // Determine if points can be added to the last stop
-                let mut tmp_bbox = Bbox::new(&self.points.pts);
-                tmp_bbox = tmp_bbox.union(&bbox);
-                let max_span = self.config.stop_diagonal_meters;
-                if tmp_bbox.get_spatialspan() > max_span {
-                    // They can't: Create a new route, starting in the last stop
-                    let route = PathElement::Route(vec![self.last_point_in_stop.unwrap()]);
-                    self.path.push(route);
-                    // then add the points to this route
-                    self.path.add_points(&self.points.pts);
-                } else {
-                    self.path.add_points(&self.points.pts);
-                    let idx = self.points.pts.len() - 1;
-                    self.last_point_in_stop = Some(self.points.pts[idx]);
+                // Expand the bounding box as much as possible
+                let mut points = self.points.pts.iter();
+                let mut tmp_bbox = bbox;
+                while tmp_bbox.get_spatialspan() <= max_span {
+                    if let Some(point) = points.next() {
+                        tmp_bbox.insert_point(point);
+                        self.last_point_in_stop = Some(*point);
+                    } else {
+                        break;
+                    }
+                }
+                self.path.replace_last_bbox(tmp_bbox);
+                // If there are points left, use them to build a new route
+                for point in points {
+                    if let Some(last_element) = self.path.last_element() {
+                        match last_element {
+                            PathElement::Stop(_) => {
+                                // Create a new route
+                                let route =
+                                    PathElement::Route(vec![self.last_point_in_stop.unwrap()]);
+                                self.last_point_in_stop = None;
+                                self.path.push(route);
+                            }
+                            PathElement::Route(_) => self.path.add_points(&[*point]),
+                        }
+                    }
                 }
             }
             PathElement::Route(_) => {
-                // Determine if points can be a new stop else append to route
-                let bbox = Bbox::new(&self.points.pts);
-                if bbox.get_spatialspan() > self.config.stop_diagonal_meters {
-                    self.path.add_points(&self.points.pts);
-                } else {
-                    // Create a new stop.
-                    // First insert current 'stop' point in route
-                    let pt = self.points.pts[0];
-                    self.path.add_points(&[pt]);
-                    // Create the stop
-                    let stop = self.points.to_stop();
-                    self.path.push(stop);
-                    // Update the last point in stop
-                    let idx = self.points.pts.len() - 1;
-                    self.last_point_in_stop = Some(self.points.pts[idx]);
-                }
+                self.path.add_points(&self.points.pts);
             }
         }
         self.points.reset();
@@ -205,9 +186,9 @@ impl<'a> PathBuilder<'a> {
                 let mut tmp_bbox = bbox;
                 tmp_bbox.insert_point(&pt);
                 // Check if adding the point forms a valid bbox
-                let max_span = self.config.stop_diagonal_meters;
+                let max_span = CONFIG.stop_diagonal_meters;
                 if tmp_bbox.get_spatialspan() > max_span {
-                    panic!("Warning: bbox exceeds limit!!")
+                    panic!("Warning: bbox exceeds limit!! {}", tmp_bbox);
                 } else {
                     self.last_point_in_stop = Some(pt);
                     self.path.add_points(&[pt]);

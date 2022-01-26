@@ -1,5 +1,5 @@
 use super::{get_distance, IsStopped};
-use crate::config::Config;
+use crate::CONFIG;
 
 pub struct MotionDetector {
     /// Milliseconds of measurements to consider
@@ -19,12 +19,12 @@ pub struct MotionDetector {
 }
 
 impl MotionDetector {
-    pub fn new(config: &Config) -> MotionDetector {
+    pub fn new() -> MotionDetector {
         MotionDetector {
-            timespan: config.motion_detector_timespan,
-            min_velocity: config.minimum_velocity,
+            timespan: CONFIG.motion_detector_timespan,
+            min_velocity: CONFIG.minimum_velocity,
             was_stopped: IsStopped::Maybe,
-            eps: config.epsilon_velocity,
+            eps: CONFIG.epsilon_velocity,
             tmp_ivls: Vec::new(),
             spt_ivls: Vec::new(),
             ref_pt: None,

@@ -1,4 +1,4 @@
-use std::{str::FromStr, fmt::Display};
+use std::{fmt::Display, str::FromStr};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Config {
@@ -24,6 +24,8 @@ pub struct Config {
     pub max_hausdorff_meters: f64,
     /// Threshold for Visvalingam algorithm.
     pub visvalingam_threshold: f64,
+    /// UTM zone used for projection. This zone will be extended if needed.
+    pub utm_zone: i32,
 }
 
 impl Default for Config {
@@ -32,7 +34,7 @@ impl Default for Config {
             window_size: 5,
             minimum_velocity: 2.5,
             epsilon_velocity: 1.5,
-	    motion_detector_timespan: 60000.0,
+            motion_detector_timespan: 60000.0,
             connection_timeout: 120000.0,
             stop_diagonal_meters: 50.0,
             stop_duration_minutes: 15.0,
@@ -40,6 +42,7 @@ impl Default for Config {
             relax_bbox_meters: 50.,
             max_hausdorff_meters: 100.,
             visvalingam_threshold: 0.5,
+            utm_zone: 32, // DK
         }
     }
 }
@@ -47,17 +50,22 @@ impl Default for Config {
 impl Display for Config {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "window_size={}", self.window_size)?;
-	writeln!(f, "minimum_velocity={}", self.minimum_velocity)?;
-	writeln!(f, "epsilon_velocity={}", self.epsilon_velocity)?;
-	writeln!(f, "motion_detector_timespan={}", self.motion_detector_timespan)?;
-	writeln!(f, "connection_timeout={}", self.connection_timeout)?;
-	writeln!(f, "stop_diagonal_meters={}", self.stop_diagonal_meters)?;
-	writeln!(f, "stop_duration_minutes={}", self.stop_duration_minutes)?;
-	writeln!(f, "relax_bbox_minutes={}", self.relax_bbox_minutes)?;
-	writeln!(f, "relax_bbox_meters={}", self.relax_bbox_meters)?;
-	writeln!(f, "max_hausdorff_meters={}", self.max_hausdorff_meters)?;
-	writeln!(f, "visvalingam_threshold={}", self.visvalingam_threshold)?;
-	Ok(())
+        writeln!(f, "minimum_velocity={}", self.minimum_velocity)?;
+        writeln!(f, "epsilon_velocity={}", self.epsilon_velocity)?;
+        writeln!(
+            f,
+            "motion_detector_timespan={}",
+            self.motion_detector_timespan
+        )?;
+        writeln!(f, "connection_timeout={}", self.connection_timeout)?;
+        writeln!(f, "stop_diagonal_meters={}", self.stop_diagonal_meters)?;
+        writeln!(f, "stop_duration_minutes={}", self.stop_duration_minutes)?;
+        writeln!(f, "relax_bbox_minutes={}", self.relax_bbox_minutes)?;
+        writeln!(f, "relax_bbox_meters={}", self.relax_bbox_meters)?;
+        writeln!(f, "max_hausdorff_meters={}", self.max_hausdorff_meters)?;
+        writeln!(f, "visvalingam_threshold={}", self.visvalingam_threshold)?;
+        writeln!(f, "UTM Zone={}", self.utm_zone)?;
+        Ok(())
     }
 }
 
@@ -73,6 +81,7 @@ enum ConfigKeys {
     RelaxBboxMeters,
     MaxHausdorffMeters,
     VisvalingamThreshold,
+    UTMZone,
 }
 
 impl FromStr for ConfigKeys {
@@ -83,7 +92,7 @@ impl FromStr for ConfigKeys {
             "window_size" => Ok(ConfigKeys::WindowSize),
             "minimum_velocity" => Ok(ConfigKeys::MinimumVelocity),
             "epsilon_velocity" => Ok(ConfigKeys::EpsilonVelocity),
-	    "motion_detector_timespan" => Ok(ConfigKeys::MotionDetectorTimespan),
+            "motion_detector_timespan" => Ok(ConfigKeys::MotionDetectorTimespan),
             "stop_duration_minutes" => Ok(ConfigKeys::StopDurationMinutes),
             "connection_timeout" => Ok(ConfigKeys::ConnectionTimeout),
             "stop_diagonal_meters" => Ok(ConfigKeys::StopDiagonalMeters),
@@ -91,6 +100,7 @@ impl FromStr for ConfigKeys {
             "relax_bbox_meters" => Ok(ConfigKeys::RelaxBboxMeters),
             "max_hausdorff_meters" => Ok(ConfigKeys::MaxHausdorffMeters),
             "visvalingam_threshold" => Ok(ConfigKeys::VisvalingamThreshold),
+            "utm_zone" => Ok(ConfigKeys::UTMZone),
             _ => Err(()),
         }
     }
@@ -114,9 +124,11 @@ pub fn parse_config(config: String) -> Config {
                 config.epsilon_velocity =
                     key_val[1].trim().parse::<f64>().expect("epsilon_velocity")
             }
-	    Ok(ConfigKeys::MotionDetectorTimespan) => {
-                config.motion_detector_timespan =
-                    key_val[1].trim().parse::<f64>().expect("motion_detector_timespan")
+            Ok(ConfigKeys::MotionDetectorTimespan) => {
+                config.motion_detector_timespan = key_val[1]
+                    .trim()
+                    .parse::<f64>()
+                    .expect("motion_detector_timespan")
             }
             Ok(ConfigKeys::StopDurationMinutes) => {
                 config.stop_duration_minutes = key_val[1]
@@ -157,6 +169,9 @@ pub fn parse_config(config: String) -> Config {
                     .trim()
                     .parse::<f64>()
                     .expect("visvalingam_threshold")
+            }
+            Ok(ConfigKeys::UTMZone) => {
+                config.utm_zone = key_val[1].trim().parse::<i32>().expect("utm_zone")
             }
             Err(_) => {
                 panic!("Mismatched config key: {}", key_val[0])

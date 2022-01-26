@@ -29,11 +29,73 @@ pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
             yr_ = yr;
             mn_ = mn;
             da_ = da;
-            trjs.push(trj);
-            trj = vec![];
+            if !trj.is_empty() {
+                trjs.push(trj);
+                trj = vec![];
+            }
         }
         let c = crate::Coord::from_gps(&[lon, lat, time]);
         trj.push([c.x, c.y, c.t]); // Note we have x=lon, y=lat, z=time(ms)
+    }
+    trjs
+}
+
+/// Parses a string containing PLT data.
+///
+/// Specifically designed to data from Geolife Trajectories 1.3.
+/// Creates an array with UTM projected `[easting, northing, time]` coordinates and time.
+/// See [Coord](crate::Coord) for details on projection.
+/// We only use fields 1 (latitude), 2(longitude), 5(days) and 7(time).
+/// Each day is put in a separate trajectory(`Vec`)
+pub fn parse_plt(plt: String) -> Vec<Vec<[f64; 3]>> {
+    let mut trjs: Vec<Vec<[f64; 3]>> = Vec::new();
+    let mut trj: Vec<[f64; 3]> = Vec::new();
+    let mut last_day = -1;
+    let lines = plt.lines();
+    for line in lines {
+        let mut fields = line.split(',');
+        let mut coord: [f64; 3] = [f64::NAN, f64::NAN, f64::NAN];
+
+        if let Some(lat) = fields.next() {
+            if let Ok(lat) = lat.parse::<f64>() {
+                coord[1] = lat;
+            }
+        };
+        if let Some(lon) = fields.next() {
+            if let Ok(lon) = lon.parse::<f64>() {
+                coord[0] = lon;
+            }
+        };
+        if let Some(day) = fields.nth(2) {
+            if let Ok(day) = day.parse::<f64>() {
+                if day as i32 > last_day {
+                    last_day = day as i32;
+                    if !trj.is_empty() {
+                        trjs.push(trj);
+                        trj = vec![];
+                    }
+                }
+            }
+        }
+        if let Some(time) = fields.nth(1) {
+            let mut time = time.split(':');
+            let ms: f64 = match [time.next(), time.next(), time.next()] {
+                [Some(h), Some(m), Some(s)] => {
+                    match [h.parse::<f64>(), m.parse::<f64>(), s.parse::<f64>()] {
+                        [Ok(h), Ok(m), Ok(s)] => {
+                            (h * 60.0 * 60.0 * 1000.0) + (m * 60.0 * 1000.0) + (s * 1000.0)
+                        }
+                        _ => f64::NAN,
+                    }
+                }
+                _ => f64::NAN,
+            };
+            coord[2] = ms
+        }
+        if coord[0].is_finite() & coord[1].is_finite() & coord[2].is_finite() {
+            let c = crate::Coord::from_gps(&coord);
+            trj.push([c.x, c.y, c.t]); // Note we have x=lon, y=lat, z=time(ms)
+        }
     }
     trjs
 }

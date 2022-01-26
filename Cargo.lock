@@ -104,6 +104,7 @@ dependencies = [
  "geo",
  "geomorph",
  "itertools",
+ "lazy_static",
  "petgraph",
  "regex",
  "trajectory_similarity",
@@ -410,6 +411,7 @@ dependencies = [
 [[package]]
 name = "trajectory_similarity"
 version = "0.1.0"
+source = "git+https://github.com/ErikAndersen81/line_similarity.git#9274545557f12e83b50892031ab29fd9c70a7ccf"
 dependencies = [
  "geo",
 ]
