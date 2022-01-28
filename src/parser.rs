@@ -115,6 +115,6 @@ pub fn parse(content: String) -> Vec<Vec<[f64; 3]>> {
             _ => parse_gpx(content),
         }
     } else {
-        panic!("Nothing to read friom stdin!")
+        panic!("Nothing to read from stdin!")
     }
 }
