@@ -42,7 +42,7 @@ fn main() {
         .read_to_string(&mut contents)
         .expect("can't read from stdin");
     println!("Parsing input...");
-    let daily_streams: Vec<Vec<[f64; 3]>> = parser::parse_plt(contents)
+    let daily_streams: Vec<Vec<[f64; 3]>> = parser::parse(contents)
         .into_iter()
         .filter(|day| !day.is_empty())
         .map(time_guard::clean_stream)

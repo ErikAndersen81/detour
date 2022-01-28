@@ -1,3 +1,5 @@
+use std::ascii::AsciiExt;
+
 use chrono::NaiveDate;
 use regex::Regex;
 
@@ -98,4 +100,21 @@ pub fn parse_plt(plt: String) -> Vec<Vec<[f64; 3]>> {
         }
     }
     trjs
+}
+
+/// Determines if content is GPX or PLT and parses content.
+/// Specifically, if the first line is 'Geolife trajectory'
+/// (casing ignored), it is assumed to be PLT otherwise
+/// it's considered to be GPX.
+pub fn parse(content: String) -> Vec<Vec<[f64; 3]>> {
+    let line = content.lines().next();
+    if let Some(line) = line {
+        let line = line.trim().to_ascii_lowercase();
+        match line.as_str() {
+            "geolife trajectory" => parse_plt(content),
+            _ => parse_gpx(content),
+        }
+    } else {
+        panic!("Nothing to read friom stdin!")
+    }
 }
