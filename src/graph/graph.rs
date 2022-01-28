@@ -1,6 +1,6 @@
 use crate::utility::trajectory::merge;
 use crate::utility::{clustering, Bbox};
-use crate::{Config, CONFIG};
+use crate::CONFIG;
 use clustering::Clustering;
 use itertools::Itertools;
 use petgraph::dot::Dot;
@@ -171,15 +171,15 @@ impl DetourGraph {
     }
 
     fn should_split(&self, nx: NodeIndex) -> bool {
-        let bbox = self.graph[nx].clone();
+        let bbox = self.graph[nx];
         for edge in self.graph.edges_directed(nx, EdgeDirection::Incoming) {
-            let source = self.graph[edge.source()].clone();
+            let source = self.graph[edge.source()];
             if source.t2 >= bbox.t1 {
                 return true;
             }
         }
         for edge in self.graph.edges_directed(nx, EdgeDirection::Outgoing) {
-            let target = self.graph[edge.target()].clone();
+            let target = self.graph[edge.target()];
             if bbox.t2 >= target.t1 {
                 return true;
             }
@@ -189,7 +189,7 @@ impl DetourGraph {
 
     fn split_node_at(&mut self, split_node: NodeIndex, splits: &[f64]) {
         self.stats.node_splits += splits.len();
-        let nodes: Vec<NodeIndex> = DetourGraph::split_bbox(self.graph[split_node].clone(), splits)
+        let nodes: Vec<NodeIndex> = DetourGraph::split_bbox(self.graph[split_node], splits)
             .into_iter()
             .map(|bbox| self.graph.add_node(bbox))
             .collect();

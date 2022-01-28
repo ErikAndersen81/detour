@@ -134,16 +134,14 @@ impl PathBuilder {
         }
     }
 
-    fn handle_points(&mut self) {
+    fn handle_points(&mut self, is_stopped: IsStopped) {
         let last_element = self.path.last_element().unwrap();
-        let max_span = CONFIG.stop_diagonal_meters;
-        let min_duration = CONFIG.stop_duration_minutes;
         match last_element {
             PathElement::Stop(bbox) => {
-                // Expand the bounding box as much as possible
+                // Expand the stop as much as possible
                 let mut points = self.points.pts.iter();
                 let mut tmp_bbox = bbox;
-                while tmp_bbox.get_spatialspan() <= max_span {
+                while tmp_bbox.verify_spatial() {
                     if let Some(point) = points.next() {
                         tmp_bbox.insert_point(point);
                         self.last_point_in_stop = Some(*point);
@@ -169,7 +167,31 @@ impl PathBuilder {
                 }
             }
             PathElement::Route(_) => {
-                self.path.add_points(&self.points.pts);
+                if matches!(is_stopped, IsStopped::Yes) {
+                    // Create stop with the last point, expanding it backwards
+                    let mut points = self.points.pts.clone();
+                    points.reverse();
+                    let mut points = points.iter();
+                    let last_point = *points.next().unwrap();
+                    self.last_point_in_stop = Some(last_point);
+                    let mut bbox = Bbox::new(&[last_point]);
+                    let mut connect_point = last_point;
+                    while bbox.verify_spatial() {
+                        if let Some(point) = points.next() {
+                            bbox.insert_point(point);
+                            connect_point = *point;
+                        } else {
+                            break;
+                        }
+                    }
+                    let mut points = points.copied().collect::<Vec<[f64; 3]>>();
+                    points.reverse();
+                    self.path.add_points(&points);
+                    self.path.add_points(&[connect_point]);
+                    self.path.push(PathElement::Stop(bbox));
+                } else {
+                    self.path.add_points(&self.points.pts);
+                }
             }
         }
         self.points.reset();
@@ -177,7 +199,7 @@ impl PathBuilder {
 
     fn add_to_stop(&mut self, pt: [f64; 3]) {
         if !self.points.pts.is_empty() {
-            self.handle_points();
+            self.handle_points(IsStopped::Yes);
         }
         let last_element = self.path.last_element().unwrap();
         match last_element {
@@ -186,8 +208,7 @@ impl PathBuilder {
                 let mut tmp_bbox = bbox;
                 tmp_bbox.insert_point(&pt);
                 // Check if adding the point forms a valid bbox
-                let max_span = CONFIG.stop_diagonal_meters;
-                if tmp_bbox.get_spatialspan() > max_span {
+                if tmp_bbox.verify_spatial() {
                     panic!("Warning: bbox exceeds limit!! {}", tmp_bbox);
                 } else {
                     self.last_point_in_stop = Some(pt);
@@ -208,7 +229,7 @@ impl PathBuilder {
 
     fn add_to_route(&mut self, pt: [f64; 3]) {
         if !self.points.pts.is_empty() {
-            self.handle_points();
+            self.handle_points(IsStopped::No);
         }
         let last_element = self.path.last_element().unwrap();
         match last_element {
@@ -230,8 +251,20 @@ impl PathBuilder {
                 let pts = self.points.pts.clone();
                 self.path.add_points(&pts);
                 let last_pt = pts[pts.len() - 1];
-                let stop = PathElement::Stop(Bbox::new(&[last_pt]));
-                self.path.push(stop);
+                // Create a new stop and expand is as much as possible
+                let mut bbox = Bbox::new(&[last_pt]);
+                let mut pts = pts;
+                pts.reverse();
+                let mut tmp_bbox = bbox;
+                for pt in pts {
+                    tmp_bbox.insert_point(&pt);
+                    if tmp_bbox.verify_spatial() {
+                        break;
+                    } else {
+                        bbox = tmp_bbox;
+                    }
+                }
+                self.path.push(PathElement::Stop(bbox));
             } else {
                 let last_pt = trj[trj.len() - 1];
                 let stop = PathElement::Stop(Bbox::new(&[last_pt]));

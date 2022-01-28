@@ -38,8 +38,8 @@ impl StopDetector {
         } else {
             self.current_bbox = Some(Bbox::new(&[*point]));
         }
-        let spatial_fit = self.current_bbox.unwrap().get_spatialspan() < self.max_diagonal_meters;
-        let temporal_fit = self.current_bbox.unwrap().get_timespan() > self.min_duration_ms;
+        let spatial_fit = self.current_bbox.unwrap().verify_spatial();
+        let temporal_fit = self.current_bbox.unwrap().verify_temporal();
         match (spatial_fit, temporal_fit) {
             (true, true) => IsStopped::Yes,
             (true, false) => IsStopped::Maybe,

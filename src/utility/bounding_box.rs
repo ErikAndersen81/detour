@@ -1,3 +1,5 @@
+use crate::CONFIG;
+
 use super::{get_distance, Line};
 use std::fmt::Display;
 
@@ -155,14 +157,22 @@ impl Bbox {
         self.t2 += minutes * 60000.;
     }
 
-    /// Returns the longer of width and height
-    pub fn get_spatialspan(&self) -> f64 {
-        (self.x2 - self.x1).max(self.y2 - self.y1)
+    /// Verifies if bbox satisfies the spatial constraints given in config
+    pub fn verify_spatial(&self) -> bool {
+        let span = (self.x2 - self.x1).max(self.y2 - self.y1);
+        span < CONFIG.stop_diagonal_meters
     }
 
-    /// Returns timespan in ms
-    pub fn get_timespan(&self) -> f64 {
-        self.t2 - self.t1
+    /// Verifies if bbox satisfies the temporal constraints given in config
+    pub fn verify_temporal(&self) -> bool {
+        // Convert ms to minutes
+        let span = (self.t2 - self.t1) / (1000.0 * 60.0);
+        span > CONFIG.stop_duration_minutes
+    }
+
+    /// Verifies if bbox satisfies the constraints given in config
+    pub fn verify(&self) -> bool {
+        self.verify_spatial() & self.verify_temporal()
     }
 
     pub fn union(&self, other: &Self) -> Self {
