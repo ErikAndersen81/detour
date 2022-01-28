@@ -11,7 +11,7 @@ chrono = "0.4"
 geo = "0.18.0"
 petgraph = "0.6.0"
 itertools= "0.10.1"
-geomorph = "1.1.0"
+geomorph = {git = "https://github.com/ErikAndersen81/geomorph.git"}
 clap = "3.0.5"
 trajectory_similarity = { git = "https://github.com/ErikAndersen81/line_similarity.git" }
 lazy_static = "1.4.0"

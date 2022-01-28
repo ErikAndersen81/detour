@@ -187,8 +187,7 @@ dependencies = [
 [[package]]
 name = "geomorph"
 version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb95bb695bd8c8b7bdaecbb6080c06f22cd9f3f0c166e56d5f722b9633389b05"
+source = "git+https://github.com/ErikAndersen81/geomorph.git#aa63a416c077f0a992d93645021f2fc96b1d5a53"
 dependencies = [
  "num-complex",
 ]
