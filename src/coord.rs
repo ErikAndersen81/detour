@@ -89,20 +89,3 @@ impl From<char> for Band {
         }
     }
 }
-
-/// Return approximate width of a band in meters
-fn band_width(band: Band) -> f64 {
-    match band {
-        Band::X => 115800.0,
-        Band::C | Band::W => 206100.0,
-        Band::D | Band::V => 292400.0,
-        Band::E | Band::U => 373000.0,
-        Band::F | Band::T => 464300.0,
-        Band::G | Band::S => 511000.0,
-        Band::H | Band::R => 565700.0,
-        Band::J | Band::Q => 609400.0,
-        Band::K | Band::P => 641300.0,
-        Band::L | Band::N => 660700.0,
-        Band::M => 667200.0,
-    }
-}

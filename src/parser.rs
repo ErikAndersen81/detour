@@ -1,5 +1,3 @@
-use std::ascii::AsciiExt;
-
 use chrono::NaiveDate;
 use regex::Regex;
 
