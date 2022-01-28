@@ -28,6 +28,13 @@ pub fn parse_arguments() -> Config {
                 .takes_value(true)
                 .help("UTM Zone"),
         )
+        .arg(
+            Arg::new("utm_band")
+                .short('b')
+                .long("utm_band")
+                .takes_value(true)
+                .help("UTM Band"),
+        )
         .get_matches();
 
     let mut config = match matches.value_of("config_file") {
@@ -52,6 +59,20 @@ pub fn parse_arguments() -> Config {
         }
         None => {
             println!("Using UTM Zone {} from config", config.utm_zone);
+        }
+    }
+
+    match matches.value_of("utm_band") {
+        Some(utm_band) => {
+            if let Ok(utm_band) = utm_band.parse::<char>() {
+                config.utm_band = utm_band;
+                println!("Setting UTM zone: {}", utm_band);
+            } else {
+                println!("Invalid argument for UTM Zone. Using {}", config.utm_band);
+            }
+        }
+        None => {
+            println!("Using UTM Zone {} from config", config.utm_band);
         }
     }
 

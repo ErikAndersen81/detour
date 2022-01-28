@@ -26,6 +26,8 @@ pub struct Config {
     pub visvalingam_threshold: f64,
     /// UTM zone used for projection. This zone will be extended if needed.
     pub utm_zone: i32,
+    /// UTM band used for projetion. The band determines how zones are extended.
+    pub utm_band: char,
 }
 
 impl Default for Config {
@@ -42,7 +44,8 @@ impl Default for Config {
             relax_bbox_meters: 50.,
             max_hausdorff_meters: 100.,
             visvalingam_threshold: 0.5,
-            utm_zone: 32, // DK
+            utm_zone: 32,  // DK
+            utm_band: 'U', // DK
         }
     }
 }
@@ -65,6 +68,7 @@ impl Display for Config {
         writeln!(f, "max_hausdorff_meters={}", self.max_hausdorff_meters)?;
         writeln!(f, "visvalingam_threshold={}", self.visvalingam_threshold)?;
         writeln!(f, "UTM Zone={}", self.utm_zone)?;
+        writeln!(f, "UTM Band={}", self.utm_band)?;
         Ok(())
     }
 }
@@ -82,6 +86,7 @@ enum ConfigKeys {
     MaxHausdorffMeters,
     VisvalingamThreshold,
     UTMZone,
+    UTMBand,
 }
 
 impl FromStr for ConfigKeys {
@@ -101,6 +106,7 @@ impl FromStr for ConfigKeys {
             "max_hausdorff_meters" => Ok(ConfigKeys::MaxHausdorffMeters),
             "visvalingam_threshold" => Ok(ConfigKeys::VisvalingamThreshold),
             "utm_zone" => Ok(ConfigKeys::UTMZone),
+            "utm_band" => Ok(ConfigKeys::UTMBand),
             _ => Err(()),
         }
     }
@@ -172,6 +178,9 @@ pub fn parse_config(config: String) -> Config {
             }
             Ok(ConfigKeys::UTMZone) => {
                 config.utm_zone = key_val[1].trim().parse::<i32>().expect("utm_zone")
+            }
+            Ok(ConfigKeys::UTMBand) => {
+                config.utm_band = key_val[1].trim().parse::<char>().expect("utm_band")
             }
             Err(_) => {
                 panic!("Mismatched config key: {}", key_val[0])
