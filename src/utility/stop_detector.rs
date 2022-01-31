@@ -36,7 +36,12 @@ impl StopDetector {
             bbox.insert_point(point);
             self.current_bbox = Some(bbox);
         } else {
+            // `reset()` was called, i.e. motion detector returned `IsStopped::No`
+            // And so should this function.
+            // (If it's the first point in the stream this return value
+            // is ignored by `PathBuilder.add_point()` anyway.)
             self.current_bbox = Some(Bbox::new(&[*point]));
+            return IsStopped::No;
         }
         let spatial_fit = self.current_bbox.unwrap().verify_spatial();
         let temporal_fit = self.current_bbox.unwrap().verify_temporal();

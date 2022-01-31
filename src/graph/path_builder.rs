@@ -9,7 +9,6 @@ use crate::CONFIG;
 /// `connection_timeout` as it is set in the [config](Config) file.
 /// Then, paths are constructed from the stream using a [stop detector](StopDetector).
 pub fn get_paths(stream: Vec<[f64; 3]>, stats: &mut PathBuilderStats) -> Vec<Path> {
-    print!("get_path, ");
     stats.streams_handled += 1;
     let splitted_streams = split_stream_on_timeout(&stream, stats);
     let paths: Vec<Path> = splitted_streams
@@ -32,18 +31,16 @@ fn build_path(stream: Vec<[f64; 3]>) -> Path {
     let mut md = MotionDetector::new();
     let mut builder: PathBuilder = PathBuilder::new();
     stream.into_iter().for_each(|point| {
-        let sd_stop: IsStopped = sd.is_stopped(&point);
         let md_stop: IsStopped = md.is_stopped(&point);
         // The stop detector switches to `IsStopped::No` when its spatial
         // limit is exceeded. Then, it is `reset` once the motion detector
         // senses movement speed is above a fixed threshold.
-        // Note that classification of `IsStopped::Maybe` is postponed
-        // until either a `IsStopped::Yes` or `IsStopped::No`
-        // is sent to `PathBuilder`.
+        // Note that resetting sd result in is_stopped() => No
         match md_stop {
             IsStopped::Maybe | IsStopped::Yes => (),
             IsStopped::No => sd.reset(),
         }
+        let sd_stop: IsStopped = sd.is_stopped(&point);
         builder.add_pt(point, sd_stop);
     });
     let path = builder.get_path();
@@ -103,193 +100,149 @@ impl PointsForElement {
 
 struct PathBuilder {
     path: Path,
-    last_point_in_stop: Option<[f64; 3]>,
-    points: PointsForElement,
+    trj: Vec<[f64; 3]>,
+    bbox: Option<Bbox>,
+    building_initial_stop: bool,
 }
 
 impl PathBuilder {
     pub fn new() -> PathBuilder {
         PathBuilder {
             path: Path::new(),
-            last_point_in_stop: None,
-            points: PointsForElement { pts: vec![] },
+            trj: vec![],
+            bbox: None,
+            building_initial_stop: true,
         }
     }
-    /// If we don't know if we are building a `PathElement`
-    /// then points are stored in `points`.
-    /// Otherwise points are added to the last element of `path`.
-    /// `last_point_in_stop` keeps track of the last point added to a stop,
-    /// s.t. we can start a subsequent route inside the stop.
-    /// Regardless, we always let `path` start with a stop.
-    fn add_pt(&mut self, pt: [f64; 3], is_stopped: IsStopped) {
-        if self.path.is_empty() {
-            self.path.push(PathElement::Stop(Bbox::new(&[pt])));
-            self.last_point_in_stop = Some(pt);
+    /// All points are added to a trajectory.
+    /// Initially, a stop contain a single point p.
+    /// Routes connected to a stop start/end with p.
+    /// Stops are expanded in `finalize_path`.
+    fn add_pt(&mut self, point: [f64; 3], is_stopped: IsStopped) {
+        // add point to the trj
+        self.trj.push(point);
+        if self.building_initial_stop {
+            // We're building the initial stop
+            if let Some(bbox) = self.bbox {
+                let mut tmp_bbox = bbox;
+                tmp_bbox.insert_point(&point);
+                if tmp_bbox.verify_spatial() {
+                    self.bbox = Some(tmp_bbox);
+                } else {
+                    let stop = PathElement::Stop(bbox);
+                    self.bbox = None;
+                    self.path.push(stop);
+                    self.building_initial_stop = false;
+                    println!("Finished building initial stop");
+                }
+            } else {
+                print!("Initializing path:");
+                self.bbox = Some(Bbox::new(&[point]));
+            }
         } else {
             match is_stopped {
-                IsStopped::Maybe => self.points.push(pt),
-                IsStopped::Yes => self.add_to_stop(pt),
-                IsStopped::No => self.add_to_route(pt),
-            }
-        }
-    }
-
-    fn handle_points(&mut self, is_stopped: IsStopped) {
-        let last_element = self.path.last_element().unwrap();
-        match last_element {
-            PathElement::Stop(bbox) => {
-                // Expand the stop as much as possible
-                let mut points = self.points.pts.iter();
-                let mut tmp_bbox = bbox;
-                while tmp_bbox.verify_spatial() {
-                    if let Some(point) = points.next() {
-                        tmp_bbox.insert_point(point);
-                        self.last_point_in_stop = Some(*point);
-                    } else {
-                        break;
-                    }
-                }
-                self.path.replace_last_bbox(tmp_bbox);
-                // If there are points left, use them to build a new route
-                for point in points {
-                    if let Some(last_element) = self.path.last_element() {
-                        match last_element {
-                            PathElement::Stop(_) => {
-                                // Create a new route
-                                let route =
-                                    PathElement::Route(vec![self.last_point_in_stop.unwrap()]);
-                                self.last_point_in_stop = None;
-                                self.path.push(route);
-                            }
-                            PathElement::Route(_) => self.path.add_points(&[*point]),
-                        }
-                    }
-                }
-            }
-            PathElement::Route(_) => {
-                if matches!(is_stopped, IsStopped::Yes) {
-                    // Create stop with the last point, expanding it backwards
-                    let mut points = self.points.pts.clone();
-                    points.reverse();
-                    let mut points = points.iter();
-                    let last_point = *points.next().unwrap();
-                    self.last_point_in_stop = Some(last_point);
-                    let mut bbox = Bbox::new(&[last_point]);
-                    let mut connect_point = last_point;
-                    while bbox.verify_spatial() {
-                        if let Some(point) = points.next() {
-                            bbox.insert_point(point);
-                            connect_point = *point;
+                IsStopped::Maybe => {
+                    print!("M");
+                    // Try adding to current bbox if it exists
+                    // if its full push to path and set bbox to none.
+                    if let Some(bbox) = self.bbox {
+                        let mut tmp_bbox = bbox;
+                        tmp_bbox.insert_point(&point);
+                        if tmp_bbox.verify_spatial() {
+                            self.bbox = Some(tmp_bbox);
                         } else {
-                            break;
+                            // insert route leading to this stop
+                            let last_point = self.trj.pop().unwrap();
+                            let route = PathElement::Route(self.trj.clone());
+                            self.path.push(route);
+                            // Save the stop to path and clear bbox.
+                            self.trj = vec![last_point, point];
+                            let stop = PathElement::Stop(bbox);
+                            self.bbox = None;
+                            self.path.push(stop);
                         }
                     }
-                    let mut points = points.copied().collect::<Vec<[f64; 3]>>();
-                    points.reverse();
-                    self.path.add_points(&points);
-                    self.path.add_points(&[connect_point]);
-                    self.path.push(PathElement::Stop(bbox));
-                } else {
-                    self.path.add_points(&self.points.pts);
+                }
+                IsStopped::Yes => {
+                    print!("Y");
+                    if let Some(mut bbox) = self.bbox {
+                        bbox.insert_point(&point);
+                        if bbox.verify_spatial() {
+                            self.bbox = Some(bbox)
+                        } else {
+                            panic!(
+                                "Odd, this shouldn't happen!\npath: {}\npoint:{:?}\nbbox:{}",
+                                self.path, point, bbox
+                            );
+                        }
+                    } else {
+                        let bbox = Bbox::new(&[point]);
+                        self.bbox = Some(bbox);
+                        if !self.path.is_empty() {
+                            let route = PathElement::Route(self.trj.clone());
+                            self.path.push(route);
+                            self.trj = vec![point];
+                        } else {
+                            let stop = PathElement::Stop(bbox);
+                            self.path.push(stop);
+                        }
+                    }
+                }
+                IsStopped::No => {
+                    print!("N");
+                    if let Some(bbox) = self.bbox {
+                        let stop = PathElement::Stop(bbox);
+                        self.path.push(stop);
+                    }
+                    self.bbox = None;
                 }
             }
-        }
-        self.points.reset();
-    }
-
-    fn add_to_stop(&mut self, pt: [f64; 3]) {
-        if !self.points.pts.is_empty() {
-            self.handle_points(IsStopped::Yes);
-        }
-        let last_element = self.path.last_element().unwrap();
-        match last_element {
-            PathElement::Stop(bbox) => {
-                // Continue building stop
-                let mut tmp_bbox = bbox;
-                tmp_bbox.insert_point(&pt);
-                // Check if adding the point forms a valid bbox
-                if tmp_bbox.verify_spatial() {
-                    panic!("Warning: bbox exceeds limit!! {}", tmp_bbox);
-                } else {
-                    self.last_point_in_stop = Some(pt);
-                    self.path.add_points(&[pt]);
-                }
-            }
-            PathElement::Route(_) => {
-                // Create a new stop
-                // First ensure it's connected to the route leading here
-                self.path.add_points(&[pt]);
-                // Then create and insert the new stop
-                let stop = PathElement::Stop(Bbox::new(&[pt]));
-                self.path.push(stop);
-                self.last_point_in_stop = Some(pt);
-            }
-        }
-    }
-
-    fn add_to_route(&mut self, pt: [f64; 3]) {
-        if !self.points.pts.is_empty() {
-            self.handle_points(IsStopped::No);
-        }
-        let last_element = self.path.last_element().unwrap();
-        match last_element {
-            PathElement::Stop(_) => {
-                // Create a new route
-                // and ensure that we are connected to the previous stop
-                let lst_pt = self.last_point_in_stop.unwrap();
-                let route = PathElement::Route(vec![lst_pt, pt]);
-                self.path.push(route);
-            }
-            PathElement::Route(_) => self.path.add_points(&[pt]),
         }
     }
 
     fn finalize_path(&mut self) {
-        let last_elm = self.path.last_element().unwrap();
-        if let PathElement::Route(trj) = last_elm {
-            if !self.points.pts.is_empty() {
-                let pts = self.points.pts.clone();
-                self.path.add_points(&pts);
-                let last_pt = pts[pts.len() - 1];
-                // Create a new stop and expand is as much as possible
-                let mut bbox = Bbox::new(&[last_pt]);
-                let mut pts = pts;
-                pts.reverse();
-                let mut tmp_bbox = bbox;
-                for pt in pts {
-                    tmp_bbox.insert_point(&pt);
-                    if tmp_bbox.verify_spatial() {
-                        break;
-                    } else {
-                        bbox = tmp_bbox;
-                    }
+        if let Some(last_elm) = self.path.last_element() {
+            println!("\nFinalizing..");
+            // Ensure path ends with a `Stop`
+            if let PathElement::Route(trj) = last_elm {
+                println!("\tCase:Route");
+                let start = trj[0];
+                let end = trj[trj.len() - 1];
+                let bbox = self.bbox.unwrap();
+                if bbox.contains_point(&start) & bbox.contains_point(&end) {
+                    // the current route is completely contained in Stop
+                    // so remove it from the path
+                    self.path.remove_last();
+                } else {
+                    self.path.push(PathElement::Stop(self.bbox.unwrap()));
                 }
-                self.path.push(PathElement::Stop(bbox));
-            } else {
-                let last_pt = trj[trj.len() - 1];
-                let stop = PathElement::Stop(Bbox::new(&[last_pt]));
-                self.path.push(stop);
-            }
-        } else if let PathElement::Stop(_) = last_elm {
-            // If there's only one stop but several unclassified points,
-            // try and create a route of the points, or alternatively
-            // add them to the stop.
-            if (self.path.len() < 2) & (!self.points.pts.is_empty()) {
-                // Create a new route starting in the last stop
-                let route = PathElement::Route(vec![self.last_point_in_stop.unwrap()]);
+            } else if let PathElement::Stop(_) = last_elm {
+                println!("\tCase:Stop");
+                let trj = self.trj.clone();
+                let end = trj[trj.len() - 1];
+                let route = PathElement::Route(trj);
                 self.path.push(route);
-                // Add the unclassified points
-                self.path.add_points(&self.points.pts);
-                // create a stop wth the last element of unclassified points
-                let pt = self.points.pts[self.points.pts.len() - 1];
-                let stop = PathElement::Stop(Bbox::new(&[pt]));
+                let stop = if let Some(bbox) = self.bbox {
+                    PathElement::Stop(bbox)
+                } else {
+                    // Construct degenerate stop
+                    PathElement::Stop(Bbox::new(&[end]))
+                };
                 self.path.push(stop);
             }
+            if self.path.len() > 1 {
+                self.path.expand_stops();
+            }
+            println!("Finalized:\n{}", self.path);
+        } else if self.trj.len() > 5 {
+            // When a certain amount of points have been used we don't ignore the stop
+            self.path.push(PathElement::Stop(self.bbox.unwrap()));
         }
     }
 
     fn get_path(&mut self) -> Path {
         self.finalize_path();
+        self.path.verify();
         self.path.clone()
     }
 }

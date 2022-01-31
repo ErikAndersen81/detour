@@ -14,7 +14,13 @@ impl Display for PathElement {
             PathElement::Stop(bbox) => writeln!(f, "{:?}", bbox),
             PathElement::Route(trj) => {
                 if !trj.is_empty() {
-                    writeln!(f, "{:?} -> {:?}", trj[0], trj[trj.len() - 1])
+                    writeln!(
+                        f,
+                        "{:?} -> {:?} ({})",
+                        trj[0],
+                        trj[trj.len() - 1],
+                        trj.len()
+                    )
                 } else {
                     writeln!(f, "empty route")
                 }
@@ -36,11 +42,19 @@ impl PathElement {
         }
     }
 
-    pub fn get_trj(&self) -> Option<Vec<[f64; 3]>> {
+    pub fn copy_trj(&self) -> Option<Vec<[f64; 3]>> {
         if let PathElement::Route(trj) = self {
             Some(trj.clone())
         } else {
             None
+        }
+    }
+
+    pub fn set_bbox(&mut self, new_bbox: Bbox) {
+        if let PathElement::Stop(bbox) = self {
+            *bbox = new_bbox;
+        } else {
+            panic!("Can't set bbox on `PathElement::Route`.")
         }
     }
 
