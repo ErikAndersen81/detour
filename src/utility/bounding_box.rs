@@ -139,6 +139,11 @@ impl Bbox {
         in_x & in_y
     }
 
+    /// Returns the squared diameter of the bbox.
+    pub fn get_diameter(&self) -> f64 {
+        (self.x1 - self.x2).powi(2) + (self.y1 - self.y2).powi(2)
+    }
+
     /// Splits Bbox temporally at `t`.
     ///
     /// Note that we assume a granularity of whole ms. Thus, the first Bbox will contain t and the second will contain t+1ms
@@ -190,6 +195,54 @@ impl Bbox {
             t1,
             t2,
         }
+    }
+    pub fn expand_along_trjs(
+        &self,
+        mut trjs: Vec<Vec<[f64; 3]>>,
+        t1: Option<f64>,
+        t2: Option<f64>,
+    ) -> Bbox {
+        // Determine the minimal and maximal values for t1 and t2
+        // s.t. we don't break temporal monotonicity
+        let mut bbox = *self;
+        let mut tmp_bbox = *self;
+        while tmp_bbox.verify_spatial() {
+            if let Some(t1) = t1 {
+                if t1 >= tmp_bbox.t1 {
+                    break;
+                }
+            }
+            if let Some(t2) = t2 {
+                if t2 <= tmp_bbox.t2 {
+                    break;
+                }
+            }
+            bbox = tmp_bbox;
+            if let Some((min_idx, min_bbox)) = trjs
+                .iter()
+                .enumerate()
+                .map(|(idx, trj)| {
+                    let point = trj[0];
+                    let mut expanded = tmp_bbox;
+                    expanded.insert_point(&point);
+                    (idx, expanded)
+                })
+                .min_by(|a, b| {
+                    a.1.get_diameter()
+                        .partial_cmp(&(b.1.get_diameter()))
+                        .unwrap()
+                })
+            {
+                trjs[min_idx].remove(0);
+                if trjs[min_idx].is_empty() {
+                    trjs.remove(min_idx);
+                }
+                tmp_bbox = min_bbox;
+            } else {
+                break;
+            }
+        }
+        bbox
     }
 }
 

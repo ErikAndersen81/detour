@@ -26,7 +26,7 @@ impl Path {
         for i in 0..self.path.len() {
             if i % 2 == 1 {
                 assert!(!self.path[i].is_stop());
-                let trj = self.path[i].get_trj().unwrap();
+                let trj = self.path[i].copy_trj().unwrap();
                 let a = self.path[i - 1].copy_bbox().unwrap();
                 let b = self.path[i + 1].copy_bbox().unwrap();
                 let start = trj[0];
@@ -43,6 +43,48 @@ impl Path {
             }
         }
         true
+    }
+
+    /// Stops are expanded along the routes they are connected to.
+    /// Stops are always expanded as spatially little as possible,
+    /// i.e. we select the point from either the ingoing route or the outgoing route
+    /// which minimizes the expansion.
+    /// A stop cannot expand `backwards` to the extend that it overlaps the previous stop.
+    pub fn expand_stops(&mut self) {
+        let last_idx = self.path.len() - 1;
+        for (i, bbox) in self.path.clone().into_iter().enumerate() {
+            if i == 0 {
+                let trjs = vec![self.path[1].copy_trj().unwrap()];
+                let t2 = self.path[2].copy_bbox().unwrap().t1;
+                let bbox = bbox
+                    .copy_bbox()
+                    .unwrap()
+                    .expand_along_trjs(trjs, None, Some(t2));
+                self.path[i] = PathElement::Stop(bbox);
+            } else if i == last_idx {
+                let mut trj = self.path[i - 1].copy_trj().unwrap();
+                trj.reverse();
+                let trjs = vec![trj];
+                let t1 = self.path[i - 2].copy_bbox().unwrap().t2;
+                let bbox = bbox
+                    .copy_bbox()
+                    .unwrap()
+                    .expand_along_trjs(trjs, Some(t1), None);
+                self.path[i] = PathElement::Stop(bbox);
+            } else if i % 2 == 0 {
+                let mut trj = self.path[i - 1].copy_trj().unwrap();
+                trj.reverse();
+                let trj_2 = self.path[i + 1].copy_trj().unwrap();
+                let trjs = vec![trj, trj_2];
+                let t1 = self.path[i - 2].copy_bbox().unwrap().t2;
+                let t2 = self.path[i + 2].copy_bbox().unwrap().t1;
+                let bbox = bbox
+                    .copy_bbox()
+                    .unwrap()
+                    .expand_along_trjs(trjs, Some(t1), Some(t2));
+                self.path[i] = PathElement::Stop(bbox);
+            }
+        }
     }
 
     pub fn add_points(&mut self, points: &[[f64; 3]]) {
@@ -85,11 +127,15 @@ impl Path {
         self.path.remove(0)
     }
 
+    pub fn remove_last(&mut self) -> PathElement {
+        self.path.pop().unwrap()
+    }
+
     pub fn next_trj_stop(&mut self) -> Option<(Vec<[f64; 3]>, Bbox)> {
         if self.is_empty() {
             None
         } else {
-            let trj = self.path.remove(0).get_trj().unwrap();
+            let trj = self.path.remove(0).copy_trj().unwrap();
             let bbox = self.path.remove(0).copy_bbox().unwrap();
             Some((trj, bbox))
         }
