@@ -9,7 +9,6 @@ use crate::CONFIG;
 /// `connection_timeout` as it is set in the [config](Config) file.
 /// Then, paths are constructed from the stream using a [stop detector](StopDetector).
 pub fn get_paths(stream: Vec<[f64; 3]>, stats: &mut PathBuilderStats) -> Vec<Path> {
-    print!("get_path, ");
     stats.streams_handled += 1;
     let splitted_streams = split_stream_on_timeout(&stream, stats);
     let paths: Vec<Path> = splitted_streams
@@ -208,7 +207,7 @@ impl PathBuilder {
                 let mut tmp_bbox = bbox;
                 tmp_bbox.insert_point(&pt);
                 // Check if adding the point forms a valid bbox
-                if tmp_bbox.verify_spatial() {
+                if !tmp_bbox.verify_spatial() {
                     panic!("Warning: bbox exceeds limit!! {}", tmp_bbox);
                 } else {
                     self.last_point_in_stop = Some(pt);
