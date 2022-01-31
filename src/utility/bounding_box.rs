@@ -139,6 +139,11 @@ impl Bbox {
         in_x & in_y
     }
 
+    /// Returns the squared diameter of the bbox.
+    pub fn get_diameter(&self) -> f64 {
+	(self.x1 - self.x2).powi(2) + (self.y1 - self.y2).powi(2)
+    }
+
     /// Splits Bbox temporally at `t`.
     ///
     /// Note that we assume a granularity of whole ms. Thus, the first Bbox will contain t and the second will contain t+1ms

@@ -6,13 +6,18 @@ use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
 use petgraph::prelude::EdgeIndex;
+use std::collections::binary_heap::Iter;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufWriter, Result, Write};
+use std::iter::Peekable;
+use EdgeDirection::Incoming;
 
 use super::Path;
 use petgraph::stable_graph::StableDiGraph;
-use petgraph::visit::{depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences};
+use petgraph::visit::{
+    depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences, Walker,
+};
 use petgraph::EdgeDirection;
 use trajectory_similarity::hausdorff;
 
@@ -160,6 +165,10 @@ impl DetourGraph {
             );
             self.stats.node_merges += 1;
             let a = self.merge_node_pair(a, b);
+            if !self.graph[a].verify_spatial() {
+                // Stop exeeds spatial bounds, try and shrink it
+                self.shrink_node(a);
+            }
             if self.should_split(a) {
                 self.split_node(a);
             }
@@ -168,6 +177,106 @@ impl DetourGraph {
             }
         }
         assert!(self.verify_constraints(), "Invalid graph structure!");
+    }
+
+    /// Shrink bbox based on points of connected trajectories. (not just endpoints)
+    fn shrink_node(&mut self, nx: NodeIndex) {
+        print!("shrinking {} -> ", self.graph[nx]);
+        // Shrink bbox to fit all endpoints
+        let in_points: Vec<[f64; 3]> = self
+            .graph
+            .edges_directed(nx, EdgeDirection::Incoming)
+            .map(|edge| edge.weight().clone().pop().unwrap())
+            .collect();
+        let mut points: Vec<[f64; 3]> = self
+            .graph
+            .edges_directed(nx, EdgeDirection::Outgoing)
+            .map(|edge| edge.weight().clone()[0])
+            .collect();
+        points.extend(in_points);
+        let mut bbox = Bbox::new(&points);
+        if bbox.verify_spatial() {
+            self.graph[nx] = bbox;
+        } else {
+            panic!("Nodes should not have been merged!!");
+        }
+        // Expand bbox as much as possible:
+        // First get trjs ending/starting in bbox
+        let in_trjs: Vec<Vec<[f64; 3]>> = self
+            .graph
+            .edges_directed(nx, EdgeDirection::Incoming)
+            .map(|edge| {
+                let mut trj = edge.weight().clone();
+                trj.reverse();
+                trj
+            })
+            .collect();
+        let mut trjs: Vec<Vec<[f64; 3]>> = self
+            .graph
+            .edges_directed(nx, EdgeDirection::Outgoing)
+            .map(|edge| edge.weight().clone())
+            .collect();
+        trjs.extend(in_trjs);
+
+        // Determine the minimal and maximal values for t1 and t2
+        // s.t. we don't break temporal monotonicity
+        let t1 = self
+            .graph
+            .edges_directed(nx, EdgeDirection::Incoming)
+            .map(|edge| {
+                let node = edge.source();
+                self.graph[node].t2
+            })
+            .max_by(|a, b| a.partial_cmp(b).unwrap());
+        let t2 = self
+            .graph
+            .edges_directed(nx, EdgeDirection::Outgoing)
+            .map(|edge| {
+                let node = edge.source();
+                self.graph[node].t2
+            })
+            .min_by(|a, b| a.partial_cmp(b).unwrap());
+
+        let mut tmp_bbox = bbox;
+        while tmp_bbox.verify_spatial() {
+            if let Some(t1) = t1 {
+                if t1 > tmp_bbox.t1 {
+                    break;
+                }
+            }
+            if let Some(t2) = t2 {
+                if t2 < tmp_bbox.t2 {
+                    break;
+                }
+            }
+            bbox = tmp_bbox;
+            if let Some((min_idx, min_bbox)) = trjs
+                .iter()
+                .enumerate()
+                .map(|(idx, trj)| {
+                    let point = trj[0];
+                    let mut expanded = tmp_bbox;
+                    expanded.insert_point(&point);
+                    (idx, expanded)
+                })
+                .min_by(|a, b| {
+                    a.1.get_diameter()
+                        .partial_cmp(&(b.1.get_diameter()))
+                        .unwrap()
+                })
+            {
+                trjs[min_idx].remove(0);
+                if trjs[min_idx].is_empty() {
+                    trjs.remove(min_idx);
+                    print!("graph-240");
+                }
+                tmp_bbox = min_bbox;
+            } else {
+                break;
+            }
+        }
+        self.graph[nx] = bbox;
+        println!("{}", self.graph[nx]);
     }
 
     fn should_split(&self, nx: NodeIndex) -> bool {
@@ -541,7 +650,36 @@ impl DetourGraph {
             let result = depth_first_search(&self.graph, roots, |event| match event {
                 DfsEvent::Discover(nx, _) => {
                     if self.graph[nx].overlaps(&bbox) && match_nx != nx {
-                        Control::Break(nx)
+                        // Make sure that merging the nodes keeps the spatial constraints
+                        let in_points_a: Vec<[f64; 3]> = self
+                            .graph
+                            .edges_directed(nx, EdgeDirection::Incoming)
+                            .map(|edge| edge.weight().clone().pop().unwrap())
+                            .collect();
+                        let in_points: Vec<[f64; 3]> = self
+                            .graph
+                            .edges_directed(match_nx, EdgeDirection::Incoming)
+                            .map(|edge| edge.weight().clone().pop().unwrap())
+                            .collect();
+                        let out_points_a: Vec<[f64; 3]> = self
+                            .graph
+                            .edges_directed(nx, EdgeDirection::Outgoing)
+                            .map(|edge| edge.weight().clone()[0])
+                            .collect();
+                        let mut points: Vec<[f64; 3]> = self
+                            .graph
+                            .edges_directed(match_nx, EdgeDirection::Outgoing)
+                            .map(|edge| edge.weight().clone()[0])
+                            .collect();
+                        points.extend(in_points);
+                        points.extend(in_points_a);
+                        points.extend(out_points_a);
+                        let bbox = Bbox::new(&points);
+                        if bbox.verify_spatial() {
+                            Control::Break(nx)
+                        } else {
+                            Control::Continue
+                        }
                     } else {
                         Control::Continue
                     }
@@ -659,7 +797,7 @@ impl DetourGraph {
             self.graph.remove_edge(*ex);
         });
         // Simplify the trajectory to avoid an excessive amount of points.
-        //let trj = visvalingam(&trj, self.config.visvalingam_threshold);
+        let trj = crate::visvalingam(&trj, CONFIG.visvalingam_threshold);
         self.graph.add_edge(source, target, trj);
     }
 
