@@ -109,6 +109,7 @@ impl DetourGraph {
             write!(f, "x,y,t\n{}", trj)?;
         }
         // Write Statistics
+        println!("Storing stats:\n{:?}", self.stats);
         let f = File::create("stats")?;
         let mut f = BufWriter::new(f);
         write!(f, "{:?}", self.stats)?;
@@ -664,7 +665,6 @@ impl DetourGraph {
     }
 
     pub fn add_path(&mut self, mut path: Path) {
-        print!("add_path, ");
         let bbox = path.remove_first().copy_bbox().unwrap();
         let mut a: NodeIndex = self.graph.add_node(bbox);
         self.roots.push(a);
