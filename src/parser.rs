@@ -3,7 +3,7 @@ use regex::Regex;
 
 /// Parses a string containing GPX data.
 ///
-/// Creates an array with UTM projected `[easting, northing, time]` for each `<trkpt>`.
+/// Creates an array with EPSG 3857 projected `[easting, northing, time]` for each `<trkpt>`.
 /// See [Coord](crate::Coord) for details on projection.
 /// The date part of `time` is
 /// stripped and the timestamp is converted to milliseconds.
@@ -34,8 +34,8 @@ pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
                 trj = vec![];
             }
         }
-        let c = crate::Coord::from_gps(&[lon, lat, time]);
-        trj.push([c.x, c.y, c.t]); // Note we have x=lon, y=lat, z=time(ms)
+        let c = crate::from_epsg_4326_to_3857(&[lat, lon, time]);
+        trj.push(c);
     }
     trjs
 }
@@ -43,7 +43,7 @@ pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
 /// Parses a string containing PLT data.
 ///
 /// Specifically designed to data from Geolife Trajectories 1.3.
-/// Creates an array with UTM projected `[easting, northing, time]` coordinates and time.
+/// Creates an array with EPSG 3857 `[easting, northing, time]` coordinates and time.
 /// See [Coord](crate::Coord) for details on projection.
 /// We only use fields 1 (latitude), 2(longitude), 5(days) and 7(time).
 /// Each day is put in a separate trajectory(`Vec`)
@@ -58,12 +58,12 @@ pub fn parse_plt(plt: String) -> Vec<Vec<[f64; 3]>> {
 
         if let Some(lat) = fields.next() {
             if let Ok(lat) = lat.parse::<f64>() {
-                coord[1] = lat;
+                coord[0] = lat;
             }
         };
         if let Some(lon) = fields.next() {
             if let Ok(lon) = lon.parse::<f64>() {
-                coord[0] = lon;
+                coord[1] = lon;
             }
         };
         if let Some(day) = fields.nth(2) {
@@ -93,8 +93,8 @@ pub fn parse_plt(plt: String) -> Vec<Vec<[f64; 3]>> {
             coord[2] = ms
         }
         if coord[0].is_finite() & coord[1].is_finite() & coord[2].is_finite() {
-            let c = crate::Coord::from_gps(&coord);
-            trj.push([c.x, c.y, c.t]); // Note we have x=lon, y=lat, z=time(ms)
+            let coord = crate::from_epsg_4326_to_3857(&coord);
+            trj.push(coord);
         }
     }
     trjs

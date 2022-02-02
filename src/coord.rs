@@ -1,91 +1,24 @@
-use geomorph::{coord, utm};
+use std::f64::consts::{E, PI};
 
-use crate::CONFIG;
+// Constants for WSG 84 / Pseudo-Mercator (EPSG CRS Code 3857)
+const RADIUS: f64 = 6378137.0;
+const RAD: f64 = PI / 180.0;
+const DEG: f64 = 180.0 / PI;
 
-/// Holds coordinates in UTM projection.
-///
-/// Currently, information about zone is not stored and is assumed to belong to 32, i.e. the zone covering the majority of Denmark. Generally, we assume any coordinate is from Denmark.
-pub struct Coord {
-    pub x: f64,
-    pub y: f64,
-    pub t: f64,
+pub fn from_epsg_4326_to_3857(pt: &[f64; 3]) -> [f64; 3] {
+    if pt[0] > 88.0 {
+        panic!("Cannot convert latitude above 88 deg to EPSG:3857")
+    }
+    let lat = pt[0] * RAD;
+    let lon = pt[1] * RAD;
+    let easting = RADIUS * lon;
+    let northing = RADIUS * ((PI / 4.0 + lat / 2.0).tan().abs()).ln();
+    [easting, northing, pt[2]]
 }
 
-impl Coord {
-    /// Create a UTM projected coordinate from GPS-Coordinates '(lon, lat, time)'.
-    /// Projects using zone specified as command line argument or in the config file.
-    pub fn from_gps(pt: &[f64; 3]) -> Self {
-        let coord = coord::Coord::new(pt[1], pt[0]);
-        let c: utm::Utm = utm::Utm::from_coord_use_fixed_zone(coord, CONFIG.utm_zone);
-        Coord {
-            x: c.easting,
-            y: c.northing,
-            t: pt[2],
-        }
-    }
-    /// Converts to GPS '(lon, lat, time)'
-    /// Assumes UTM coordinates belong to a pre specified UTM zone
-    pub fn to_gps(&self) -> [f64; 3] {
-        let c: coord::Coord = utm::Utm::new(
-            self.x,
-            self.y,
-            true,
-            CONFIG.utm_zone,
-            CONFIG.utm_band,
-            false,
-        )
-        .into();
-        [c.lon, c.lat, self.t]
-    }
-}
-
-enum Band {
-    X,
-    W,
-    V,
-    U,
-    T,
-    S,
-    R,
-    Q,
-    P,
-    N,
-    M,
-    L,
-    K,
-    J,
-    H,
-    G,
-    F,
-    E,
-    D,
-    C,
-}
-
-impl From<char> for Band {
-    fn from(c: char) -> Band {
-        match c {
-            'X' => Band::X,
-            'W' => Band::W,
-            'V' => Band::V,
-            'U' => Band::U,
-            'T' => Band::T,
-            'S' => Band::S,
-            'R' => Band::R,
-            'Q' => Band::Q,
-            'P' => Band::P,
-            'N' => Band::N,
-            'M' => Band::M,
-            'L' => Band::L,
-            'K' => Band::K,
-            'J' => Band::J,
-            'H' => Band::H,
-            'G' => Band::G,
-            'F' => Band::F,
-            'E' => Band::E,
-            'D' => Band::D,
-            'C' => Band::C,
-            _ => panic!("Invalid Band: {}", c),
-        }
-    }
+pub fn from_epsg_3857_to_4326(pt: &[f64; 3]) -> [f64; 3] {
+    let d = -pt[1] / RADIUS;
+    let lat = PI / 2.0 - 2.0 * (E.powf(d)).atan();
+    let lon = pt[0] / RADIUS;
+    [lat * DEG, lon * DEG, pt[2]]
 }

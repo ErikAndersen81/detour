@@ -1,17 +1,14 @@
 use crate::utility::trajectory::merge;
 use crate::utility::{clustering, Bbox};
-use crate::CONFIG;
+use crate::{CONFIG, STATS};
 use clustering::Clustering;
 use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
 use petgraph::prelude::EdgeIndex;
-use std::collections::binary_heap::Iter;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufWriter, Result, Write};
-use std::iter::Peekable;
-use EdgeDirection::Incoming;
 
 use super::Path;
 use petgraph::stable_graph::StableDiGraph;
@@ -40,18 +37,10 @@ struct TimePairs {
     b: bool,
 }
 
-#[derive(Debug, Default, Clone)]
-struct Statistics {
-    pub node_merges: usize,
-    pub edge_merges: usize,
-    pub node_splits: usize,
-}
-
 #[derive(Clone)]
 pub struct DetourGraph {
     graph: StableDiGraph<Bbox, Vec<[f64; 3]>>,
     roots: Vec<NodeIndex>,
-    stats: Statistics,
 }
 
 impl DetourGraph {
@@ -60,17 +49,16 @@ impl DetourGraph {
         DetourGraph {
             graph,
             roots: vec![],
-            stats: Statistics::default(),
         }
     }
 
     /// Writes the graph to the output folder.
     ///
-    /// - The graph structure is stored in 'graph.dot'.
-    /// - Nodes are stored in 'nodes.csv'. Values in the column *label* corresponds to the node labels in 'graph.dot'.
-    /// - Each edge is stored in an 'edge_{label}.csv' file. Here, *label* correspond to the an edge label in 'graph.dot'.
-    /// - Information about splits and merges of nodes/edges are stored in 'stats'.
-    /// - Configuration is written to 'config' for reference purposes.
+    /// - The graph structure is stored in `graph.dot`.
+    /// - Nodes are stored in `nodes.csv`. Values in the column *label* corresponds to the node labels in `graph.dot`.
+    /// - Each edge is stored in an `edge_{label}.csv` file. Here, *label* correspond to the an edge label in `graph.dot`.
+    /// - Information about splits and merges of nodes/edges are stored in `STATS`.
+    /// - Configuration is written to `config` for reference purposes.
     pub fn to_csv(&self) -> Result<()> {
         println!("Writing data...");
         // Write the graph in graphviz format
@@ -101,12 +89,7 @@ impl DetourGraph {
                 .weight()
                 .iter()
                 .map(|[x, y, t]| {
-                    let coord = crate::Coord {
-                        x: *x,
-                        y: *y,
-                        t: *t,
-                    };
-                    let [x, y, t] = coord.to_gps();
+                    let [x, y, t] = crate::from_epsg_3857_to_4326(&[*x, *y, *t]);
                     format!("{},{},{}", x, y, t)
                 })
                 .join("\n");
@@ -114,10 +97,10 @@ impl DetourGraph {
             write!(f, "x,y,t\n{}", trj)?;
         }
         // Write Statistics
-        println!("Storing stats:\n{:?}", self.stats);
+        println!("Storing stats:\n{:?}", *STATS.lock().unwrap());
         let f = File::create("stats")?;
         let mut f = BufWriter::new(f);
-        write!(f, "{:?}", self.stats)?;
+        write!(f, "{:?}", *STATS)?;
         // Write Configuration
         let f = File::create("config")?;
         let mut f = BufWriter::new(f);
@@ -162,9 +145,9 @@ impl DetourGraph {
             assert!(
                 self.verify_constraints(),
                 "Failed to verify constraints! {:?}",
-                self.stats
+                *STATS
             );
-            self.stats.node_merges += 1;
+            STATS.lock().unwrap().node_merges += 1;
             let a = self.merge_node_pair(a, b);
             if !self.graph[a].verify_spatial() {
                 // Stop exeeds spatial bounds, try and shrink it
@@ -182,7 +165,6 @@ impl DetourGraph {
 
     /// Shrink bbox based on points of connected trajectories. (not just endpoints)
     fn shrink_node(&mut self, nx: NodeIndex) {
-        print!("shrinking {} -> ", self.graph[nx]);
         // Shrink bbox to fit all endpoints
         let in_points: Vec<[f64; 3]> = self
             .graph
@@ -195,7 +177,7 @@ impl DetourGraph {
             .map(|edge| edge.weight().clone()[0])
             .collect();
         points.extend(in_points);
-        let mut bbox = Bbox::new(&points);
+        let bbox = Bbox::new(&points);
         if bbox.verify_spatial() {
             self.graph[nx] = bbox;
         } else {
@@ -240,7 +222,6 @@ impl DetourGraph {
 
         let bbox = bbox.expand_along_trjs(trjs, t1, t2);
         self.graph[nx] = bbox;
-        println!("{}", self.graph[nx]);
     }
 
     fn should_split(&self, nx: NodeIndex) -> bool {
@@ -261,7 +242,7 @@ impl DetourGraph {
     }
 
     fn split_node_at(&mut self, split_node: NodeIndex, splits: &[f64]) {
-        self.stats.node_splits += splits.len();
+        STATS.lock().unwrap().node_splits += splits.len();
         let nodes: Vec<NodeIndex> = DetourGraph::split_bbox(self.graph[split_node], splits)
             .into_iter()
             .map(|bbox| self.graph.add_node(bbox))
@@ -504,18 +485,6 @@ impl DetourGraph {
         }
     }
 
-    pub fn make_acyclic(&mut self) {
-        let mut split_nodes = vec![];
-        for nx in self.graph.node_indices() {
-            if self.should_split(nx) {
-                split_nodes.push(nx);
-            }
-        }
-        for nx in split_nodes.into_iter() {
-            self.split_node(nx);
-        }
-    }
-
     fn verify_constraints(&self) -> bool {
         let mut valid = true;
         for nx in self.graph.node_indices() {
@@ -705,7 +674,8 @@ impl DetourGraph {
                     .iter()
                     .map(|ex| self.graph.edge_weight(*ex).unwrap().clone())
                     .collect();
-                self.stats.edge_merges += if trjs.is_empty() { 0 } else { trjs.len() - 1 };
+                STATS.lock().unwrap().edge_merges +=
+                    if trjs.is_empty() { 0 } else { trjs.len() - 1 };
                 let trj = trjs.pop().unwrap();
                 let trj: Vec<[f64; 3]> = trjs
                     .into_iter()
@@ -762,7 +732,7 @@ impl DetourGraph {
         });
         // Simplify the trajectory to avoid an excessive amount of points.
         let trj = crate::visvalingam(&trj, CONFIG.visvalingam_threshold);
-        self.stats.edge_merges += 1;
+        STATS.lock().unwrap().edge_merges += 1;
         self.graph.add_edge(source, target, trj);
     }
 

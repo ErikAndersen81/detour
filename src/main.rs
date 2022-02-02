@@ -22,17 +22,32 @@ extern crate lazy_static;
 pub mod arguments;
 pub mod config;
 pub use config::Config;
-use std::io::{BufReader, Read};
+use std::{
+    io::{BufReader, Read},
+    sync::Mutex,
+};
 pub use utility::{time_guard, CHFilter, StopDetector};
 mod coord;
 mod graph;
 mod parser;
 mod utility;
 use crate::{graph::get_graph, utility::visvalingam};
-pub use coord::Coord;
-
+pub use coord::{from_epsg_3857_to_4326, from_epsg_4326_to_3857};
 lazy_static! {
     pub static ref CONFIG: Config = arguments::parse_arguments();
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct Statistics {
+    pub node_merges: usize,
+    pub edge_merges: usize,
+    pub node_splits: usize,
+    pub redundant_trj_removals: usize,
+    pub redundant_node_removals: usize,
+}
+
+lazy_static! {
+    pub static ref STATS: Mutex<Statistics> = Mutex::new(Statistics::default());
 }
 
 fn main() {

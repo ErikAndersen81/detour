@@ -196,6 +196,25 @@ impl Bbox {
             t2,
         }
     }
+
+    pub fn is_single_point(&self) -> bool {
+        self.t1.partial_cmp(&self.t2).unwrap().is_eq()
+    }
+
+    pub fn can_contain_trj(&self, trj: &[[f64; 3]]) -> bool {
+        let mut bbox = *self;
+        for point in trj {
+            bbox.insert_point(point);
+            if !bbox.verify_spatial() {
+                return false;
+            }
+        }
+        true
+    }
+
+    /// Expands the bbox along the trajectories.
+    /// TODO: When building paths, we probably want to merge two nodes if they both can contain
+    /// the entire trajectory.
     pub fn expand_along_trjs(
         &self,
         mut trjs: Vec<Vec<[f64; 3]>>,
@@ -248,18 +267,8 @@ impl Bbox {
 
 impl Display for Bbox {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let a = crate::Coord {
-            x: self.x1,
-            y: self.y1,
-            t: self.t1,
-        };
-        let [x1, y1, t1] = a.to_gps();
-        let a = crate::Coord {
-            x: self.x2,
-            y: self.y2,
-            t: self.t2,
-        };
-        let [x2, y2, t2] = a.to_gps();
+        let [x1, y1, t1] = crate::from_epsg_3857_to_4326(&[self.x1, self.y1, self.t1]);
+        let [x2, y2, t2] = crate::from_epsg_3857_to_4326(&[self.x2, self.y2, self.t2]);
         writeln!(f, "{},{},{},{},{},{}", x1, y1, t1, x2, y2, t2)
     }
 }

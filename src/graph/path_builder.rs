@@ -133,16 +133,13 @@ impl PathBuilder {
                     self.bbox = None;
                     self.path.push(stop);
                     self.building_initial_stop = false;
-                    println!("Finished building initial stop");
                 }
             } else {
-                print!("Initializing path:");
                 self.bbox = Some(Bbox::new(&[point]));
             }
         } else {
             match is_stopped {
                 IsStopped::Maybe => {
-                    print!("M");
                     // Try adding to current bbox if it exists
                     // if its full push to path and set bbox to none.
                     if let Some(bbox) = self.bbox {
@@ -164,7 +161,6 @@ impl PathBuilder {
                     }
                 }
                 IsStopped::Yes => {
-                    print!("Y");
                     if let Some(mut bbox) = self.bbox {
                         bbox.insert_point(&point);
                         if bbox.verify_spatial() {
@@ -189,7 +185,6 @@ impl PathBuilder {
                     }
                 }
                 IsStopped::No => {
-                    print!("N");
                     if let Some(bbox) = self.bbox {
                         let stop = PathElement::Stop(bbox);
                         self.path.push(stop);
@@ -202,10 +197,8 @@ impl PathBuilder {
 
     fn finalize_path(&mut self) {
         if let Some(last_elm) = self.path.last_element() {
-            println!("\nFinalizing..");
             // Ensure path ends with a `Stop`
             if let PathElement::Route(trj) = last_elm {
-                println!("\tCase:Route");
                 let start = trj[0];
                 let end = trj[trj.len() - 1];
                 let bbox = self.bbox.unwrap();
@@ -217,7 +210,6 @@ impl PathBuilder {
                     self.path.push(PathElement::Stop(self.bbox.unwrap()));
                 }
             } else if let PathElement::Stop(_) = last_elm {
-                println!("\tCase:Stop");
                 let trj = self.trj.clone();
                 let end = trj[trj.len() - 1];
                 let route = PathElement::Route(trj);
@@ -233,7 +225,6 @@ impl PathBuilder {
             if self.path.len() > 1 {
                 self.path.expand_stops();
             }
-            println!("Finalized:\n{}", self.path);
         } else if self.trj.len() > 5 {
             // When a certain amount of points have been used we don't ignore the stop
             self.path.push(PathElement::Stop(self.bbox.unwrap()));
@@ -242,6 +233,8 @@ impl PathBuilder {
 
     fn get_path(&mut self) -> Path {
         self.finalize_path();
+        self.path.merge_nodes();
+        self.path.rm_single_points();
         self.path.verify();
         self.path.clone()
     }

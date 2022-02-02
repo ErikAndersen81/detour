@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use super::PathElement;
-use crate::utility::Bbox;
+use crate::{utility::Bbox, STATS};
 
 #[derive(Debug, Clone)]
 pub struct Path {
@@ -84,6 +84,58 @@ impl Path {
                     .expand_along_trjs(trjs, Some(t1), Some(t2));
                 self.path[i] = PathElement::Stop(bbox);
             }
+        }
+    }
+
+    /// Tests if the trj between two consecutive bboxs can be contained in
+    /// a single bbox. If it can, remove the trj and replace the
+    /// two bboxs and the trj with a single bbox
+    pub fn merge_nodes(&mut self) {
+        let mut rm_trj_idxs = vec![];
+        let last_idx = self.path.len() - 1;
+        for (idx, elm) in self.path.iter().enumerate() {
+            if (idx != last_idx) & (idx % 2 == 0) {
+                let bbox = elm.copy_bbox().unwrap();
+                let trj = self.path[idx + 1].copy_trj().unwrap();
+                if bbox.can_contain_trj(&trj) {
+                    rm_trj_idxs.push(idx + 1);
+                }
+            }
+        }
+        rm_trj_idxs.reverse();
+        for idx in rm_trj_idxs {
+            STATS.lock().unwrap().redundant_trj_removals += 1;
+            let mut bbox = self.path[idx - 1].copy_bbox().unwrap();
+            let trj = self.path[idx].copy_trj().unwrap();
+            for point in trj {
+                bbox.insert_point(&point);
+            }
+            self.path.remove(idx + 1);
+            self.path.remove(idx);
+            self.path[idx - 1] = PathElement::Stop(bbox);
+        }
+    }
+
+    /// Remove consecutive single point nodes
+    /// If the granularity of the measurements is too low, we assume it's noisy
+    pub fn rm_single_points(&mut self) {
+        let mut rm_bbox_idxs = vec![];
+        let last_idx = self.path.len() - 1;
+        for (idx, elm) in self.path.iter().enumerate() {
+            if (idx != last_idx) & (idx % 2 == 0) {
+                let bbox_1 = elm.copy_bbox().unwrap();
+                let bbox_2 = self.path[idx + 2].copy_bbox().unwrap();
+                if bbox_1.is_single_point() & bbox_2.is_single_point() {
+                    rm_bbox_idxs.push(idx);
+                }
+            }
+        }
+        rm_bbox_idxs.reverse();
+        for idx in rm_bbox_idxs {
+            STATS.lock().unwrap().redundant_node_removals += 1;
+            self.path.remove(idx);
+            self.path.remove(idx);
+            self.path.remove(idx);
         }
     }
 
