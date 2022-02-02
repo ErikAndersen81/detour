@@ -4,7 +4,6 @@ use regex::Regex;
 /// Parses a string containing GPX data.
 ///
 /// Creates an array with EPSG 3857 projected `[easting, northing, time]` for each `<trkpt>`.
-/// See [Coord](crate::Coord) for details on projection.
 /// The date part of `time` is
 /// stripped and the timestamp is converted to milliseconds.
 pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
@@ -44,7 +43,6 @@ pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
 ///
 /// Specifically designed to data from Geolife Trajectories 1.3.
 /// Creates an array with EPSG 3857 `[easting, northing, time]` coordinates and time.
-/// See [Coord](crate::Coord) for details on projection.
 /// We only use fields 1 (latitude), 2(longitude), 5(days) and 7(time).
 /// Each day is put in a separate trajectory(`Vec`)
 pub fn parse_plt(plt: String) -> Vec<Vec<[f64; 3]>> {

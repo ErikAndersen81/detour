@@ -1,6 +1,7 @@
 use crate::graph::{Path, PathBuilderStats, PathElement};
 use crate::utility::IsStopped;
 use crate::utility::{Bbox, MotionDetector, StopDetector};
+use crate::Config;
 use crate::CONFIG;
 
 /// Returns a vector of paths given a stream

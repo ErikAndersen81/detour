@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Coord","Holds coordinates in UTM projection."]]});
+initSidebarItems({"constant":[["DEG",""],["RAD",""],["RADIUS",""]],"fn":[["from_epsg_3857_to_4326",""],["from_epsg_4326_to_3857",""]]});
