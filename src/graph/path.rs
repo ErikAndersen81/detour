@@ -1,7 +1,10 @@
 use std::fmt::Display;
 
 use super::PathElement;
-use crate::{utility::Bbox, STATS};
+use crate::{
+    utility::{visvalingam, Bbox},
+    CONFIG, STATS,
+};
 
 #[derive(Debug, Clone)]
 pub struct Path {
@@ -84,6 +87,56 @@ impl Path {
                     .expand_along_trjs(trjs, Some(t1), Some(t2));
                 self.path[i] = PathElement::Stop(bbox);
             }
+        }
+    }
+
+    pub fn simplify_trjs(&mut self) {
+        let mut simplified = vec![];
+        for (idx, elm) in self.path.iter().enumerate() {
+            if idx % 2 == 1 {
+                let bbox_start = self.path[idx - 1].copy_bbox().unwrap();
+                let bbox_end = self.path[idx + 1].copy_bbox().unwrap();
+                let mut trj = elm.copy_trj().unwrap();
+                let mut avg = trj.pop().unwrap();
+                let mut last_pt = avg;
+                while bbox_end.contains_point(&last_pt) {
+                    avg = [
+                        (last_pt[0] + avg[0]) / 2.0,
+                        (last_pt[1] + avg[1]) / 2.0,
+                        last_pt[2],
+                    ];
+                    if let Some(pt) = trj.pop() {
+                        last_pt = pt;
+                    } else {
+                        break;
+                    }
+                }
+                trj.push(last_pt);
+                trj.push(avg);
+                trj.reverse();
+                let mut avg = trj.pop().unwrap();
+                let mut last_pt = avg;
+                while bbox_start.contains_point(&last_pt) {
+                    avg = [
+                        (last_pt[0] + avg[0]) / 2.0,
+                        (last_pt[1] + avg[1]) / 2.0,
+                        last_pt[2],
+                    ];
+                    if let Some(pt) = trj.pop() {
+                        last_pt = pt;
+                    } else {
+                        break;
+                    }
+                }
+                trj.push(last_pt);
+                trj.push(avg);
+                trj.reverse();
+                trj = visvalingam(&trj, CONFIG.visvalingam_threshold);
+                simplified.push((idx, trj));
+            }
+        }
+        for (idx, trj) in simplified {
+            self.path[idx] = PathElement::Route(trj);
         }
     }
 

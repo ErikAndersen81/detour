@@ -1,8 +1,9 @@
 use crate::utility::trajectory::merge;
-use crate::utility::{clustering, Bbox};
+use crate::utility::{clustering, visvalingam, Bbox};
 use crate::{CONFIG, STATS};
 use clustering::Clustering;
 use itertools::Itertools;
+use petgraph::data::DataMap;
 use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
 use petgraph::prelude::EdgeIndex;

@@ -16,7 +16,6 @@ pub fn get_graph(streams: Vec<Vec<[f64; 3]>>) -> DetourGraph {
         .for_each(|path| graph.add_path(path));
     println!("\tmerging nodes");
     graph.merge_nodes();
-    //graph.make_acyclic();
     graph.merge_edges();
     println!("Path builder stats:\n{}", path_stats);
     graph
