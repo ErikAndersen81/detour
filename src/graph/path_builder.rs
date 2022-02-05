@@ -74,31 +74,6 @@ fn split_stream_on_timeout(
     result
 }
 
-#[derive(Clone, Debug)]
-/// Stores points until we can classify them as either `Stop` or `Route`
-struct PointsForElement {
-    pts: Vec<[f64; 3]>,
-}
-
-impl PointsForElement {
-    fn push(&mut self, point: [f64; 3]) {
-        self.pts.push(point);
-    }
-
-    fn to_stop(&self) -> PathElement {
-        PathElement::new_stop(&self.pts)
-    }
-
-    fn to_route(&self) -> PathElement {
-        PathElement::new_route(&self.pts)
-    }
-
-    /// Remove all points
-    fn reset(&mut self) {
-        self.pts = vec![];
-    }
-}
-
 struct PathBuilder {
     path: Path,
     trj: Vec<[f64; 3]>,
@@ -266,59 +241,5 @@ mod test {
         assert_eq!(streams.len(), 2);
         assert_eq!(streams[0].len(), 4);
         assert_eq!(streams[1].len(), 6);
-    }
-
-    #[test]
-    fn new() {
-        let config = Config::default();
-        let pb = PathBuilder::new(&config);
-        assert!(pb.path.is_empty());
-        assert!(pb.path_element.is_none());
-    }
-
-    #[test]
-    fn add_point_stopped() {
-        let config = Config::default();
-        let mut pb = PathBuilder::new(&config);
-        pb.add_pt([1., 1., 2.], false);
-        assert!(pb.path.is_empty());
-        assert!(pb.path_element.is_some());
-    }
-
-    #[test]
-    fn add_point_moving() {
-        let config = Config::default();
-        let mut pb = PathBuilder::new(&config);
-        pb.add_pt([1., 1., 2.], true);
-        assert_eq!(pb.path.len(), 1);
-        assert!(pb.path_element.is_some());
-    }
-
-    #[test]
-    fn add_point_alternate_moving() {
-        let config = Config::default();
-        let mut pb = PathBuilder::new(&config);
-        pb.add_pt([0., 0., 0.], false);
-        pb.add_pt([1., 1., 1.], true);
-        pb.add_pt([2., 2., 2.], false);
-        pb.add_pt([3., 3., 3.], true);
-        pb.add_pt([4., 4., 4.], false);
-        pb.add_pt([5., 5., 5.], true);
-        pb.add_pt([6., 6., 6.], false);
-        assert_eq!(pb.path.len(), 6, "{:?}", pb.path);
-    }
-
-    #[test]
-    fn verify_test() {
-        let trj: Vec<[f64; 3]> = vec![];
-        let bbox = Bbox::new(&[[0., 0., 0.]]);
-        let path: Vec<PathElement> = vec![
-            PathElement::Stop(bbox),
-            PathElement::Route(trj.clone()),
-            PathElement::Stop(bbox),
-            PathElement::Route(trj),
-            PathElement::Stop(bbox),
-        ];
-        assert!(path.verify());
     }
 }
