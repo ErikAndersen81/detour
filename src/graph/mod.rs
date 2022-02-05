@@ -1,9 +1,11 @@
+mod edge_clustering;
 mod graph;
 mod graph_builder;
 mod path;
 mod path_builder;
 mod path_builder_stats;
 mod path_element;
+pub use edge_clustering::merge_edges;
 pub use graph::DetourGraph;
 pub use graph_builder::get_graph;
 pub use path::Path;

@@ -1,4 +1,4 @@
-use super::{path_builder::get_paths, DetourGraph, PathBuilderStats};
+use super::{merge_edges, path_builder::get_paths, DetourGraph, PathBuilderStats};
 
 /// Returns a detour graph when given a vector of preprocessed streams.
 ///
@@ -16,7 +16,7 @@ pub fn get_graph(streams: Vec<Vec<[f64; 3]>>) -> DetourGraph {
         .for_each(|path| graph.add_path(path));
     println!("\tmerging nodes");
     graph.merge_nodes();
-    graph.merge_edges();
+    merge_edges(graph.get_mut_graph());
     println!("Path builder stats:\n{}", path_stats);
     graph
 }

@@ -1,25 +1,17 @@
-use crate::utility::trajectory::merge;
-use crate::utility::{clustering, visvalingam, Bbox};
+use crate::utility::Bbox;
 use crate::{CONFIG, STATS};
-use clustering::Clustering;
 use itertools::Itertools;
-use petgraph::data::DataMap;
 use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
 use petgraph::prelude::EdgeIndex;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufWriter, Result, Write};
 
 use super::Path;
 use petgraph::stable_graph::StableDiGraph;
-use petgraph::visit::{
-    depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences, Walker,
-};
+use petgraph::visit::{depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences};
 use petgraph::EdgeDirection;
-use trajectory_similarity::hausdorff;
-
-type EdgeClusters = Vec<Vec<EdgeIndex>>;
 
 enum RootCase {
     /// None of the nodes are root nodes
@@ -53,6 +45,10 @@ impl DetourGraph {
         }
     }
 
+    pub fn get_mut_graph(&mut self) -> &mut StableDiGraph<Bbox, Vec<[f64; 3]>> {
+        &mut self.graph
+    }
+
     /// Writes the graph to the output folder.
     ///
     /// - The graph structure is stored in `graph.dot`.
@@ -62,6 +58,7 @@ impl DetourGraph {
     /// - Configuration is written to `config` for reference purposes.
     pub fn to_csv(&self) -> Result<()> {
         println!("Writing data...");
+
         // Write the graph in graphviz format
         let dot = Dot::with_config(
             &self.graph,
@@ -73,6 +70,7 @@ impl DetourGraph {
         let f = File::create("graph.dot")?;
         let mut f = BufWriter::new(f);
         write!(f, "{:?}", dot)?;
+
         // Write a single csv file with bounding boxes
         let nodes = self
             .graph
@@ -83,6 +81,7 @@ impl DetourGraph {
         let f = File::create("nodes.csv")?;
         let mut f = BufWriter::new(f);
         write!(f, "{}", nodes)?;
+
         // Write each trajectory to a separate csv file.
         for (i, edge) in self.graph.edge_references().enumerate() {
             let f = File::create(format!("edge_{}.csv", i))?;
@@ -97,11 +96,23 @@ impl DetourGraph {
             let mut f = BufWriter::new(f);
             write!(f, "x,y,t\n{}", trj)?;
         }
+
+        // Write indices of root nodes.
+        let roots = self
+            .roots
+            .iter()
+            .map(|nx| format!("{}", nx.index()))
+            .join(",");
+        let f = File::create("roots.csv")?;
+        let mut f = BufWriter::new(f);
+        write!(f, "{}", roots)?;
+
         // Write Statistics
         println!("Storing stats:\n{:?}", *STATS.lock().unwrap());
         let f = File::create("stats")?;
         let mut f = BufWriter::new(f);
         write!(f, "{:?}", *STATS)?;
+
         // Write Configuration
         let f = File::create("config")?;
         let mut f = BufWriter::new(f);
@@ -655,86 +666,6 @@ impl DetourGraph {
             _ => Control::Continue,
         });
         result.break_value().is_some()
-    }
-
-    pub fn merge_edges(&mut self) {
-        let groups: Vec<((NodeIndex, NodeIndex), EdgeClusters)> = self
-            .get_edge_groups()
-            .iter()
-            .map(|((source, target), group)| {
-                ((*source, *target), self.get_edge_group_clusters(group))
-            })
-            .filter(|(_, clustering)| clustering.len() > 1)
-            .collect();
-        for ((source, target), clustering) in groups {
-            for cluster in clustering {
-                if cluster.len() < 2 {
-                    continue;
-                }
-                let mut trjs: Vec<Vec<[f64; 3]>> = cluster
-                    .iter()
-                    .map(|ex| self.graph.edge_weight(*ex).unwrap().clone())
-                    .collect();
-                STATS.lock().unwrap().edge_merges +=
-                    if trjs.is_empty() { 0 } else { trjs.len() - 1 };
-                let trj = trjs.pop().unwrap();
-                let trj: Vec<[f64; 3]> = trjs
-                    .into_iter()
-                    .fold(trj, |trj_a, trj_b| merge(&trj_a, &trj_b));
-                self.replace_edges(source, target, &cluster, trj);
-            }
-        }
-    }
-
-    fn get_edge_group_clusters(&self, group: &[EdgeIndex]) -> EdgeClusters {
-        let n = group.len();
-        let mut dists = vec![vec![0f64; n]; n];
-        for i in 0..group.len() {
-            for j in (i + 1)..group.len() {
-                let trj_a = self.graph.edge_weight(group[i]).unwrap();
-                let trj_b = self.graph.edge_weight(group[j]).unwrap();
-                dists[i][j] = hausdorff::similarity(trj_a, trj_b);
-                dists[j][i] = dists[i][j];
-            }
-        }
-        let clusters = Clustering::new(dists, CONFIG.max_hausdorff_meters).clusters;
-        clusters
-            .iter()
-            .map(|c| c.iter().map(|idx| group[*idx]).collect::<Vec<EdgeIndex>>())
-            .collect::<EdgeClusters>()
-    }
-
-    fn get_edge_groups(&self) -> HashMap<(NodeIndex, NodeIndex), Vec<EdgeIndex>> {
-        let mut groups: HashMap<(NodeIndex, NodeIndex), Vec<EdgeIndex>> = HashMap::new();
-        for source in self.graph.node_indices() {
-            self.graph
-                .edges_directed(source, EdgeDirection::Outgoing)
-                .map(|ex| (ex.id(), ex.target()))
-                .for_each(|(ex, target)| {
-                    if let Some(lst) = groups.get_mut(&(source, target)) {
-                        lst.push(ex);
-                    } else {
-                        groups.insert((source, target), vec![ex]);
-                    }
-                });
-        }
-        groups
-    }
-
-    fn replace_edges(
-        &mut self,
-        source: NodeIndex,
-        target: NodeIndex,
-        group: &[EdgeIndex],
-        trj: Vec<[f64; 3]>,
-    ) {
-        group.iter().for_each(|ex| {
-            self.graph.remove_edge(*ex);
-        });
-        // Simplify the trajectory to avoid an excessive amount of points.
-        let trj = crate::visvalingam(&trj, CONFIG.visvalingam_threshold);
-        STATS.lock().unwrap().edge_merges += 1;
-        self.graph.add_edge(source, target, trj);
     }
 
     pub fn add_path(&mut self, mut path: Path) {
