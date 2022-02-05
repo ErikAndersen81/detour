@@ -230,9 +230,9 @@ impl PathBuilder {
             // When a certain amount of points have been used we don't ignore the stop
             self.path.push(PathElement::Stop(self.bbox.unwrap()));
         }
+        self.path.rm_single_points();
         self.path.simplify_trjs();
         self.path.merge_nodes();
-        self.path.rm_single_points();
         self.path.verify();
     }
 
