@@ -1,14 +1,14 @@
 use crate::CONFIG;
 
 use super::{get_distance, Line};
-use std::fmt::Display;
+use std::{cmp::min_by, fmt::Display};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Bbox {
-    x1: f64,
-    x2: f64,
-    y1: f64,
-    y2: f64,
+    pub x1: f64,
+    pub x2: f64,
+    pub y1: f64,
+    pub y2: f64,
     pub t1: f64,
     pub t2: f64,
 }
@@ -81,7 +81,43 @@ impl Bbox {
         }
     }
 
+    /// Returns the corner spatially nearest to `point`
+    /// The time coordinate of the returned point is copied from `point`
+    pub fn nearest_corner(&self, point: &[f64; 3]) -> [f64; 3] {
+        let corners = [
+            [self.x1, self.y1, point[2]],
+            [self.x1, self.y2, point[2]],
+            [self.x2, self.y2, point[2]],
+            [self.x2, self.y1, point[2]],
+        ];
+        let (idx, _) = corners
+            .iter()
+            .map(|corner| get_distance(corner, point))
+            .enumerate()
+            .fold(
+                (0usize, f64::INFINITY),
+                |(last_idx, min_dist), (idx, dist)| {
+                    if dist < min_dist {
+                        (idx, dist)
+                    } else {
+                        (last_idx, min_dist)
+                    }
+                },
+            );
+        corners[idx]
+    }
+
+    /// Determine if the bounding boxes overlap spatially and temporally
     pub fn overlaps(&self, other: &Self) -> bool {
+        let temporal = (self.t1..=self.t2).contains(&other.t1)
+            || (self.t1..=self.t2).contains(&other.t2)
+            || (other.t1..=other.t2).contains(&self.t1)
+            || (other.t1..=other.t2).contains(&self.t2);
+        self.overlaps_spatially(other) & temporal
+    }
+
+    /// Determine if the bounding boxes overlap spatially
+    pub fn overlaps_spatially(&self, other: &Self) -> bool {
         let vertical = (self.x1..=self.x2).contains(&other.x1)
             || (self.x1..=self.x2).contains(&other.x2)
             || (other.x1..=other.x2).contains(&self.x1)
@@ -90,11 +126,7 @@ impl Bbox {
             || (self.y1..=self.y2).contains(&other.y2)
             || (other.y1..=other.y2).contains(&self.y1)
             || (other.y1..=other.y2).contains(&self.y2);
-        let temporal = (self.t1..=self.t2).contains(&other.t1)
-            || (self.t1..=self.t2).contains(&other.t2)
-            || (other.t1..=other.t2).contains(&self.t1)
-            || (other.t1..=other.t2).contains(&self.t2);
-        vertical & horizontal & temporal
+        vertical & horizontal
     }
 
     /// Inserts `point` and expands `Bbox` if neccesary.

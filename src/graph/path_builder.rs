@@ -1,6 +1,7 @@
 use crate::graph::{Path, PathBuilderStats, PathElement};
 use crate::utility::IsStopped;
 use crate::utility::{Bbox, MotionDetector, StopDetector};
+#[allow(unused_imports)]
 use crate::Config;
 use crate::CONFIG;
 

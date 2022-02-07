@@ -44,6 +44,8 @@ pub struct Statistics {
     pub node_splits: usize,
     pub redundant_trj_removals: usize,
     pub redundant_node_removals: usize,
+    pub outlier_node_removals: usize,
+    pub spatial_clusters: usize,
 }
 
 lazy_static! {

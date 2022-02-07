@@ -49,6 +49,10 @@ impl DetourGraph {
         &mut self.graph
     }
 
+    pub fn get_graph(&self) -> &StableDiGraph<Bbox, Vec<[f64; 3]>> {
+        &self.graph
+    }
+
     /// Writes the graph to the output folder.
     ///
     /// - The graph structure is stored in `graph.dot`.
@@ -58,7 +62,6 @@ impl DetourGraph {
     /// - Configuration is written to `config` for reference purposes.
     pub fn to_csv(&self) -> Result<()> {
         println!("Writing data...");
-
         // Write the graph in graphviz format
         let dot = Dot::with_config(
             &self.graph,
@@ -195,6 +198,7 @@ impl DetourGraph {
         } else {
             panic!("Nodes should not have been merged!!");
         }
+
         // Expand bbox as much as possible:
         // First get trjs ending/starting in bbox
         let in_trjs: Vec<Vec<[f64; 3]>> = self
@@ -459,9 +463,34 @@ impl DetourGraph {
         }
     }
 
+    /// Removes node from the graph and the root list.
+    pub fn remove_node(&mut self, nx: NodeIndex) {
+        STATS.lock().unwrap().outlier_node_removals += 1;
+        if let Some(root_idx) = self.get_root_index(nx) {
+            self.roots.remove(root_idx);
+            for edge in self.graph.edges_directed(nx, EdgeDirection::Outgoing) {
+                self.roots.push(edge.target());
+            }
+        }
+        self.graph.remove_node(nx);
+    }
+
     /// Returns Some(index) of `nx` in the roots list or None
     fn get_root_index(&self, nx: NodeIndex) -> Option<usize> {
         self.roots.iter().position(|x| *x == nx)
+    }
+
+    /// Allows iteration over nodes.
+    pub fn node_indices(&self) -> petgraph::stable_graph::NodeIndices<Bbox> {
+        self.graph.node_indices()
+    }
+
+    pub fn get_node_weight(&self, nx: NodeIndex) -> Bbox {
+        self.graph[nx]
+    }
+
+    pub fn set_node_weight(&mut self, nx: NodeIndex, bbox: Bbox) {
+        self.graph[nx] = bbox;
     }
 
     /// Returns indices of nodes in self.roots from which nx can be reached

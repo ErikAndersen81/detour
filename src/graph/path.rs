@@ -1,6 +1,6 @@
+use super::PathElement;
 use std::fmt::Display;
 
-use super::PathElement;
 use crate::{
     utility::{visvalingam, Bbox},
     CONFIG, STATS,
