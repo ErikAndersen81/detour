@@ -34,15 +34,27 @@ struct TimePairs {
 pub struct DetourGraph {
     graph: StableDiGraph<Bbox, Vec<[f64; 3]>>,
     roots: Vec<NodeIndex>,
+    outliers: StableDiGraph<Bbox, Vec<[f64; 3]>>,
 }
 
 impl DetourGraph {
     pub fn new() -> DetourGraph {
         let graph: StableDiGraph<Bbox, Vec<[f64; 3]>> = StableDiGraph::new();
+        let outliers: StableDiGraph<Bbox, Vec<[f64; 3]>> = StableDiGraph::new();
         DetourGraph {
             graph,
             roots: vec![],
+            outliers,
         }
+    }
+
+    pub fn set_graph(
+        &mut self,
+        new_graph: StableDiGraph<Bbox, Vec<[f64; 3]>>,
+        root_nodes: Vec<NodeIndex>,
+    ) {
+        self.roots = root_nodes;
+        self.graph = new_graph;
     }
 
     pub fn get_mut_graph(&mut self) -> &mut StableDiGraph<Bbox, Vec<[f64; 3]>> {
@@ -53,11 +65,16 @@ impl DetourGraph {
         &self.graph
     }
 
+    pub fn set_outlier_graph(&mut self, outlier_graph: StableDiGraph<Bbox, Vec<[f64; 3]>>) {
+        self.outliers = outlier_graph;
+    }
+
     /// Writes the graph to the output folder.
     ///
     /// - The graph structure is stored in `graph.dot`.
     /// - Nodes are stored in `nodes.csv`. Values in the column *label* corresponds to the node labels in `graph.dot`.
     /// - Each edge is stored in an `edge_{label}.csv` file. Here, *label* correspond to the an edge label in `graph.dot`.
+    /// - Anything related to outliers have the prefix `outlier_`, e.g. `outlier_graph.dot`
     /// - Information about splits and merges of nodes/edges are stored in `STATS`.
     /// - Configuration is written to `config` for reference purposes.
     pub fn to_csv(&self) -> Result<()> {
@@ -71,6 +88,18 @@ impl DetourGraph {
             ],
         );
         let f = File::create("graph.dot")?;
+        let mut f = BufWriter::new(f);
+        write!(f, "{:?}", dot)?;
+
+        // Write the outlier graph in graphviz format
+        let dot = Dot::with_config(
+            &self.outliers,
+            &[
+                petgraph::dot::Config::NodeIndexLabel,
+                petgraph::dot::Config::EdgeIndexLabel,
+            ],
+        );
+        let f = File::create("outlier_graph.dot")?;
         let mut f = BufWriter::new(f);
         write!(f, "{:?}", dot)?;
 
@@ -165,7 +194,7 @@ impl DetourGraph {
             STATS.lock().unwrap().node_merges += 1;
             let a = self.merge_node_pair(a, b);
             if !self.graph[a].verify_spatial() {
-                // Stop exeeds spatial bounds, try and shrink it
+                // Stop exceeds spatial bounds, try to shrink it
                 self.shrink_node(a);
             }
             if self.should_split(a) {
@@ -174,6 +203,9 @@ impl DetourGraph {
             while !self.verify_temporal_monotonicity() {
                 self.fix_temporal_monotonicity();
             }
+        }
+        if !self.verify_constraints() {
+            let res = self.to_csv();
         }
         assert!(self.verify_constraints(), "Invalid graph structure!");
     }
@@ -485,12 +517,28 @@ impl DetourGraph {
         self.graph.node_indices()
     }
 
+    /// Allows iteration over edge weights.
+    pub fn edge_weights(&self) -> Vec<&Vec<[f64; 3]>> {
+        self.graph.edge_weights().collect::<Vec<&Vec<[f64; 3]>>>()
+    }
+
     pub fn get_node_weight(&self, nx: NodeIndex) -> Bbox {
         self.graph[nx]
     }
 
     pub fn set_node_weight(&mut self, nx: NodeIndex, bbox: Bbox) {
         self.graph[nx] = bbox;
+    }
+
+    pub fn edges_directed(&self, nx: NodeIndex, dir: EdgeDirection) -> Vec<EdgeIndex> {
+        self.graph
+            .edges_directed(nx, dir)
+            .map(|e| e.id())
+            .collect_vec()
+    }
+
+    pub fn edge_weight_mut(&mut self, ex: EdgeIndex) -> &mut Vec<[f64; 3]> {
+        self.graph.edge_weight_mut(ex).unwrap()
     }
 
     /// Returns indices of nodes in self.roots from which nx can be reached
@@ -576,12 +624,14 @@ impl DetourGraph {
     }
 
     /// If any edge (a,b) breaks temporal monotonicity -> false.
-    fn verify_temporal_monotonicity(&self) -> bool {
+    fn verify_temporal_monotonicity_old(&self) -> bool {
         depth_first_search(&self.graph, self.roots.clone(), |event| match event {
             DfsEvent::TreeEdge(a, b) => {
                 let a_time = self.graph[a].t2;
                 let b_time = self.graph[b].t1;
                 if a_time >= b_time {
+                    println!("Temporal monotonicity not satisfied!");
+                    println!("{:?} -> {:?}", a, b);
                     Control::Break(a)
                 } else {
                     Control::Continue
@@ -594,6 +644,33 @@ impl DetourGraph {
     }
 
     /// If any edge (a,b) breaks temporal monotonicity -> false.
+    fn verify_temporal_monotonicity(&self) -> bool {
+        depth_first_search(&self.graph, self.roots.clone(), |event| match event {
+            DfsEvent::TreeEdge(a, b) => {
+                let b_start_time = self.graph[b].t1;
+                let edges_starting_after_b = self
+                    .graph
+                    .edges_directed(a, EdgeDirection::Outgoing)
+                    .filter(|edge| edge.target() == b)
+                    .map(|edge| edge.weight()[0][2])
+                    .filter(|t| *t >= b_start_time)
+                    .count();
+
+                if edges_starting_after_b > 0 {
+                    println!("Temporal monotonicity not satisfied!");
+                    println!("{:?} -> {:?}", a, b);
+                    Control::Break(a)
+                } else {
+                    Control::Continue
+                }
+            }
+            _ => Control::Continue,
+        })
+        .break_value()
+        .is_none()
+    }
+
+    /// finds and fixes temporal monotonicity by splitting nodes.
     fn fix_temporal_monotonicity(&mut self) {
         let broken_pair =
             depth_first_search(&self.graph, self.roots.clone(), |event| match event {

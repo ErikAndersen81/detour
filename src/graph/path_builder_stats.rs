@@ -14,14 +14,16 @@ impl fmt::Display for PathBuilderStats {
         writeln!(f, "Paths created: {}", self.path_lens.len())?;
         let mut path_lens = self.path_lens.clone();
         path_lens.sort_unstable();
-        let min = path_lens[0];
-        let median = path_lens[path_lens.len() / 2];
-        let max = path_lens[path_lens.len() - 1];
-        write!(
-            f,
-            "Path lengths:\n\tmin: {}\n\tmedian: {}\n\tmax: {}",
-            min, median, max
-        )?;
+        if !path_lens.is_empty() {
+            let min = path_lens[0];
+            let median = path_lens[path_lens.len() / 2];
+            let max = path_lens[path_lens.len() - 1];
+            write!(
+                f,
+                "Path lengths:\n\tmin: {}\n\tmedian: {}\n\tmax: {}",
+                min, median, max
+            )?;
+        }
         Ok(())
     }
 }

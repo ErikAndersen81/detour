@@ -235,7 +235,9 @@ fn morph_to_fit(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> (Vec<[f64; 3]>, Vec<[
     // Ensure timespans end at exactly the same timestamp
     let (idx_a, idx_b) = (trj_a.len() - 1, trj_b.len() - 1);
     let mut trj_a = trj_a;
-    trj_a[idx_a][2] = trj_b[idx_b][2];
+    let mut trj_b = trj_b;
+    trj_a[idx_a][2] = trj_b[idx_b][2].max(trj_a[idx_a][2]);
+    trj_b[idx_b][2] = trj_a[idx_a][2];
     let trj_a = trj_a;
     if !switch {
         (trj_a, trj_b)
