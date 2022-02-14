@@ -129,6 +129,32 @@ impl DetourGraph {
             write!(f, "x,y,t\n{}", trj)?;
         }
 
+        // Write a single csv file with outlier bounding boxes
+        let nodes = self
+            .outliers
+            .node_indices()
+            .map(|nx| format!("{},{}", nx.index(), self.graph[nx]))
+            .join("");
+        let nodes = format!("label,x1,y1,t1,x2,y2,t2\n{}", nodes);
+        let f = File::create("outlier_nodes.csv")?;
+        let mut f = BufWriter::new(f);
+        write!(f, "{}", nodes)?;
+
+        // Write each outlier trajectory to a separate csv file.
+        for (i, edge) in self.outliers.edge_references().enumerate() {
+            let f = File::create(format!("outlier_edge_{}.csv", i))?;
+            let trj = edge
+                .weight()
+                .iter()
+                .map(|[x, y, t]| {
+                    let [x, y, t] = crate::from_epsg_3857_to_4326(&[*x, *y, *t]);
+                    format!("{},{},{}", x, y, t)
+                })
+                .join("\n");
+            let mut f = BufWriter::new(f);
+            write!(f, "x,y,t\n{}", trj)?;
+        }
+
         // Write indices of root nodes.
         let roots = self
             .roots
