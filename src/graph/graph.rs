@@ -133,7 +133,7 @@ impl DetourGraph {
         let nodes = self
             .outliers
             .node_indices()
-            .map(|nx| format!("{},{}", nx.index(), self.graph[nx]))
+            .map(|nx| format!("{},{}", nx.index(), self.outliers[nx]))
             .join("");
         let nodes = format!("label,x1,y1,t1,x2,y2,t2\n{}", nodes);
         let f = File::create("outlier_nodes.csv")?;
