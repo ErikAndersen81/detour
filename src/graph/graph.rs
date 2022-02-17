@@ -1,17 +1,17 @@
+use super::Path;
 use crate::utility::Bbox;
 use crate::{CONFIG, STATS};
 use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
 use petgraph::prelude::EdgeIndex;
-use std::collections::HashSet;
-use std::fs::File;
-use std::io::{BufWriter, Result, Write};
-
-use super::Path;
 use petgraph::stable_graph::StableDiGraph;
 use petgraph::visit::{depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences};
 use petgraph::EdgeDirection;
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::fs::File;
+use std::io::{BufWriter, Result, Write};
 
 enum RootCase {
     /// None of the nodes are root nodes
@@ -70,16 +70,17 @@ impl DetourGraph {
     }
 
     /// Writes the graph to the output folder.
+
+    /// The coordinates of node and edge weights, i.e., bounding boxes and trajectories respectively,
+    /// are stored in Web Mercator format.
     ///
-    /// - The graph structure is stored in `graph.dot`.
-    /// - Nodes are stored in `nodes.csv`. Values in the column *label* corresponds to the node labels in `graph.dot`.
-    /// - Each edge is stored in an `edge_{label}.csv` file. Here, *label* correspond to the an edge label in `graph.dot`.
-    /// - Anything related to outliers have the prefix `outlier_`, e.g. `outlier_graph.dot`
+    /// - A Visual representation are stored in `graph.dot` and `outlier_graph.dot` for the *regular graph* and the *outlier graph*, respectively.
+    /// - The regular graph is stored in `graph.json` and the outlier graph is stored in `outlier_graph.json`
     /// - Information about splits and merges of nodes/edges are stored in `STATS`.
     /// - Configuration is written to `config` for reference purposes.
     pub fn to_csv(&self) -> Result<()> {
         println!("Writing data...");
-        // Write the graph in graphviz format
+        // Store the graph in graphviz format
         let dot = Dot::with_config(
             &self.graph,
             &[
@@ -91,7 +92,13 @@ impl DetourGraph {
         let mut f = BufWriter::new(f);
         write!(f, "{:?}", dot)?;
 
-        // Write the outlier graph in graphviz format
+        // Store the graph in json format
+        let serialized = serde_json::to_string(&self.graph)?;
+        let f = File::create("graph.json")?;
+        let mut f = BufWriter::new(f);
+        write!(f, "{:?}", serialized)?;
+
+        // Store the outlier graph in graphviz format
         let dot = Dot::with_config(
             &self.outliers,
             &[
@@ -103,67 +110,76 @@ impl DetourGraph {
         let mut f = BufWriter::new(f);
         write!(f, "{:?}", dot)?;
 
-        // Write a single csv file with bounding boxes
-        let nodes = self
-            .graph
-            .node_indices()
-            .map(|nx| format!("{},{}", nx.index(), self.graph[nx]))
-            .join("");
-        let nodes = format!("label,x1,y1,t1,x2,y2,t2\n{}", nodes);
-        let f = File::create("nodes.csv")?;
+        // Write the outlier graph in json format
+        let serialized = serde_json::to_string(&self.outliers)?;
+        let f = File::create("outlier_graph.json")?;
         let mut f = BufWriter::new(f);
-        write!(f, "{}", nodes)?;
+        write!(f, "{:?}", serialized)?;
 
-        // Write each trajectory to a separate csv file.
-        for (i, edge) in self.graph.edge_references().enumerate() {
-            let f = File::create(format!("edge_{}.csv", i))?;
-            let trj = edge
-                .weight()
-                .iter()
-                .map(|[x, y, t]| {
-                    let [x, y, t] = crate::from_epsg_3857_to_4326(&[*x, *y, *t]);
-                    format!("{},{},{}", x, y, t)
-                })
-                .join("\n");
-            let mut f = BufWriter::new(f);
-            write!(f, "x,y,t\n{}", trj)?;
-        }
+        //***************************************************************************//
+        //               If we alse need to write as csv files, uncomment            //
+        //***************************************************************************//
+        // // Write a single csv file with bounding boxes
+        // let nodes = self
+        //     .graph
+        //     .node_indices()
+        //     .map(|nx| format!("{},{}", nx.index(), self.graph[nx]))
+        //     .join("");
+        // let nodes = format!("label,x1,y1,t1,x2,y2,t2\n{}", nodes);
+        // let f = File::create("nodes.csv")?;
+        // let mut f = BufWriter::new(f);
+        // write!(f, "{}", nodes)?;
 
-        // Write a single csv file with outlier bounding boxes
-        let nodes = self
-            .outliers
-            .node_indices()
-            .map(|nx| format!("{},{}", nx.index(), self.outliers[nx]))
-            .join("");
-        let nodes = format!("label,x1,y1,t1,x2,y2,t2\n{}", nodes);
-        let f = File::create("outlier_nodes.csv")?;
-        let mut f = BufWriter::new(f);
-        write!(f, "{}", nodes)?;
+        // // Write each trajectory to a separate csv file.
+        // for (i, edge) in self.graph.edge_references().enumerate() {
+        //     let f = File::create(format!("edge_{}.csv", i))?;
+        //     let trj = edge
+        //         .weight()
+        //         .iter()
+        //         .map(|[x, y, t]| {
+        //             let [x, y, t] = crate::from_epsg_3857_to_4326(&[*x, *y, *t]);
+        //             format!("{},{},{}", x, y, t)
+        //         })
+        //         .join("\n");
+        //     let mut f = BufWriter::new(f);
+        //     write!(f, "x,y,t\n{}", trj)?;
+        // }
 
-        // Write each outlier trajectory to a separate csv file.
-        for (i, edge) in self.outliers.edge_references().enumerate() {
-            let f = File::create(format!("outlier_edge_{}.csv", i))?;
-            let trj = edge
-                .weight()
-                .iter()
-                .map(|[x, y, t]| {
-                    let [x, y, t] = crate::from_epsg_3857_to_4326(&[*x, *y, *t]);
-                    format!("{},{},{}", x, y, t)
-                })
-                .join("\n");
-            let mut f = BufWriter::new(f);
-            write!(f, "x,y,t\n{}", trj)?;
-        }
+        // // Write a single csv file with outlier bounding boxes
+        // let nodes = self
+        //     .outliers
+        //     .node_indices()
+        //     .map(|nx| format!("{},{}", nx.index(), self.outliers[nx]))
+        //     .join("");
+        // let nodes = format!("label,x1,y1,t1,x2,y2,t2\n{}", nodes);
+        // let f = File::create("outlier_nodes.csv")?;
+        // let mut f = BufWriter::new(f);
+        // write!(f, "{}", nodes)?;
 
-        // Write indices of root nodes.
-        let roots = self
-            .roots
-            .iter()
-            .map(|nx| format!("{}", nx.index()))
-            .join(",");
-        let f = File::create("roots.csv")?;
-        let mut f = BufWriter::new(f);
-        write!(f, "{}", roots)?;
+        // // Write each outlier trajectory to a separate csv file.
+        // for (i, edge) in self.outliers.edge_references().enumerate() {
+        //     let f = File::create(format!("outlier_edge_{}.csv", i))?;
+        //     let trj = edge
+        //         .weight()
+        //         .iter()
+        //         .map(|[x, y, t]| {
+        //             let [x, y, t] = crate::from_epsg_3857_to_4326(&[*x, *y, *t]);
+        //             format!("{},{},{}", x, y, t)
+        //         })
+        //         .join("\n");
+        //     let mut f = BufWriter::new(f);
+        //     write!(f, "x,y,t\n{}", trj)?;
+        // }
+
+        // // Write indices of root nodes.
+        // let roots = self
+        //     .roots
+        //     .iter()
+        //     .map(|nx| format!("{}", nx.index()))
+        //     .join(",");
+        // let f = File::create("roots.csv")?;
+        // let mut f = BufWriter::new(f);
+        // write!(f, "{}", roots)?;
 
         // Write Statistics
         println!("Storing stats:\n{:?}", *STATS.lock().unwrap());

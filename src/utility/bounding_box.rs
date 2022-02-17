@@ -1,9 +1,10 @@
 use crate::CONFIG;
 
-use super::{get_distance, Line};
-use std::{cmp::min_by, fmt::Display};
+use super::get_distance;
+use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Bbox {
     pub x1: f64,
     pub x2: f64,
