@@ -9,15 +9,23 @@
 <span id="9"> 9</span>
 <span id="10">10</span>
 <span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
 </pre><pre class="rust">
+<span class="kw">mod</span> <span class="ident">edge_clustering</span>;
 <span class="kw">mod</span> <span class="ident">graph</span>;
 <span class="kw">mod</span> <span class="ident">graph_builder</span>;
+<span class="kw">mod</span> <span class="ident">node_clustering</span>;
 <span class="kw">mod</span> <span class="ident">path</span>;
 <span class="kw">mod</span> <span class="ident">path_builder</span>;
 <span class="kw">mod</span> <span class="ident">path_builder_stats</span>;
 <span class="kw">mod</span> <span class="ident">path_element</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">edge_clustering::merge_edges</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">graph::DetourGraph</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">graph_builder::get_graph</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">node_clustering::spatially_cluster_nodes</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">path::Path</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">path_builder_stats::PathBuilderStats</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">path_element::PathElement</span>;

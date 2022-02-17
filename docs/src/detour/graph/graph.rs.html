@@ -858,28 +858,101 @@
 <span id="858">858</span>
 <span id="859">859</span>
 <span id="860">860</span>
+<span id="861">861</span>
+<span id="862">862</span>
+<span id="863">863</span>
+<span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
+<span id="867">867</span>
+<span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
+<span id="872">872</span>
+<span id="873">873</span>
+<span id="874">874</span>
+<span id="875">875</span>
+<span id="876">876</span>
+<span id="877">877</span>
+<span id="878">878</span>
+<span id="879">879</span>
+<span id="880">880</span>
+<span id="881">881</span>
+<span id="882">882</span>
+<span id="883">883</span>
+<span id="884">884</span>
+<span id="885">885</span>
+<span id="886">886</span>
+<span id="887">887</span>
+<span id="888">888</span>
+<span id="889">889</span>
+<span id="890">890</span>
+<span id="891">891</span>
+<span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
+<span id="895">895</span>
+<span id="896">896</span>
+<span id="897">897</span>
+<span id="898">898</span>
+<span id="899">899</span>
+<span id="900">900</span>
+<span id="901">901</span>
+<span id="902">902</span>
+<span id="903">903</span>
+<span id="904">904</span>
+<span id="905">905</span>
+<span id="906">906</span>
+<span id="907">907</span>
+<span id="908">908</span>
+<span id="909">909</span>
+<span id="910">910</span>
+<span id="911">911</span>
+<span id="912">912</span>
+<span id="913">913</span>
+<span id="914">914</span>
+<span id="915">915</span>
+<span id="916">916</span>
+<span id="917">917</span>
+<span id="918">918</span>
+<span id="919">919</span>
+<span id="920">920</span>
+<span id="921">921</span>
+<span id="922">922</span>
+<span id="923">923</span>
+<span id="924">924</span>
+<span id="925">925</span>
+<span id="926">926</span>
+<span id="927">927</span>
+<span id="928">928</span>
+<span id="929">929</span>
+<span id="930">930</span>
+<span id="931">931</span>
+<span id="932">932</span>
+<span id="933">933</span>
+<span id="934">934</span>
+<span id="935">935</span>
+<span id="936">936</span>
+<span id="937">937</span>
+<span id="938">938</span>
+<span id="939">939</span>
+<span id="940">940</span>
 </pre><pre class="rust">
-<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::utility::trajectory::merge</span>;
-<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::utility</span>::{<span class="ident">clustering</span>, <span class="ident">Bbox</span>};
+<span class="kw">use</span> <span class="kw">super</span><span class="ident">::Path</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::utility::Bbox</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">CONFIG</span>, <span class="ident">STATS</span>};
-<span class="kw">use</span> <span class="ident">clustering::Clustering</span>;
 <span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">petgraph::dot::Dot</span>;
 <span class="kw">use</span> <span class="ident">petgraph::graph::NodeIndex</span>;
 <span class="kw">use</span> <span class="ident">petgraph::prelude::EdgeIndex</span>;
-<span class="kw">use</span> <span class="ident">std::collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>};
+<span class="kw">use</span> <span class="ident">petgraph::stable_graph::StableDiGraph</span>;
+<span class="kw">use</span> <span class="ident">petgraph::visit</span>::{<span class="ident">depth_first_search</span>, <span class="ident">Bfs</span>, <span class="ident">Control</span>, <span class="ident">DfsEvent</span>, <span class="ident">EdgeRef</span>, <span class="ident">IntoEdgeReferences</span>};
+<span class="kw">use</span> <span class="ident">petgraph::EdgeDirection</span>;
+<span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
+<span class="kw">use</span> <span class="ident">std::collections::HashSet</span>;
 <span class="kw">use</span> <span class="ident">std::fs::File</span>;
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">BufWriter</span>, <span class="prelude-ty">Result</span>, <span class="ident">Write</span>};
-
-<span class="kw">use</span> <span class="kw">super</span><span class="ident">::Path</span>;
-<span class="kw">use</span> <span class="ident">petgraph::stable_graph::StableDiGraph</span>;
-<span class="kw">use</span> <span class="ident">petgraph::visit</span>::{
-    <span class="ident">depth_first_search</span>, <span class="ident">Bfs</span>, <span class="ident">Control</span>, <span class="ident">DfsEvent</span>, <span class="ident">EdgeRef</span>, <span class="ident">IntoEdgeReferences</span>, <span class="ident">Walker</span>,
-};
-<span class="kw">use</span> <span class="ident">petgraph::EdgeDirection</span>;
-<span class="kw">use</span> <span class="ident">trajectory_similarity::hausdorff</span>;
-
-<span class="kw">type</span> <span class="ident">EdgeClusters</span> <span class="op">=</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="kw">enum</span> <span class="ident">RootCase</span> {
     <span class="doccomment">/// None of the nodes are root nodes</span>
@@ -902,27 +975,53 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">DetourGraph</span> {
     <span class="ident">graph</span>: <span class="ident">StableDiGraph</span><span class="op">&lt;</span><span class="ident">Bbox</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">roots</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">NodeIndex</span><span class="op">&gt;</span>,
+    <span class="ident">outliers</span>: <span class="ident">StableDiGraph</span><span class="op">&lt;</span><span class="ident">Bbox</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">DetourGraph</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DetourGraph</span> {
         <span class="kw">let</span> <span class="ident">graph</span>: <span class="ident">StableDiGraph</span><span class="op">&lt;</span><span class="ident">Bbox</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">StableDiGraph::new</span>();
+        <span class="kw">let</span> <span class="ident">outliers</span>: <span class="ident">StableDiGraph</span><span class="op">&lt;</span><span class="ident">Bbox</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">StableDiGraph::new</span>();
         <span class="ident">DetourGraph</span> {
             <span class="ident">graph</span>,
             <span class="ident">roots</span>: <span class="macro">vec!</span>[],
+            <span class="ident">outliers</span>,
         }
     }
 
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_graph</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">new_graph</span>: <span class="ident">StableDiGraph</span><span class="op">&lt;</span><span class="ident">Bbox</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">root_nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">NodeIndex</span><span class="op">&gt;</span>,
+    ) {
+        <span class="self">self</span>.<span class="ident">roots</span> <span class="op">=</span> <span class="ident">root_nodes</span>;
+        <span class="self">self</span>.<span class="ident">graph</span> <span class="op">=</span> <span class="ident">new_graph</span>;
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_mut_graph</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">StableDiGraph</span><span class="op">&lt;</span><span class="ident">Bbox</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">graph</span>
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_graph</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">StableDiGraph</span><span class="op">&lt;</span><span class="ident">Bbox</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_outlier_graph</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">outlier_graph</span>: <span class="ident">StableDiGraph</span><span class="op">&lt;</span><span class="ident">Bbox</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span>) {
+        <span class="self">self</span>.<span class="ident">outliers</span> <span class="op">=</span> <span class="ident">outlier_graph</span>;
+    }
+
     <span class="doccomment">/// Writes the graph to the output folder.</span>
+
+    <span class="doccomment">/// The coordinates of node and edge weights, i.e., bounding boxes and trajectories respectively,</span>
+    <span class="doccomment">/// are stored in Web Mercator format.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// - The graph structure is stored in `graph.dot`.</span>
-    <span class="doccomment">/// - Nodes are stored in `nodes.csv`. Values in the column *label* corresponds to the node labels in `graph.dot`.</span>
-    <span class="doccomment">/// - Each edge is stored in an `edge_{label}.csv` file. Here, *label* correspond to the an edge label in `graph.dot`.</span>
+    <span class="doccomment">/// - A Visual representation are stored in `graph.dot` and `outlier_graph.dot` for the *regular graph* and the *outlier graph*, respectively.</span>
+    <span class="doccomment">/// - The regular graph is stored in `graph.json` and the outlier graph is stored in `outlier_graph.json`</span>
     <span class="doccomment">/// - Information about splits and merges of nodes/edges are stored in `STATS`.</span>
     <span class="doccomment">/// - Configuration is written to `config` for reference purposes.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_csv</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="macro">println!</span>(<span class="string">&quot;Writing data...&quot;</span>);
-        <span class="comment">// Write the graph in graphviz format</span>
+        <span class="comment">// Store the graph in graphviz format</span>
         <span class="kw">let</span> <span class="ident">dot</span> <span class="op">=</span> <span class="ident">Dot::with_config</span>(
             <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>,
             <span class="kw-2">&amp;</span>[
@@ -933,35 +1032,102 @@
         <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="string">&quot;graph.dot&quot;</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}&quot;</span>, <span class="ident">dot</span>)<span class="question-mark">?</span>;
-        <span class="comment">// Write a single csv file with bounding boxes</span>
-        <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">graph</span>
-            .<span class="ident">node_indices</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">nx</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;{},{}&quot;</span>, <span class="ident">nx</span>.<span class="ident">index</span>(), <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">nx</span>]))
-            .<span class="ident">join</span>(<span class="string">&quot;&quot;</span>);
-        <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;label,x1,y1,t1,x2,y2,t2\n{}&quot;</span>, <span class="ident">nodes</span>);
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="string">&quot;nodes.csv&quot;</span>)<span class="question-mark">?</span>;
+
+        <span class="comment">// Store the graph in json format</span>
+        <span class="kw">let</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="ident">serde_json::to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="string">&quot;graph.json&quot;</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">nodes</span>)<span class="question-mark">?</span>;
-        <span class="comment">// Write each trajectory to a separate csv file.</span>
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">edge</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edge_references</span>().<span class="ident">enumerate</span>() {
-            <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="macro">format!</span>(<span class="string">&quot;edge_{}.csv&quot;</span>, <span class="ident">i</span>))<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">edge</span>
-                .<span class="ident">weight</span>()
-                .<span class="ident">iter</span>()
-                .<span class="ident">map</span>(<span class="op">|</span>[<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>]<span class="op">|</span> {
-                    <span class="kw">let</span> [<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>] <span class="op">=</span> <span class="kw">crate</span><span class="ident">::from_epsg_3857_to_4326</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">*</span><span class="ident">x</span>, <span class="kw-2">*</span><span class="ident">y</span>, <span class="kw-2">*</span><span class="ident">t</span>]);
-                    <span class="macro">format!</span>(<span class="string">&quot;{},{},{}&quot;</span>, <span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>)
-                })
-                .<span class="ident">join</span>(<span class="string">&quot;\n&quot;</span>);
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
-            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;x,y,t\n{}&quot;</span>, <span class="ident">trj</span>)<span class="question-mark">?</span>;
-        }
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}&quot;</span>, <span class="ident">serialized</span>)<span class="question-mark">?</span>;
+
+        <span class="comment">// Store the outlier graph in graphviz format</span>
+        <span class="kw">let</span> <span class="ident">dot</span> <span class="op">=</span> <span class="ident">Dot::with_config</span>(
+            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">outliers</span>,
+            <span class="kw-2">&amp;</span>[
+                <span class="ident">petgraph::dot::Config::NodeIndexLabel</span>,
+                <span class="ident">petgraph::dot::Config::EdgeIndexLabel</span>,
+            ],
+        );
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="string">&quot;outlier_graph.dot&quot;</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}&quot;</span>, <span class="ident">dot</span>)<span class="question-mark">?</span>;
+
+        <span class="comment">// Write the outlier graph in json format</span>
+        <span class="kw">let</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="ident">serde_json::to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">outliers</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="string">&quot;outlier_graph.json&quot;</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}&quot;</span>, <span class="ident">serialized</span>)<span class="question-mark">?</span>;
+
+        <span class="comment">//***************************************************************************//</span>
+        <span class="comment">//               If we alse need to write as csv files, uncomment            //</span>
+        <span class="comment">//***************************************************************************//</span>
+        <span class="comment">// // Write a single csv file with bounding boxes</span>
+        <span class="comment">// let nodes = self</span>
+        <span class="comment">//     .graph</span>
+        <span class="comment">//     .node_indices()</span>
+        <span class="comment">//     .map(|nx| format!(&quot;{},{}&quot;, nx.index(), self.graph[nx]))</span>
+        <span class="comment">//     .join(&quot;&quot;);</span>
+        <span class="comment">// let nodes = format!(&quot;label,x1,y1,t1,x2,y2,t2\n{}&quot;, nodes);</span>
+        <span class="comment">// let f = File::create(&quot;nodes.csv&quot;)?;</span>
+        <span class="comment">// let mut f = BufWriter::new(f);</span>
+        <span class="comment">// write!(f, &quot;{}&quot;, nodes)?;</span>
+
+        <span class="comment">// // Write each trajectory to a separate csv file.</span>
+        <span class="comment">// for (i, edge) in self.graph.edge_references().enumerate() {</span>
+        <span class="comment">//     let f = File::create(format!(&quot;edge_{}.csv&quot;, i))?;</span>
+        <span class="comment">//     let trj = edge</span>
+        <span class="comment">//         .weight()</span>
+        <span class="comment">//         .iter()</span>
+        <span class="comment">//         .map(|[x, y, t]| {</span>
+        <span class="comment">//             let [x, y, t] = crate::from_epsg_3857_to_4326(&amp;[*x, *y, *t]);</span>
+        <span class="comment">//             format!(&quot;{},{},{}&quot;, x, y, t)</span>
+        <span class="comment">//         })</span>
+        <span class="comment">//         .join(&quot;\n&quot;);</span>
+        <span class="comment">//     let mut f = BufWriter::new(f);</span>
+        <span class="comment">//     write!(f, &quot;x,y,t\n{}&quot;, trj)?;</span>
+        <span class="comment">// }</span>
+
+        <span class="comment">// // Write a single csv file with outlier bounding boxes</span>
+        <span class="comment">// let nodes = self</span>
+        <span class="comment">//     .outliers</span>
+        <span class="comment">//     .node_indices()</span>
+        <span class="comment">//     .map(|nx| format!(&quot;{},{}&quot;, nx.index(), self.outliers[nx]))</span>
+        <span class="comment">//     .join(&quot;&quot;);</span>
+        <span class="comment">// let nodes = format!(&quot;label,x1,y1,t1,x2,y2,t2\n{}&quot;, nodes);</span>
+        <span class="comment">// let f = File::create(&quot;outlier_nodes.csv&quot;)?;</span>
+        <span class="comment">// let mut f = BufWriter::new(f);</span>
+        <span class="comment">// write!(f, &quot;{}&quot;, nodes)?;</span>
+
+        <span class="comment">// // Write each outlier trajectory to a separate csv file.</span>
+        <span class="comment">// for (i, edge) in self.outliers.edge_references().enumerate() {</span>
+        <span class="comment">//     let f = File::create(format!(&quot;outlier_edge_{}.csv&quot;, i))?;</span>
+        <span class="comment">//     let trj = edge</span>
+        <span class="comment">//         .weight()</span>
+        <span class="comment">//         .iter()</span>
+        <span class="comment">//         .map(|[x, y, t]| {</span>
+        <span class="comment">//             let [x, y, t] = crate::from_epsg_3857_to_4326(&amp;[*x, *y, *t]);</span>
+        <span class="comment">//             format!(&quot;{},{},{}&quot;, x, y, t)</span>
+        <span class="comment">//         })</span>
+        <span class="comment">//         .join(&quot;\n&quot;);</span>
+        <span class="comment">//     let mut f = BufWriter::new(f);</span>
+        <span class="comment">//     write!(f, &quot;x,y,t\n{}&quot;, trj)?;</span>
+        <span class="comment">// }</span>
+
+        <span class="comment">// // Write indices of root nodes.</span>
+        <span class="comment">// let roots = self</span>
+        <span class="comment">//     .roots</span>
+        <span class="comment">//     .iter()</span>
+        <span class="comment">//     .map(|nx| format!(&quot;{}&quot;, nx.index()))</span>
+        <span class="comment">//     .join(&quot;,&quot;);</span>
+        <span class="comment">// let f = File::create(&quot;roots.csv&quot;)?;</span>
+        <span class="comment">// let mut f = BufWriter::new(f);</span>
+        <span class="comment">// write!(f, &quot;{}&quot;, roots)?;</span>
+
         <span class="comment">// Write Statistics</span>
         <span class="macro">println!</span>(<span class="string">&quot;Storing stats:\n{:?}&quot;</span>, <span class="kw-2">*</span><span class="ident">STATS</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>());
         <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="string">&quot;stats&quot;</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}&quot;</span>, <span class="kw-2">*</span><span class="ident">STATS</span>)<span class="question-mark">?</span>;
+
         <span class="comment">// Write Configuration</span>
         <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="string">&quot;config&quot;</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
@@ -1011,7 +1177,7 @@
             <span class="ident">STATS</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">node_merges</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
             <span class="kw">let</span> <span class="ident">a</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">merge_node_pair</span>(<span class="ident">a</span>, <span class="ident">b</span>);
             <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">a</span>].<span class="ident">verify_spatial</span>() {
-                <span class="comment">// Stop exeeds spatial bounds, try and shrink it</span>
+                <span class="comment">// Stop exceeds spatial bounds, try to shrink it</span>
                 <span class="self">self</span>.<span class="ident">shrink_node</span>(<span class="ident">a</span>);
             }
             <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_split</span>(<span class="ident">a</span>) {
@@ -1020,6 +1186,9 @@
             <span class="kw">while</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">verify_temporal_monotonicity</span>() {
                 <span class="self">self</span>.<span class="ident">fix_temporal_monotonicity</span>();
             }
+        }
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">verify_constraints</span>() {
+            <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">to_csv</span>();
         }
         <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">verify_constraints</span>(), <span class="string">&quot;Invalid graph structure!&quot;</span>);
     }
@@ -1044,6 +1213,7 @@
         } <span class="kw">else</span> {
             <span class="macro">panic!</span>(<span class="string">&quot;Nodes should not have been merged!!&quot;</span>);
         }
+
         <span class="comment">// Expand bbox as much as possible:</span>
         <span class="comment">// First get trjs ending/starting in bbox</span>
         <span class="kw">let</span> <span class="ident">in_trjs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
@@ -1308,9 +1478,50 @@
         }
     }
 
+    <span class="doccomment">/// Removes node from the graph and the root list.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">remove_node</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">nx</span>: <span class="ident">NodeIndex</span>) {
+        <span class="ident">STATS</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">outlier_node_removals</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">root_idx</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_root_index</span>(<span class="ident">nx</span>) {
+            <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">remove</span>(<span class="ident">root_idx</span>);
+            <span class="kw">for</span> <span class="ident">edge</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edges_directed</span>(<span class="ident">nx</span>, <span class="ident">EdgeDirection::Outgoing</span>) {
+                <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">push</span>(<span class="ident">edge</span>.<span class="ident">target</span>());
+            }
+        }
+        <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">remove_node</span>(<span class="ident">nx</span>);
+    }
+
     <span class="doccomment">/// Returns Some(index) of `nx` in the roots list or None</span>
     <span class="kw">fn</span> <span class="ident">get_root_index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">nx</span>: <span class="ident">NodeIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">iter</span>().<span class="ident">position</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">x</span> <span class="op">=</span><span class="op">=</span> <span class="ident">nx</span>)
+    }
+
+    <span class="doccomment">/// Allows iteration over nodes.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">node_indices</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">petgraph::stable_graph::NodeIndices</span><span class="op">&lt;</span><span class="ident">Bbox</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">node_indices</span>()
+    }
+
+    <span class="doccomment">/// Allows iteration over edge weights.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">edge_weights</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edge_weights</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>()
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_node_weight</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">nx</span>: <span class="ident">NodeIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Bbox</span> {
+        <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">nx</span>]
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_node_weight</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">nx</span>: <span class="ident">NodeIndex</span>, <span class="ident">bbox</span>: <span class="ident">Bbox</span>) {
+        <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">nx</span>] <span class="op">=</span> <span class="ident">bbox</span>;
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">edges_directed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">nx</span>: <span class="ident">NodeIndex</span>, <span class="ident">dir</span>: <span class="ident">EdgeDirection</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">graph</span>
+            .<span class="ident">edges_directed</span>(<span class="ident">nx</span>, <span class="ident">dir</span>)
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">id</span>())
+            .<span class="ident">collect_vec</span>()
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">edge_weight_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">ex</span>: <span class="ident">EdgeIndex</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edge_weight_mut</span>(<span class="ident">ex</span>).<span class="ident">unwrap</span>()
     }
 
     <span class="doccomment">/// Returns indices of nodes in self.roots from which nx can be reached</span>
@@ -1396,12 +1607,14 @@
     }
 
     <span class="doccomment">/// If any edge (a,b) breaks temporal monotonicity -&gt; false.</span>
-    <span class="kw">fn</span> <span class="ident">verify_temporal_monotonicity</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">fn</span> <span class="ident">verify_temporal_monotonicity_old</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="ident">depth_first_search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>, <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">clone</span>(), <span class="op">|</span><span class="ident">event</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">event</span> {
             <span class="ident">DfsEvent::TreeEdge</span>(<span class="ident">a</span>, <span class="ident">b</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="ident">a_time</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">a</span>].<span class="ident">t2</span>;
                 <span class="kw">let</span> <span class="ident">b_time</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">b</span>].<span class="ident">t1</span>;
                 <span class="kw">if</span> <span class="ident">a_time</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">b_time</span> {
+                    <span class="macro">println!</span>(<span class="string">&quot;Temporal monotonicity not satisfied!&quot;</span>);
+                    <span class="macro">println!</span>(<span class="string">&quot;{:?} -&gt; {:?}&quot;</span>, <span class="ident">a</span>, <span class="ident">b</span>);
                     <span class="ident">Control::Break</span>(<span class="ident">a</span>)
                 } <span class="kw">else</span> {
                     <span class="ident">Control::Continue</span>
@@ -1414,6 +1627,33 @@
     }
 
     <span class="doccomment">/// If any edge (a,b) breaks temporal monotonicity -&gt; false.</span>
+    <span class="kw">fn</span> <span class="ident">verify_temporal_monotonicity</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="ident">depth_first_search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>, <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">clone</span>(), <span class="op">|</span><span class="ident">event</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">event</span> {
+            <span class="ident">DfsEvent::TreeEdge</span>(<span class="ident">a</span>, <span class="ident">b</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">let</span> <span class="ident">b_start_time</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">b</span>].<span class="ident">t1</span>;
+                <span class="kw">let</span> <span class="ident">edges_starting_after_b</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">graph</span>
+                    .<span class="ident">edges_directed</span>(<span class="ident">a</span>, <span class="ident">EdgeDirection::Outgoing</span>)
+                    .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">edge</span><span class="op">|</span> <span class="ident">edge</span>.<span class="ident">target</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">b</span>)
+                    .<span class="ident">map</span>(<span class="op">|</span><span class="ident">edge</span><span class="op">|</span> <span class="ident">edge</span>.<span class="ident">weight</span>()[<span class="number">0</span>][<span class="number">2</span>])
+                    .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">t</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">b_start_time</span>)
+                    .<span class="ident">count</span>();
+
+                <span class="kw">if</span> <span class="ident">edges_starting_after_b</span> <span class="op">&gt;</span> <span class="number">0</span> {
+                    <span class="macro">println!</span>(<span class="string">&quot;Temporal monotonicity not satisfied!&quot;</span>);
+                    <span class="macro">println!</span>(<span class="string">&quot;{:?} -&gt; {:?}&quot;</span>, <span class="ident">a</span>, <span class="ident">b</span>);
+                    <span class="ident">Control::Break</span>(<span class="ident">a</span>)
+                } <span class="kw">else</span> {
+                    <span class="ident">Control::Continue</span>
+                }
+            }
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Control::Continue</span>,
+        })
+        .<span class="ident">break_value</span>()
+        .<span class="ident">is_none</span>()
+    }
+
+    <span class="doccomment">/// finds and fixes temporal monotonicity by splitting nodes.</span>
     <span class="kw">fn</span> <span class="ident">fix_temporal_monotonicity</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="kw">let</span> <span class="ident">broken_pair</span> <span class="op">=</span>
             <span class="ident">depth_first_search</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">graph</span>, <span class="self">self</span>.<span class="ident">roots</span>.<span class="ident">clone</span>(), <span class="op">|</span><span class="ident">event</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">event</span> {
@@ -1515,86 +1755,6 @@
             <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Control::Continue</span>,
         });
         <span class="ident">result</span>.<span class="ident">break_value</span>().<span class="ident">is_some</span>()
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">merge_edges</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="kw">let</span> <span class="ident">groups</span>: <span class="ident">Vec</span><span class="op">&lt;</span>((<span class="ident">NodeIndex</span>, <span class="ident">NodeIndex</span>), <span class="ident">EdgeClusters</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">get_edge_groups</span>()
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span>((<span class="ident">source</span>, <span class="ident">target</span>), <span class="ident">group</span>)<span class="op">|</span> {
-                ((<span class="kw-2">*</span><span class="ident">source</span>, <span class="kw-2">*</span><span class="ident">target</span>), <span class="self">self</span>.<span class="ident">get_edge_group_clusters</span>(<span class="ident">group</span>))
-            })
-            .<span class="ident">filter</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">clustering</span>)<span class="op">|</span> <span class="ident">clustering</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">1</span>)
-            .<span class="ident">collect</span>();
-        <span class="kw">for</span> ((<span class="ident">source</span>, <span class="ident">target</span>), <span class="ident">clustering</span>) <span class="kw">in</span> <span class="ident">groups</span> {
-            <span class="kw">for</span> <span class="ident">cluster</span> <span class="kw">in</span> <span class="ident">clustering</span> {
-                <span class="kw">if</span> <span class="ident">cluster</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="number">2</span> {
-                    <span class="kw">continue</span>;
-                }
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">trjs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">cluster</span>
-                    .<span class="ident">iter</span>()
-                    .<span class="ident">map</span>(<span class="op">|</span><span class="ident">ex</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edge_weight</span>(<span class="kw-2">*</span><span class="ident">ex</span>).<span class="ident">unwrap</span>().<span class="ident">clone</span>())
-                    .<span class="ident">collect</span>();
-                <span class="ident">STATS</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">edge_merges</span> <span class="op">+</span><span class="op">=</span>
-                    <span class="kw">if</span> <span class="ident">trjs</span>.<span class="ident">is_empty</span>() { <span class="number">0</span> } <span class="kw">else</span> { <span class="ident">trjs</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span> };
-                <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">trjs</span>.<span class="ident">pop</span>().<span class="ident">unwrap</span>();
-                <span class="kw">let</span> <span class="ident">trj</span>: <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">trjs</span>
-                    .<span class="ident">into_iter</span>()
-                    .<span class="ident">fold</span>(<span class="ident">trj</span>, <span class="op">|</span><span class="ident">trj_a</span>, <span class="ident">trj_b</span><span class="op">|</span> <span class="ident">merge</span>(<span class="kw-2">&amp;</span><span class="ident">trj_a</span>, <span class="kw-2">&amp;</span><span class="ident">trj_b</span>));
-                <span class="self">self</span>.<span class="ident">replace_edges</span>(<span class="ident">source</span>, <span class="ident">target</span>, <span class="kw-2">&amp;</span><span class="ident">cluster</span>, <span class="ident">trj</span>);
-            }
-        }
-    }
-
-    <span class="kw">fn</span> <span class="ident">get_edge_group_clusters</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">group</span>: <span class="kw-2">&amp;</span>[<span class="ident">EdgeIndex</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">EdgeClusters</span> {
-        <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">group</span>.<span class="ident">len</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dists</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="macro">vec!</span>[<span class="number">0f64</span>; <span class="ident">n</span>]; <span class="ident">n</span>];
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">group</span>.<span class="ident">len</span>() {
-            <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> (<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>)..<span class="ident">group</span>.<span class="ident">len</span>() {
-                <span class="kw">let</span> <span class="ident">trj_a</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edge_weight</span>(<span class="ident">group</span>[<span class="ident">i</span>]).<span class="ident">unwrap</span>();
-                <span class="kw">let</span> <span class="ident">trj_b</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edge_weight</span>(<span class="ident">group</span>[<span class="ident">j</span>]).<span class="ident">unwrap</span>();
-                <span class="ident">dists</span>[<span class="ident">i</span>][<span class="ident">j</span>] <span class="op">=</span> <span class="ident">hausdorff::similarity</span>(<span class="ident">trj_a</span>, <span class="ident">trj_b</span>);
-                <span class="ident">dists</span>[<span class="ident">j</span>][<span class="ident">i</span>] <span class="op">=</span> <span class="ident">dists</span>[<span class="ident">i</span>][<span class="ident">j</span>];
-            }
-        }
-        <span class="kw">let</span> <span class="ident">clusters</span> <span class="op">=</span> <span class="ident">Clustering::new</span>(<span class="ident">dists</span>, <span class="ident">CONFIG</span>.<span class="ident">max_hausdorff_meters</span>).<span class="ident">clusters</span>;
-        <span class="ident">clusters</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">idx</span><span class="op">|</span> <span class="ident">group</span>[<span class="kw-2">*</span><span class="ident">idx</span>]).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span><span class="op">&gt;</span>())
-            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">EdgeClusters</span><span class="op">&gt;</span>()
-    }
-
-    <span class="kw">fn</span> <span class="ident">get_edge_groups</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">HashMap</span><span class="op">&lt;</span>(<span class="ident">NodeIndex</span>, <span class="ident">NodeIndex</span>), <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">groups</span>: <span class="ident">HashMap</span><span class="op">&lt;</span>(<span class="ident">NodeIndex</span>, <span class="ident">NodeIndex</span>), <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EdgeIndex</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">HashMap::new</span>();
-        <span class="kw">for</span> <span class="ident">source</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">node_indices</span>() {
-            <span class="self">self</span>.<span class="ident">graph</span>
-                .<span class="ident">edges_directed</span>(<span class="ident">source</span>, <span class="ident">EdgeDirection::Outgoing</span>)
-                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">ex</span><span class="op">|</span> (<span class="ident">ex</span>.<span class="ident">id</span>(), <span class="ident">ex</span>.<span class="ident">target</span>()))
-                .<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">ex</span>, <span class="ident">target</span>)<span class="op">|</span> {
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">lst</span>) <span class="op">=</span> <span class="ident">groups</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span>(<span class="ident">source</span>, <span class="ident">target</span>)) {
-                        <span class="ident">lst</span>.<span class="ident">push</span>(<span class="ident">ex</span>);
-                    } <span class="kw">else</span> {
-                        <span class="ident">groups</span>.<span class="ident">insert</span>((<span class="ident">source</span>, <span class="ident">target</span>), <span class="macro">vec!</span>[<span class="ident">ex</span>]);
-                    }
-                });
-        }
-        <span class="ident">groups</span>
-    }
-
-    <span class="kw">fn</span> <span class="ident">replace_edges</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">source</span>: <span class="ident">NodeIndex</span>,
-        <span class="ident">target</span>: <span class="ident">NodeIndex</span>,
-        <span class="ident">group</span>: <span class="kw-2">&amp;</span>[<span class="ident">EdgeIndex</span>],
-        <span class="ident">trj</span>: <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span>,
-    ) {
-        <span class="ident">group</span>.<span class="ident">iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">ex</span><span class="op">|</span> {
-            <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">remove_edge</span>(<span class="kw-2">*</span><span class="ident">ex</span>);
-        });
-        <span class="comment">// Simplify the trajectory to avoid an excessive amount of points.</span>
-        <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="kw">crate</span><span class="ident">::visvalingam</span>(<span class="kw-2">&amp;</span><span class="ident">trj</span>, <span class="ident">CONFIG</span>.<span class="ident">visvalingam_threshold</span>);
-        <span class="ident">STATS</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">edge_merges</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-        <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">add_edge</span>(<span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">trj</span>);
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_path</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">path</span>: <span class="ident">Path</span>) {

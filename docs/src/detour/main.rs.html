@@ -69,6 +69,8 @@
 <span id="69">69</span>
 <span id="70">70</span>
 <span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
 </pre><pre class="rust">
 <span class="doccomment">//! Constructs Detour Graph</span>
 <span class="doccomment">//!</span>
@@ -116,6 +118,8 @@
     <span class="kw">pub</span> <span class="ident">node_splits</span>: <span class="ident">usize</span>,
     <span class="kw">pub</span> <span class="ident">redundant_trj_removals</span>: <span class="ident">usize</span>,
     <span class="kw">pub</span> <span class="ident">redundant_node_removals</span>: <span class="ident">usize</span>,
+    <span class="kw">pub</span> <span class="ident">outlier_node_removals</span>: <span class="ident">usize</span>,
+    <span class="kw">pub</span> <span class="ident">spatial_clusters</span>: <span class="ident">usize</span>,
 }
 
 <span class="macro">lazy_static!</span> {

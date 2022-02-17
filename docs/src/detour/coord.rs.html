@@ -22,14 +22,21 @@
 <span id="22">22</span>
 <span id="23">23</span>
 <span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
 </pre><pre class="rust">
 <span class="kw">use</span> <span class="ident">std::f64::consts</span>::{<span class="ident">E</span>, <span class="ident">PI</span>};
 
-<span class="comment">// Constants for WSG 84 / Pseudo-Mercator (EPSG CRS Code 3857)</span>
+<span class="doccomment">/// Constants for WSG 84 / Pseudo-Mercator (EPSG CRS Code 3857)</span>
 <span class="kw">const</span> <span class="ident">RADIUS</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="number">6378137.0</span>;
 <span class="kw">const</span> <span class="ident">RAD</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="ident">PI</span> <span class="op">/</span> <span class="number">180.0</span>;
 <span class="kw">const</span> <span class="ident">DEG</span>: <span class="ident">f64</span> <span class="op">=</span> <span class="number">180.0</span> <span class="op">/</span> <span class="ident">PI</span>;
 
+<span class="doccomment">/// Convert a coordinate of `[lat, lon, time]` in EPSG 4326 to EPSG 3857 `[easting, northing, time]`</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Panics if the latitude is above 88 degrees.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_epsg_4326_to_3857</span>(<span class="ident">pt</span>: <span class="kw-2">&amp;</span>[<span class="ident">f64</span>; <span class="number">3</span>]) <span class="op">-</span><span class="op">&gt;</span> [<span class="ident">f64</span>; <span class="number">3</span>] {
     <span class="kw">if</span> <span class="ident">pt</span>[<span class="number">0</span>] <span class="op">&gt;</span> <span class="number">88.0</span> {
         <span class="macro">panic!</span>(<span class="string">&quot;Cannot convert latitude above 88 deg to EPSG:3857&quot;</span>)
@@ -41,6 +48,7 @@
     [<span class="ident">easting</span>, <span class="ident">northing</span>, <span class="ident">pt</span>[<span class="number">2</span>]]
 }
 
+<span class="doccomment">/// Convert a coordinate of EPSG 3857 `[easting, northing, time]` to  `[lat, lon, time]` in EPSG 4326</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_epsg_3857_to_4326</span>(<span class="ident">pt</span>: <span class="kw-2">&amp;</span>[<span class="ident">f64</span>; <span class="number">3</span>]) <span class="op">-</span><span class="op">&gt;</span> [<span class="ident">f64</span>; <span class="number">3</span>] {
     <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="op">-</span><span class="ident">pt</span>[<span class="number">1</span>] <span class="op">/</span> <span class="ident">RADIUS</span>;
     <span class="kw">let</span> <span class="ident">lat</span> <span class="op">=</span> <span class="ident">PI</span> <span class="op">/</span> <span class="number">2.0</span> <span class="op">-</span> <span class="number">2.0</span> <span class="op">*</span> (<span class="ident">E</span>.<span class="ident">powf</span>(<span class="ident">d</span>)).<span class="ident">atan</span>();

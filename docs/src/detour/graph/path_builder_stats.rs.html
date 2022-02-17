@@ -25,6 +25,8 @@
 <span id="25">25</span>
 <span id="26">26</span>
 <span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
 </pre><pre class="rust">
 <span class="kw">use</span> <span class="ident">std::fmt</span>;
 
@@ -42,14 +44,16 @@
         <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;Paths created: {}&quot;</span>, <span class="self">self</span>.<span class="ident">path_lens</span>.<span class="ident">len</span>())<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">path_lens</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">path_lens</span>.<span class="ident">clone</span>();
         <span class="ident">path_lens</span>.<span class="ident">sort_unstable</span>();
-        <span class="kw">let</span> <span class="ident">min</span> <span class="op">=</span> <span class="ident">path_lens</span>[<span class="number">0</span>];
-        <span class="kw">let</span> <span class="ident">median</span> <span class="op">=</span> <span class="ident">path_lens</span>[<span class="ident">path_lens</span>.<span class="ident">len</span>() <span class="op">/</span> <span class="number">2</span>];
-        <span class="kw">let</span> <span class="ident">max</span> <span class="op">=</span> <span class="ident">path_lens</span>[<span class="ident">path_lens</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>];
-        <span class="macro">write!</span>(
-            <span class="ident">f</span>,
-            <span class="string">&quot;Path lengths:\n\tmin: {}\n\tmedian: {}\n\tmax: {}&quot;</span>,
-            <span class="ident">min</span>, <span class="ident">median</span>, <span class="ident">max</span>
-        )<span class="question-mark">?</span>;
+        <span class="kw">if</span> <span class="op">!</span><span class="ident">path_lens</span>.<span class="ident">is_empty</span>() {
+            <span class="kw">let</span> <span class="ident">min</span> <span class="op">=</span> <span class="ident">path_lens</span>[<span class="number">0</span>];
+            <span class="kw">let</span> <span class="ident">median</span> <span class="op">=</span> <span class="ident">path_lens</span>[<span class="ident">path_lens</span>.<span class="ident">len</span>() <span class="op">/</span> <span class="number">2</span>];
+            <span class="kw">let</span> <span class="ident">max</span> <span class="op">=</span> <span class="ident">path_lens</span>[<span class="ident">path_lens</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>];
+            <span class="macro">write!</span>(
+                <span class="ident">f</span>,
+                <span class="string">&quot;Path lengths:\n\tmin: {}\n\tmedian: {}\n\tmax: {}&quot;</span>,
+                <span class="ident">min</span>, <span class="ident">median</span>, <span class="ident">max</span>
+            )<span class="question-mark">?</span>;
+        }
         <span class="prelude-val">Ok</span>(())
     }
 }
