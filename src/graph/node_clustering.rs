@@ -1,6 +1,6 @@
 use super::DetourGraph;
 use crate::utility::Bbox;
-use crate::STATS;
+use crate::{from_epsg_3857_to_4326, STATS};
 use petgraph::stable_graph::{NodeIndex, StableDiGraph};
 use petgraph::visit::EdgeRef;
 use petgraph::EdgeDirection;
@@ -28,9 +28,10 @@ pub fn spatially_cluster_nodes(
         let end_h: i32 = (bbox.t2 / (1000.0 * 60.0 * 60.0)).floor() as i32;
         let end_m: i32 = ((bbox.t2 % (1000.0 * 60.0 * 60.0)) / (1000.0 * 60.0)).floor() as i32;
         let end_s: i32 = ((bbox.t2 % (1000.0 * 60.0)) / (1000.0)).floor() as i32;
+        let coord = from_epsg_3857_to_4326(&[bbox.x1, bbox.y1, bbox.t1]);
         println!(
-            "Cluster {} initial temporal span {}h{}m{}s - {}h{}m{}s",
-            idx, start_h, start_m, start_s, end_h, end_m, end_s
+            "Cluster {} initial temporal span {}h{}m{}s - {}h{}m{}s, lat,lon: {},{}",
+            idx, start_h, start_m, start_s, end_h, end_m, end_s, coord[0], coord[1]
         );
         resize_bboxs(graph, bbox, &clustering[idx]);
         fit_edges_to_cluster(graph, bbox, &clustering[idx]);
