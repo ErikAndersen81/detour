@@ -4,7 +4,7 @@ use crate::{from_epsg_3857_to_4326, STATS};
 use petgraph::stable_graph::{NodeIndex, StableDiGraph};
 use petgraph::visit::EdgeRef;
 use petgraph::EdgeDirection;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// Cluster nodes if they are spatially overlapping.
 /// Clusters of size < 3 are put in an `outlier` graph
@@ -36,7 +36,6 @@ pub fn spatially_cluster_nodes(
         resize_bboxs(graph, bbox, &clustering[idx]);
         fit_edges_to_cluster(graph, bbox, &clustering[idx]);
     }
-    let clustered_nodes: HashSet<_> = clustering.iter().flatten().collect();
     (clustering, outliers)
 }
 
