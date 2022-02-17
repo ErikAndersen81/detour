@@ -1,4 +1,6 @@
-use chrono::NaiveDate;
+use std::str::FromStr;
+
+use chrono::{Datelike, NaiveDate, NaiveDateTime, Timelike};
 use regex::Regex;
 
 /// Parses a string containing GPX data.
@@ -7,6 +9,7 @@ use regex::Regex;
 /// The date part of `time` is
 /// stripped and the timestamp is converted to milliseconds.
 pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
+    println!("Parsing GPX");
     let mut trjs: Vec<Vec<[f64; 3]>> = Vec::new();
     let mut trj: Vec<[f64; 3]> = Vec::new();
     let re = Regex::new(r"lat=\W(\d+[[:punct:]]\d+)\W\slon=\W(\d+[[:punct:]]\d+)\W{2}[[:space:]]*<ele>\d+[[:punct:]]\d+</ele>[[:space:]]*<time>(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})[[:punct:]](\d+)").unwrap();
@@ -46,6 +49,7 @@ pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
 /// We only use fields 1 (latitude), 2(longitude), 5(days) and 7(time).
 /// Each day is put in a separate trajectory(`Vec`)
 pub fn parse_plt(plt: String) -> Vec<Vec<[f64; 3]>> {
+    println!("Parsing PLT");
     let mut trjs: Vec<Vec<[f64; 3]>> = Vec::new();
     let mut trj: Vec<[f64; 3]> = Vec::new();
     let mut last_day = -1;
@@ -66,7 +70,7 @@ pub fn parse_plt(plt: String) -> Vec<Vec<[f64; 3]>> {
         };
         if let Some(day) = fields.nth(2) {
             if let Ok(day) = day.parse::<f64>() {
-                if day as i32 > last_day {
+                if day as i32 != last_day {
                     last_day = day as i32;
                     if !trj.is_empty() {
                         trjs.push(trj);
@@ -98,6 +102,55 @@ pub fn parse_plt(plt: String) -> Vec<Vec<[f64; 3]>> {
     trjs
 }
 
+/// Parses a string containing AIS data.
+///
+/// Specifically designed to data from https://chorochronos.datastories.org/ the AIS Brest 2009 dataset.
+/// Creates an array with EPSG 3857 `[easting, northing, time]` coordinates and time.
+/// We only use fields 3 (latitude), 4(longitude), and 2(time).
+/// Each day is put in a separate trajectory(`Vec`)
+pub fn parse_ais(content: String) -> Vec<Vec<[f64; 3]>> {
+    println!("Parsing AIS");
+    let mut trjs: Vec<Vec<[f64; 3]>> = Vec::new();
+    let mut trj: Vec<[f64; 3]> = Vec::new();
+    let mut last_day = -1;
+    let lines = content.lines();
+    for line in lines {
+        let mut fields = line.split(',');
+        let mut coord: [f64; 3] = [f64::NAN, f64::NAN, f64::NAN];
+
+        if let Some(time) = fields.nth(1) {
+            if let Ok(time) = NaiveDateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S") {
+                let day = time.num_days_from_ce();
+                if day != last_day {
+                    last_day = day;
+                    if !trj.is_empty() {
+                        trjs.push(trj);
+                        trj = vec![];
+                    }
+                }
+                coord[2] = (time.num_seconds_from_midnight() as f64) * 1000.0;
+            }
+        };
+        if let Some(lon) = fields.next() {
+            if let Ok(lon) = lon.parse::<f64>() {
+                coord[1] = lon;
+            }
+        };
+
+        if let Some(lat) = fields.next() {
+            if let Ok(lat) = lat.parse::<f64>() {
+                coord[0] = lat;
+            }
+        };
+
+        if coord[0].is_finite() & coord[1].is_finite() & coord[2].is_finite() {
+            let coord = crate::from_epsg_4326_to_3857(&coord);
+            trj.push(coord);
+        }
+    }
+    trjs
+}
+
 /// Determines if content is GPX or PLT and parses content.
 /// Specifically, if the first line is 'Geolife trajectory'
 /// (casing ignored), it is assumed to be PLT otherwise
@@ -108,6 +161,9 @@ pub fn parse(content: String) -> Vec<Vec<[f64; 3]>> {
         let line = line.trim().to_ascii_lowercase();
         match line.as_str() {
             "geolife trajectory" => parse_plt(content),
+            "mmsi_number,time,longitude,latitude,heading,speed,cog,rot,shipcode" => {
+                parse_ais(content)
+            }
             _ => parse_gpx(content),
         }
     } else {
