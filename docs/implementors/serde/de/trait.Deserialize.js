@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["detour"] = [{"text":"impl&lt;'de&gt; <a class=\"trait\" href=\"https://docs.rs/serde/1.0.136/serde/de/trait.Deserialize.html\" title=\"trait serde::de::Deserialize\">Deserialize</a>&lt;'de&gt; for <a class=\"struct\" href=\"detour/utility/bounding_box/struct.Bbox.html\" title=\"struct detour::utility::bounding_box::Bbox\">Bbox</a>","synthetic":false,"types":["detour::utility::bounding_box::Bbox"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
