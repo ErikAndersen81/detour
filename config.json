@@ -1,0 +1,13 @@
+{
+    "window_size":7, 
+    "minimum_velocity":3.5,
+    "epsilon_velocity":0.5,
+    "motion_detector_timespan":6000.0,
+    "bbox_max_meters":100.0,
+    "bbox_min_minutes":10.0,
+    "connection_timeout":600000.0,
+    "relax_bbox_minutes":60.0,
+    "relax_bbox_meters":50.0,
+    "max_hausdorff_meters":100.0,
+    "visvalingam_threshold":1
+}

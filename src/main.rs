@@ -14,7 +14,7 @@
 //! To use a specific configuration file use the `-c` or `--config` option followed by desired configuration file.
 //! By default output is written to a folder called `Output` unless otherwise is specified by using the `-o` or `--output` option.
 //! ## Configuration
-//! Various settings can be adjusted by modifying config.cfg located in
+//! Various settings can be adjusted by modifying config.json located in
 //! the root folder. Read more about [Config](Config) here.
 #[macro_use]
 extern crate lazy_static;

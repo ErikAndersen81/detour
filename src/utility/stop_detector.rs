@@ -25,8 +25,8 @@ pub struct StopDetector {
 impl StopDetector {
     pub fn new() -> StopDetector {
         StopDetector {
-            min_duration_ms: CONFIG.stop_duration_minutes * 60. * 1000.0,
-            max_diagonal_meters: CONFIG.stop_diagonal_meters,
+            min_duration_ms: CONFIG.bbox_min_minutes * 60. * 1000.0,
+            max_diagonal_meters: CONFIG.bbox_max_meters,
             current_bbox: None,
         }
     }
