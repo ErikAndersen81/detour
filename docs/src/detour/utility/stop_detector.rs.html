@@ -158,8 +158,8 @@
 <span class="kw">impl</span> <span class="ident">StopDetector</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">StopDetector</span> {
         <span class="ident">StopDetector</span> {
-            <span class="ident">min_duration_ms</span>: <span class="ident">CONFIG</span>.<span class="ident">stop_duration_minutes</span> <span class="op">*</span> <span class="number">60.</span> <span class="op">*</span> <span class="number">1000.0</span>,
-            <span class="ident">max_diagonal_meters</span>: <span class="ident">CONFIG</span>.<span class="ident">stop_diagonal_meters</span>,
+            <span class="ident">min_duration_ms</span>: <span class="ident">CONFIG</span>.<span class="ident">bbox_min_minutes</span> <span class="op">*</span> <span class="number">60.</span> <span class="op">*</span> <span class="number">1000.0</span>,
+            <span class="ident">max_diagonal_meters</span>: <span class="ident">CONFIG</span>.<span class="ident">bbox_max_meters</span>,
             <span class="ident">current_bbox</span>: <span class="prelude-val">None</span>,
         }
     }

@@ -935,9 +935,6 @@
 <span id="935">935</span>
 <span id="936">936</span>
 <span id="937">937</span>
-<span id="938">938</span>
-<span id="939">939</span>
-<span id="940">940</span>
 </pre><pre class="rust">
 <span class="kw">use</span> <span class="kw">super</span><span class="ident">::Path</span>;
 <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::utility::Bbox</span>;
@@ -1057,70 +1054,67 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}&quot;</span>, <span class="ident">serialized</span>)<span class="question-mark">?</span>;
 
-        <span class="comment">//***************************************************************************//</span>
-        <span class="comment">//               If we alse need to write as csv files, uncomment            //</span>
-        <span class="comment">//***************************************************************************//</span>
-        <span class="comment">// // Write a single csv file with bounding boxes</span>
-        <span class="comment">// let nodes = self</span>
-        <span class="comment">//     .graph</span>
-        <span class="comment">//     .node_indices()</span>
-        <span class="comment">//     .map(|nx| format!(&quot;{},{}&quot;, nx.index(), self.graph[nx]))</span>
-        <span class="comment">//     .join(&quot;&quot;);</span>
-        <span class="comment">// let nodes = format!(&quot;label,x1,y1,t1,x2,y2,t2\n{}&quot;, nodes);</span>
-        <span class="comment">// let f = File::create(&quot;nodes.csv&quot;)?;</span>
-        <span class="comment">// let mut f = BufWriter::new(f);</span>
-        <span class="comment">// write!(f, &quot;{}&quot;, nodes)?;</span>
+        <span class="comment">// Write a single csv file with bounding boxes</span>
+        <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">graph</span>
+            .<span class="ident">node_indices</span>()
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">nx</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;{},{}&quot;</span>, <span class="ident">nx</span>.<span class="ident">index</span>(), <span class="self">self</span>.<span class="ident">graph</span>[<span class="ident">nx</span>]))
+            .<span class="ident">join</span>(<span class="string">&quot;&quot;</span>);
+        <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;label,x1,y1,t1,x2,y2,t2\n{}&quot;</span>, <span class="ident">nodes</span>);
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="string">&quot;nodes.csv&quot;</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">nodes</span>)<span class="question-mark">?</span>;
 
-        <span class="comment">// // Write each trajectory to a separate csv file.</span>
-        <span class="comment">// for (i, edge) in self.graph.edge_references().enumerate() {</span>
-        <span class="comment">//     let f = File::create(format!(&quot;edge_{}.csv&quot;, i))?;</span>
-        <span class="comment">//     let trj = edge</span>
-        <span class="comment">//         .weight()</span>
-        <span class="comment">//         .iter()</span>
-        <span class="comment">//         .map(|[x, y, t]| {</span>
-        <span class="comment">//             let [x, y, t] = crate::from_epsg_3857_to_4326(&amp;[*x, *y, *t]);</span>
-        <span class="comment">//             format!(&quot;{},{},{}&quot;, x, y, t)</span>
-        <span class="comment">//         })</span>
-        <span class="comment">//         .join(&quot;\n&quot;);</span>
-        <span class="comment">//     let mut f = BufWriter::new(f);</span>
-        <span class="comment">//     write!(f, &quot;x,y,t\n{}&quot;, trj)?;</span>
-        <span class="comment">// }</span>
+        <span class="comment">// Write each trajectory to a separate csv file.</span>
+        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">edge</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">edge_references</span>().<span class="ident">enumerate</span>() {
+            <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="macro">format!</span>(<span class="string">&quot;edge_{}.csv&quot;</span>, <span class="ident">i</span>))<span class="question-mark">?</span>;
+            <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">edge</span>
+                .<span class="ident">weight</span>()
+                .<span class="ident">iter</span>()
+                .<span class="ident">map</span>(<span class="op">|</span>[<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>]<span class="op">|</span> {
+                    <span class="kw">let</span> [<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>] <span class="op">=</span> <span class="kw">crate</span><span class="ident">::from_epsg_3857_to_4326</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">*</span><span class="ident">x</span>, <span class="kw-2">*</span><span class="ident">y</span>, <span class="kw-2">*</span><span class="ident">t</span>]);
+                    <span class="macro">format!</span>(<span class="string">&quot;{},{},{}&quot;</span>, <span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>)
+                })
+                .<span class="ident">join</span>(<span class="string">&quot;\n&quot;</span>);
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
+            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;x,y,t\n{}&quot;</span>, <span class="ident">trj</span>)<span class="question-mark">?</span>;
+        }
 
-        <span class="comment">// // Write a single csv file with outlier bounding boxes</span>
-        <span class="comment">// let nodes = self</span>
-        <span class="comment">//     .outliers</span>
-        <span class="comment">//     .node_indices()</span>
-        <span class="comment">//     .map(|nx| format!(&quot;{},{}&quot;, nx.index(), self.outliers[nx]))</span>
-        <span class="comment">//     .join(&quot;&quot;);</span>
-        <span class="comment">// let nodes = format!(&quot;label,x1,y1,t1,x2,y2,t2\n{}&quot;, nodes);</span>
-        <span class="comment">// let f = File::create(&quot;outlier_nodes.csv&quot;)?;</span>
-        <span class="comment">// let mut f = BufWriter::new(f);</span>
-        <span class="comment">// write!(f, &quot;{}&quot;, nodes)?;</span>
+        <span class="comment">// Write a single csv file with outlier bounding boxes</span>
+        <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">outliers</span>
+            .<span class="ident">node_indices</span>()
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">nx</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;{},{}&quot;</span>, <span class="ident">nx</span>.<span class="ident">index</span>(), <span class="self">self</span>.<span class="ident">outliers</span>[<span class="ident">nx</span>]))
+            .<span class="ident">join</span>(<span class="string">&quot;&quot;</span>);
+        <span class="kw">let</span> <span class="ident">nodes</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;label,x1,y1,t1,x2,y2,t2\n{}&quot;</span>, <span class="ident">nodes</span>);
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="string">&quot;outlier_nodes.csv&quot;</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">nodes</span>)<span class="question-mark">?</span>;
 
-        <span class="comment">// // Write each outlier trajectory to a separate csv file.</span>
-        <span class="comment">// for (i, edge) in self.outliers.edge_references().enumerate() {</span>
-        <span class="comment">//     let f = File::create(format!(&quot;outlier_edge_{}.csv&quot;, i))?;</span>
-        <span class="comment">//     let trj = edge</span>
-        <span class="comment">//         .weight()</span>
-        <span class="comment">//         .iter()</span>
-        <span class="comment">//         .map(|[x, y, t]| {</span>
-        <span class="comment">//             let [x, y, t] = crate::from_epsg_3857_to_4326(&amp;[*x, *y, *t]);</span>
-        <span class="comment">//             format!(&quot;{},{},{}&quot;, x, y, t)</span>
-        <span class="comment">//         })</span>
-        <span class="comment">//         .join(&quot;\n&quot;);</span>
-        <span class="comment">//     let mut f = BufWriter::new(f);</span>
-        <span class="comment">//     write!(f, &quot;x,y,t\n{}&quot;, trj)?;</span>
-        <span class="comment">// }</span>
+        <span class="comment">// Write each outlier trajectory to a separate csv file.</span>
+        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">edge</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">outliers</span>.<span class="ident">edge_references</span>().<span class="ident">enumerate</span>() {
+            <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="macro">format!</span>(<span class="string">&quot;outlier_edge_{}.csv&quot;</span>, <span class="ident">i</span>))<span class="question-mark">?</span>;
+            <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">edge</span>
+                .<span class="ident">weight</span>()
+                .<span class="ident">iter</span>()
+                .<span class="ident">map</span>(<span class="op">|</span>[<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>]<span class="op">|</span> {
+                    <span class="kw">let</span> [<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>] <span class="op">=</span> <span class="kw">crate</span><span class="ident">::from_epsg_3857_to_4326</span>(<span class="kw-2">&amp;</span>[<span class="kw-2">*</span><span class="ident">x</span>, <span class="kw-2">*</span><span class="ident">y</span>, <span class="kw-2">*</span><span class="ident">t</span>]);
+                    <span class="macro">format!</span>(<span class="string">&quot;{},{},{}&quot;</span>, <span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">t</span>)
+                })
+                .<span class="ident">join</span>(<span class="string">&quot;\n&quot;</span>);
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
+            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;x,y,t\n{}&quot;</span>, <span class="ident">trj</span>)<span class="question-mark">?</span>;
+        }
 
-        <span class="comment">// // Write indices of root nodes.</span>
-        <span class="comment">// let roots = self</span>
-        <span class="comment">//     .roots</span>
-        <span class="comment">//     .iter()</span>
-        <span class="comment">//     .map(|nx| format!(&quot;{}&quot;, nx.index()))</span>
-        <span class="comment">//     .join(&quot;,&quot;);</span>
-        <span class="comment">// let f = File::create(&quot;roots.csv&quot;)?;</span>
-        <span class="comment">// let mut f = BufWriter::new(f);</span>
-        <span class="comment">// write!(f, &quot;{}&quot;, roots)?;</span>
+        <span class="comment">// Write indices of root nodes.</span>
+        <span class="kw">let</span> <span class="ident">roots</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">roots</span>
+            .<span class="ident">iter</span>()
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">nx</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">nx</span>.<span class="ident">index</span>()))
+            .<span class="ident">join</span>(<span class="string">&quot;,&quot;</span>);
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="string">&quot;roots.csv&quot;</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">roots</span>)<span class="question-mark">?</span>;
 
         <span class="comment">// Write Statistics</span>
         <span class="macro">println!</span>(<span class="string">&quot;Storing stats:\n{:?}&quot;</span>, <span class="kw-2">*</span><span class="ident">STATS</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>());

@@ -104,7 +104,7 @@ pub fn parse_plt(plt: String) -> Vec<Vec<[f64; 3]>> {
 
 /// Parses a string containing AIS data.
 ///
-/// Specifically designed to data from https://chorochronos.datastories.org/ the AIS Brest 2009 dataset.
+/// Specifically designed to the AIS Brest 2009 [dataset](https://chorochronos.datastories.org/).
 /// Creates an array with EPSG 3857 `[easting, northing, time]` coordinates and time.
 /// We only use fields 3 (latitude), 4(longitude), and 2(time).
 /// Each day is put in a separate trajectory(`Vec`)

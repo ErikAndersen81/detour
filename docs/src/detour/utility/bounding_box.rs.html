@@ -506,14 +506,14 @@
     <span class="doccomment">/// Verifies if bbox satisfies the spatial constraints given in config</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_spatial</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="kw">let</span> <span class="ident">span</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">x2</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">x1</span>).<span class="ident">max</span>(<span class="self">self</span>.<span class="ident">y2</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">y1</span>);
-        <span class="ident">span</span> <span class="op">&lt;</span> <span class="ident">CONFIG</span>.<span class="ident">stop_diagonal_meters</span>
+        <span class="ident">span</span> <span class="op">&lt;</span> <span class="ident">CONFIG</span>.<span class="ident">bbox_max_meters</span>
     }
 
     <span class="doccomment">/// Verifies if bbox satisfies the temporal constraints given in config</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_temporal</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="comment">// Convert ms to minutes</span>
         <span class="kw">let</span> <span class="ident">span</span> <span class="op">=</span> (<span class="self">self</span>.<span class="ident">t2</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">t1</span>) <span class="op">/</span> (<span class="number">1000.0</span> <span class="op">*</span> <span class="number">60.0</span>);
-        <span class="ident">span</span> <span class="op">&gt;</span> <span class="ident">CONFIG</span>.<span class="ident">stop_duration_minutes</span>
+        <span class="ident">span</span> <span class="op">&gt;</span> <span class="ident">CONFIG</span>.<span class="ident">bbox_min_minutes</span>
     }
 
     <span class="doccomment">/// Verifies if bbox satisfies the constraints given in config</span>
