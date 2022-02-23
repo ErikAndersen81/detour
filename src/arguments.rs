@@ -29,8 +29,8 @@ pub fn parse_arguments() -> Config {
             parse_config(std::fs::read_to_string(config).unwrap())
         }
         None => {
-            println!("Using standard configuration (config.cfg)");
-            parse_config(std::fs::read_to_string("config.cfg").unwrap())
+            println!("Using standard configuration (config.json)");
+            parse_config(std::fs::read_to_string("config.json").unwrap())
         }
     };
 
