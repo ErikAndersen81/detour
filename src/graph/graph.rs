@@ -3,11 +3,11 @@ use crate::utility::Bbox;
 use crate::{CONFIG, STATS};
 use itertools::Itertools;
 use petgraph::dot::Dot;
-use petgraph::graph::NodeIndex;
+use petgraph::graph::{DefaultIx, NodeIndex};
 use petgraph::prelude::EdgeIndex;
-use petgraph::stable_graph::StableDiGraph;
+use petgraph::stable_graph::{StableDiGraph, StableGraph};
 use petgraph::visit::{depth_first_search, Bfs, Control, DfsEvent, EdgeRef, IntoEdgeReferences};
-use petgraph::EdgeDirection;
+use petgraph::{Directed, EdgeDirection, Graph};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::File;
@@ -90,13 +90,12 @@ impl DetourGraph {
         );
         let f = File::create("graph.dot")?;
         let mut f = BufWriter::new(f);
-        write!(f, "{:?}", dot)?;
+        writeln!(f, "{:?}", dot)?;
 
         // Store the graph in json format
         let serialized = serde_json::to_string(&self.graph)?;
-        let f = File::create("graph.json")?;
-        let mut f = BufWriter::new(f);
-        write!(f, "{:?}", serialized)?;
+        let mut f = File::create("graph.json")?;
+        f.write_all(serialized.as_bytes())?;
 
         // Store the outlier graph in graphviz format
         let dot = Dot::with_config(
@@ -108,13 +107,12 @@ impl DetourGraph {
         );
         let f = File::create("outlier_graph.dot")?;
         let mut f = BufWriter::new(f);
-        write!(f, "{:?}", dot)?;
+        writeln!(f, "{:?}", dot)?;
 
         // Write the outlier graph in json format
         let serialized = serde_json::to_string(&self.outliers)?;
-        let f = File::create("outlier_graph.json")?;
-        let mut f = BufWriter::new(f);
-        write!(f, "{:?}", serialized)?;
+        let mut f = File::create("outlier_graph.json")?;
+        f.write_all(serialized.as_bytes())?;
 
         // Write a single csv file with bounding boxes
         let nodes = self
@@ -125,7 +123,7 @@ impl DetourGraph {
         let nodes = format!("label,x1,y1,t1,x2,y2,t2\n{}", nodes);
         let f = File::create("nodes.csv")?;
         let mut f = BufWriter::new(f);
-        write!(f, "{}", nodes)?;
+        writeln!(f, "{}", nodes)?;
 
         // Write each trajectory to a separate csv file.
         for (i, edge) in self.graph.edge_references().enumerate() {
@@ -151,7 +149,7 @@ impl DetourGraph {
         let nodes = format!("label,x1,y1,t1,x2,y2,t2\n{}", nodes);
         let f = File::create("outlier_nodes.csv")?;
         let mut f = BufWriter::new(f);
-        write!(f, "{}", nodes)?;
+        writeln!(f, "{}", nodes)?;
 
         // Write each outlier trajectory to a separate csv file.
         for (i, edge) in self.outliers.edge_references().enumerate() {
