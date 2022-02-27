@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use chrono::{Datelike, NaiveDate, NaiveDateTime, Timelike};
 use regex::Regex;
 

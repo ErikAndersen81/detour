@@ -1,6 +1,5 @@
 use crate::visvalingam;
 use crate::CONFIG;
-use std::iter::Peekable;
 
 pub trait Monotone {
     fn is_monotone(&self) -> bool;
@@ -45,61 +44,6 @@ impl Monotone for Vec<f64> {
         }
         mono
     }
-}
-
-pub fn get_common_time_span(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> Option<(f64, f64)> {
-    let a_len = trj_a.len() - 1;
-    let b_len = trj_b.len() - 1;
-    assert!(a_len > 0);
-    assert!(trj_a[a_len][2] - trj_a[0][2] > 0.);
-    assert!(b_len > 0);
-    assert!(trj_b[b_len][2] - trj_b[0][2] > 0.);
-    let start: f64 = if trj_a[0][2] > trj_b[0][2] {
-        trj_a[0][2]
-    } else {
-        trj_b[0][2]
-    };
-    let end: f64 = if trj_a[a_len][2] < trj_b[b_len][2] {
-        trj_a[a_len][2]
-    } else {
-        trj_b[b_len][2]
-    };
-    if end - start < 0.0 {
-        None
-    } else {
-        Some((start, end))
-    }
-}
-
-pub fn trim(trj: &[[f64; 3]], start: &f64, end: &f64) -> Vec<[f64; 3]> {
-    // Adjust the trajectory to start and end at the given times
-    let mut start_idx: usize = 0;
-    let mut end_idx: usize = trj.len() - 1;
-    let mut new_start: [f64; 3] = trj[start_idx];
-    let mut new_end: [f64; 3] = trj[end_idx];
-    for i in 0..(trj.len() - 1) {
-        let point_p: [f64; 3] = trj[i];
-        let point_q: [f64; 3] = trj[i + 1];
-        if (point_p[2]..point_q[2]).contains(start) {
-            new_start = Interpolator::interpolate(start, &point_p, &point_q);
-            start_idx = i;
-        };
-        if (point_p[2]..point_q[2]).contains(end) {
-            new_end = Interpolator::interpolate(end, &point_p, &point_q);
-            end_idx = i + 1;
-        };
-    }
-    let mut coords: Vec<[f64; 3]> = trj[start_idx..(end_idx + 1)].to_vec();
-    coords[0] = new_start;
-    coords[end_idx - start_idx] = new_end;
-    coords
-}
-
-pub fn align_time_to_zero(trj: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
-    let offset: f64 = trj[0][2];
-    trj.into_iter()
-        .map(|point| [point[0], point[1], point[2] - offset])
-        .collect::<Vec<[f64; 3]>>()
 }
 
 pub fn merge(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> Vec<[f64; 3]> {
@@ -172,19 +116,6 @@ fn mean_point(a: &[f64; 3], b: &[f64; 3]) -> [f64; 3] {
     let y: f64 = (a[1] + b[1]) / 2.;
     let t: f64 = a[2];
     [x, y, t]
-}
-
-fn get_min(
-    mut trj_a: Peekable<std::slice::Iter<[f64; 3]>>,
-    mut trj_b: Peekable<std::slice::Iter<[f64; 3]>>,
-) -> [f64; 3] {
-    let a = *trj_a.peek().unwrap();
-    let b = *trj_b.peek().unwrap();
-    if a[2] < b[2] {
-        *trj_a.next().unwrap()
-    } else {
-        *trj_b.next().unwrap()
-    }
 }
 
 fn align_start_time(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> (Vec<[f64; 3]>, Vec<[f64; 3]>) {

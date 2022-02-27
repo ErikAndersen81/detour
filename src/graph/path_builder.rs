@@ -207,7 +207,7 @@ impl PathBuilder {
             self.path.push(PathElement::Stop(self.bbox.unwrap()));
         }
         self.path.rm_single_points();
-        self.path.simplify_trjs();
+        //self.path.simplify_trjs();
         self.path.merge_nodes();
         self.path.verify();
     }

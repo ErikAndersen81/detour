@@ -49,36 +49,4 @@ impl PathElement {
             None
         }
     }
-
-    pub fn set_bbox(&mut self, new_bbox: Bbox) {
-        if let PathElement::Stop(bbox) = self {
-            *bbox = new_bbox;
-        } else {
-            panic!("Can't set bbox on `PathElement::Route`.")
-        }
-    }
-
-    pub fn update_element(&self, points: &[[f64; 3]]) -> Self {
-        match self {
-            PathElement::Stop(bbox) => {
-                let new_bbox = Bbox::new(points);
-                let new_bbox = new_bbox.union(bbox);
-                PathElement::Stop(new_bbox)
-            }
-            PathElement::Route(trj) => {
-                let mut trj = trj.clone();
-                let new_trj = points.to_vec();
-                trj.extend(new_trj);
-                PathElement::Route(trj)
-            }
-        }
-    }
-
-    pub fn new_stop(points: &[[f64; 3]]) -> Self {
-        PathElement::Stop(Bbox::new(points))
-    }
-
-    pub fn new_route(points: &[[f64; 3]]) -> Self {
-        PathElement::Route(points.to_vec())
-    }
 }

@@ -13,14 +13,37 @@ use std::collections::HashMap;
 pub fn spatially_cluster_nodes(
     graph: &mut DetourGraph,
 ) -> (Vec<Vec<NodeIndex>>, StableDiGraph<Bbox, Vec<[f64; 3]>>) {
-    //let mut clustering = get_spatial_clustering(graph);
     let mut clustering = get_spatial_clustering(graph);
     let outliers = remove_outliers(graph, &mut clustering);
     let bboxs: Vec<(usize, Bbox)> = clustering
         .iter()
-        .map(|cluster| calculate_mean_bbox(graph, cluster))
+        .map(|cluster| get_minimal_bbox(graph, cluster))
         .enumerate()
         .collect();
+    fn format_cluster(
+        cluster: &str,
+        start: &str,
+        end: &str,
+        dim: &str,
+        coord: &str,
+        size: &str,
+    ) -> String {
+        format!(
+            "{:^9} {:<9}- {:<9} {:<20} {:<25} {:>5}",
+            cluster, start, end, dim, coord, size,
+        )
+    }
+    println!(
+        "{}",
+        format_cluster(
+            "Cluster",
+            "Start",
+            "End",
+            "Dimensions",
+            "Coordinate",
+            "Size"
+        )
+    );
     for (idx, bbox) in bboxs {
         let start_h: i32 = (bbox.t1 / (1000.0 * 60.0 * 60.0)).floor() as i32;
         let start_m: i32 = ((bbox.t1 % (1000.0 * 60.0 * 60.0)) / (1000.0 * 60.0)).floor() as i32;
@@ -29,14 +52,61 @@ pub fn spatially_cluster_nodes(
         let end_m: i32 = ((bbox.t2 % (1000.0 * 60.0 * 60.0)) / (1000.0 * 60.0)).floor() as i32;
         let end_s: i32 = ((bbox.t2 % (1000.0 * 60.0)) / (1000.0)).floor() as i32;
         let coord = from_epsg_3857_to_4326(&[bbox.x1, bbox.y1, bbox.t1]);
+        let starttime = format!("{:02}:{:02}:{:02}", start_h, start_m, start_s);
+        let endtime = format!("{:02}:{:02}:{:02}", end_h, end_m, end_s);
+        let dimensions = format!("{:.2}m x {:.2}m", bbox.x2 - bbox.x1, bbox.y2 - bbox.y1);
+        let coord = format!("{:.7},{:.7}", coord[0], coord[1]);
         println!(
-            "Cluster {} initial temporal span {}h{}m{}s - {}h{}m{}s, lat,lon: {},{}",
-            idx, start_h, start_m, start_s, end_h, end_m, end_s, coord[0], coord[1]
+            "{}",
+            format_cluster(
+                (idx + 1).to_string().as_str(),
+                &starttime,
+                &endtime,
+                &dimensions,
+                &coord,
+                (&clustering[idx].len()).to_string().as_str()
+            )
         );
         resize_bboxs(graph, bbox, &clustering[idx]);
-        fit_edges_to_cluster(graph, bbox, &clustering[idx]);
     }
     (clustering, outliers)
+}
+
+/// Determines the minimal bbox s.t. endpoints of all connected trjs fits inside
+fn get_minimal_bbox(graph: &mut DetourGraph, cluster: &[NodeIndex]) -> Bbox {
+    println!("endpoints\n");
+    let bbox = graph.get_node_weight(cluster[0]);
+    // Handle ingoing edges
+    let bbox = cluster.iter().fold(bbox, |mut bbox, nx| {
+        let edges = graph.edges_directed(*nx, EdgeDirection::Incoming);
+        for ex in edges {
+            let trj = graph.edge_weight_mut(ex);
+            let last_idx = trj.len() - 1;
+            let point = trj[last_idx];
+            println!(
+                "nan,{},{},nan,{},{},nan",
+                point[0], point[1], point[0], point[1]
+            );
+            bbox.insert_point(&point);
+        }
+        bbox
+    });
+    println!();
+    // Handle outgoing edges
+    let bbox = cluster.iter().fold(bbox, |mut bbox, nx| {
+        let edges = graph.edges_directed(*nx, EdgeDirection::Outgoing);
+        for ex in edges {
+            let trj = graph.edge_weight_mut(ex);
+            let point = trj[0];
+            println!(
+                "nan,{},{},nan,{},{},nan",
+                point[0], point[1], point[0], point[1]
+            );
+            bbox.insert_point(&point);
+        }
+        bbox
+    });
+    bbox
 }
 
 fn resize_bboxs(graph: &mut DetourGraph, bbox: Bbox, cluster: &[NodeIndex]) {
@@ -48,60 +118,6 @@ fn resize_bboxs(graph: &mut DetourGraph, bbox: Bbox, cluster: &[NodeIndex]) {
         bbox_new.y2 = bbox.y2;
         graph.set_node_weight(*nx, bbox_new);
     }
-}
-
-fn fit_edges_to_cluster(graph: &mut DetourGraph, bbox: Bbox, cluster: &[NodeIndex]) {
-    // Handle ingoing edges
-    cluster.iter().for_each(|nx| {
-        let edges = graph.edges_directed(*nx, EdgeDirection::Incoming);
-        for ex in edges {
-            let trj = graph.edge_weight_mut(ex);
-            let last_idx = trj.len() - 1;
-            let last_point = trj[last_idx];
-            if !bbox.contains_point(&last_point) {
-                // Connect to the closest corner of the bbox
-                let connect_point = bbox.nearest_corner(&last_point);
-                // Perhaps we need to adjust time coordinate (Also below)
-                trj.push(connect_point);
-            }
-        }
-    });
-
-    // Handle outgoing edges
-    cluster.iter().for_each(|nx| {
-        let edges = graph.edges_directed(*nx, EdgeDirection::Outgoing);
-        for ex in edges {
-            let trj = graph.edge_weight_mut(ex);
-            let first_point = trj[0];
-            if !bbox.contains_point(&first_point) {
-                // Connect to the closest corner of the bbox
-                let connect_point = bbox.nearest_corner(&first_point);
-                trj.push(connect_point);
-            }
-        }
-    });
-}
-
-fn calculate_mean_bbox(graph: &DetourGraph, cluster: &[NodeIndex]) -> Bbox {
-    let graph = graph.get_graph();
-    let mut bboxs: Vec<Bbox> = cluster.iter().map(|nx| graph[*nx]).collect();
-    let initial_bbox = bboxs.pop().unwrap();
-    bboxs.iter().fold(initial_bbox, |acc, bbox| {
-        let x1 = (acc.x1 + bbox.x1) / 2.0;
-        let x2 = (acc.x2 + bbox.x2) / 2.0;
-        let y1 = (acc.y1 + bbox.y1) / 2.0;
-        let y2 = (acc.y2 + bbox.y2) / 2.0;
-        let t1 = acc.t1.min(bbox.t1);
-        let t2 = acc.t2.max(bbox.t2);
-        Bbox {
-            x1,
-            x2,
-            y1,
-            y2,
-            t1,
-            t2,
-        }
-    })
 }
 
 /// Constructs a graph of non-frequently visitied nodes, i.e. small clusters of size < 3.
@@ -186,6 +202,8 @@ fn remove_outliers(
 /// Clustering criteria: If two nodes overlap spatially they belong to the same cluster.
 pub fn get_spatial_clustering(graph: &DetourGraph) -> Vec<Vec<NodeIndex>> {
     // We start by assigning each node to its own cluster
+    // Each cluster is represented by a bounding box
+    // If two boxes overlaps their union form the representative for the new cluster.
     let mut clustering: Vec<(Vec<NodeIndex>, Bbox)> = graph
         .node_indices()
         .map(|nx| (vec![nx], graph.get_node_weight(nx)))
@@ -196,7 +214,7 @@ pub fn get_spatial_clustering(graph: &DetourGraph) -> Vec<Vec<NodeIndex>> {
         let mut merge = None;
         'outer: for (a, (_, bbox_a)) in clustering.iter().enumerate() {
             for (b, (_, bbox_b)) in clustering.iter().enumerate() {
-                if (a < b) & (bbox_a.overlaps_spatially(bbox_b)) {
+                if (a < b) & (bbox_a.overlaps_spatially_by(bbox_b)) {
                     merge = Some((a, b));
                     break 'outer;
                 }

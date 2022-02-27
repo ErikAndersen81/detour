@@ -256,34 +256,6 @@ fn get_temporal_splits(trjs: Vec<Vec<[f64; 3]>>) -> Vec<f64> {
         }
         last_visited = Some(t + 1.0);
     }
+    println!("{:?}", splits);
     splits
-}
-
-/// Determine where the cluster should split.
-/// Based on the original temporal bounds of the bounding boxes in the cluster and
-/// the splits required to attain temporal monotonicity.
-/// Note: the required splits from `get_temporal_splits` starts with a t2,
-/// i.e. the original must have the earliest timestamp.
-fn determine_splits(original: &[f64], required: &[f64]) -> Vec<f64> {
-    let mut result = vec![];
-    let n = original.len();
-    let m = required.len();
-    let (mut i, mut j) = (0usize, 0usize);
-    while (i < n) & (j < m - 1) {
-        let org = original[i];
-        let req_a = required[j];
-        let req_b = required[j + 1];
-        if i == 0 {
-            while !(original[i]..=original[i + 1]).contains(&req_a) & (i < n) {
-                i += 1;
-            }
-            result.push(original[i]);
-        } else if !(req_a..=req_b).contains(&org) {
-            result.push(original[i - 1]);
-            j += 1;
-        }
-        i += 1;
-    }
-    println!("result: {:?}", result);
-    result
 }

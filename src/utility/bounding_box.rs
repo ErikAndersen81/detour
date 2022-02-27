@@ -1,6 +1,4 @@
 use crate::CONFIG;
-
-use super::get_distance;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
@@ -82,52 +80,38 @@ impl Bbox {
         }
     }
 
-    /// Returns the corner spatially nearest to `point`
-    /// The time coordinate of the returned point is copied from `point`
-    pub fn nearest_corner(&self, point: &[f64; 3]) -> [f64; 3] {
-        let corners = [
-            [self.x1, self.y1, point[2]],
-            [self.x1, self.y2, point[2]],
-            [self.x2, self.y2, point[2]],
-            [self.x2, self.y1, point[2]],
-        ];
-        let (idx, _) = corners
-            .iter()
-            .map(|corner| get_distance(corner, point))
-            .enumerate()
-            .fold(
-                (0usize, f64::INFINITY),
-                |(last_idx, min_dist), (idx, dist)| {
-                    if dist < min_dist {
-                        (idx, dist)
-                    } else {
-                        (last_idx, min_dist)
-                    }
-                },
-            );
-        corners[idx]
+    pub fn overlaps_spatially_by(&self, other: &Self) -> bool {
+        let pct = 0.5;
+        let area = self.area().min(other.area());
+        let x_overlap = Bbox::interval_overlap(self.x1, self.x2, other.x1, other.x2);
+        let y_overlap = Bbox::interval_overlap(self.y1, self.y2, other.y1, other.y2);
+        let overlap = x_overlap * y_overlap;
+        overlap / area >= pct
     }
 
-    /// Determine if the bounding boxes overlap spatially and temporally
-    pub fn overlaps(&self, other: &Self) -> bool {
-        let temporal = (self.t1..=self.t2).contains(&other.t1)
-            || (self.t1..=self.t2).contains(&other.t2)
-            || (other.t1..=other.t2).contains(&self.t1)
-            || (other.t1..=other.t2).contains(&self.t2);
-        self.overlaps_spatially(other) & temporal
+    /// Determine overlap of intervals
+    fn interval_overlap(a1: f64, a2: f64, b1: f64, b2: f64) -> f64 {
+        let mut pts = vec![a1, a2, b1, b2];
+        pts.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let inner = pts[2] - pts[1];
+        let outer = pts[3] - pts[0];
+        let (len_a, len_b) = (a2 - a1, b2 - b1);
+        if outer >= len_a + len_b {
+            // intervals do not overlap
+            0.0
+        } else if inner >= len_a.min(len_b) {
+            // one interval contained in other interval
+            len_a.min(len_b)
+        } else {
+            inner
+        }
     }
 
-    /// Determine if the bounding boxes overlap spatially
-    pub fn overlaps_spatially(&self, other: &Self) -> bool {
-        let vertical = (self.x1..=self.x2).contains(&other.x1)
-            || (self.x1..=self.x2).contains(&other.x2)
-            || (other.x1..=other.x2).contains(&self.x1)
-            || (other.x1..=other.x2).contains(&self.x2);
-        let horizontal = (self.y1..=self.y2).contains(&other.y1)
-            || (self.y1..=self.y2).contains(&other.y2)
-            || (other.y1..=other.y2).contains(&self.y1)
-            || (other.y1..=other.y2).contains(&self.y2);
-        vertical & horizontal
+    /// Spatial area in m²
+    fn area(&self) -> f64 {
+        let dx = self.x2 - self.x1;
+        let dy = self.y2 - self.y1;
+        dx * dy
     }
 
     /// Inserts `point` and expands `Bbox` if neccesary.
@@ -186,15 +170,6 @@ impl Bbox {
         (bbox1, bbox2)
     }
 
-    pub fn expand(&mut self, meters: f64, minutes: f64) {
-        self.x1 -= meters;
-        self.x2 += meters;
-        self.y1 -= meters;
-        self.y2 += meters;
-        self.t1 -= minutes * 60000.;
-        self.t2 += minutes * 60000.;
-    }
-
     /// Verifies if bbox satisfies the spatial constraints given in config
     pub fn verify_spatial(&self) -> bool {
         let span = (self.x2 - self.x1).max(self.y2 - self.y1);
@@ -206,11 +181,6 @@ impl Bbox {
         // Convert ms to minutes
         let span = (self.t2 - self.t1) / (1000.0 * 60.0);
         span > CONFIG.bbox_min_minutes
-    }
-
-    /// Verifies if bbox satisfies the constraints given in config
-    pub fn verify(&self) -> bool {
-        self.verify_spatial() & self.verify_temporal()
     }
 
     pub fn union(&self, other: &Self) -> Self {
