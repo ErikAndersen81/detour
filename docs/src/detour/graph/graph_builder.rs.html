@@ -259,34 +259,6 @@
 <span id="259">259</span>
 <span id="260">260</span>
 <span id="261">261</span>
-<span id="262">262</span>
-<span id="263">263</span>
-<span id="264">264</span>
-<span id="265">265</span>
-<span id="266">266</span>
-<span id="267">267</span>
-<span id="268">268</span>
-<span id="269">269</span>
-<span id="270">270</span>
-<span id="271">271</span>
-<span id="272">272</span>
-<span id="273">273</span>
-<span id="274">274</span>
-<span id="275">275</span>
-<span id="276">276</span>
-<span id="277">277</span>
-<span id="278">278</span>
-<span id="279">279</span>
-<span id="280">280</span>
-<span id="281">281</span>
-<span id="282">282</span>
-<span id="283">283</span>
-<span id="284">284</span>
-<span id="285">285</span>
-<span id="286">286</span>
-<span id="287">287</span>
-<span id="288">288</span>
-<span id="289">289</span>
 </pre><pre class="rust">
 <span class="kw">use</span> <span class="ident">petgraph::visit::EdgeRef</span>;
 
@@ -546,36 +518,8 @@
         }
         <span class="ident">last_visited</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">t</span> <span class="op">+</span> <span class="number">1.0</span>);
     }
+    <span class="macro">println!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">splits</span>);
     <span class="ident">splits</span>
-}
-
-<span class="doccomment">/// Determine where the cluster should split.</span>
-<span class="doccomment">/// Based on the original temporal bounds of the bounding boxes in the cluster and</span>
-<span class="doccomment">/// the splits required to attain temporal monotonicity.</span>
-<span class="doccomment">/// Note: the required splits from `get_temporal_splits` starts with a t2,</span>
-<span class="doccomment">/// i.e. the original must have the earliest timestamp.</span>
-<span class="kw">fn</span> <span class="ident">determine_splits</span>(<span class="ident">original</span>: <span class="kw-2">&amp;</span>[<span class="ident">f64</span>], <span class="ident">required</span>: <span class="kw-2">&amp;</span>[<span class="ident">f64</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">f64</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="macro">vec!</span>[];
-    <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">original</span>.<span class="ident">len</span>();
-    <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">required</span>.<span class="ident">len</span>();
-    <span class="kw">let</span> (<span class="kw-2">mut</span> <span class="ident">i</span>, <span class="kw-2">mut</span> <span class="ident">j</span>) <span class="op">=</span> (<span class="number">0usize</span>, <span class="number">0usize</span>);
-    <span class="kw">while</span> (<span class="ident">i</span> <span class="op">&lt;</span> <span class="ident">n</span>) <span class="op">&amp;</span> (<span class="ident">j</span> <span class="op">&lt;</span> <span class="ident">m</span> <span class="op">-</span> <span class="number">1</span>) {
-        <span class="kw">let</span> <span class="ident">org</span> <span class="op">=</span> <span class="ident">original</span>[<span class="ident">i</span>];
-        <span class="kw">let</span> <span class="ident">req_a</span> <span class="op">=</span> <span class="ident">required</span>[<span class="ident">j</span>];
-        <span class="kw">let</span> <span class="ident">req_b</span> <span class="op">=</span> <span class="ident">required</span>[<span class="ident">j</span> <span class="op">+</span> <span class="number">1</span>];
-        <span class="kw">if</span> <span class="ident">i</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-            <span class="kw">while</span> <span class="op">!</span>(<span class="ident">original</span>[<span class="ident">i</span>]..<span class="op">=</span><span class="ident">original</span>[<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>]).<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">req_a</span>) <span class="op">&amp;</span> (<span class="ident">i</span> <span class="op">&lt;</span> <span class="ident">n</span>) {
-                <span class="ident">i</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-            }
-            <span class="ident">result</span>.<span class="ident">push</span>(<span class="ident">original</span>[<span class="ident">i</span>]);
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="op">!</span>(<span class="ident">req_a</span>..<span class="op">=</span><span class="ident">req_b</span>).<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">org</span>) {
-            <span class="ident">result</span>.<span class="ident">push</span>(<span class="ident">original</span>[<span class="ident">i</span> <span class="op">-</span> <span class="number">1</span>]);
-            <span class="ident">j</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-        }
-        <span class="ident">i</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-    }
-    <span class="macro">println!</span>(<span class="string">&quot;result: {:?}&quot;</span>, <span class="ident">result</span>);
-    <span class="ident">result</span>
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="detour" data-search-index-js="../../../search-index.js" data-search-js="../../../search.js"></div>

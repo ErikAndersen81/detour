@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["RootCase",""]],"struct":[["DetourGraph",""],["TimePairs",""]]});
+initSidebarItems({"struct":[["DetourGraph",""],["TimePairs",""]]});

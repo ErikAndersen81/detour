@@ -78,8 +78,8 @@
             <span class="ident">parse_config</span>(<span class="ident">std::fs::read_to_string</span>(<span class="ident">config</span>).<span class="ident">unwrap</span>())
         }
         <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
-            <span class="macro">println!</span>(<span class="string">&quot;Using standard configuration (config.cfg)&quot;</span>);
-            <span class="ident">parse_config</span>(<span class="ident">std::fs::read_to_string</span>(<span class="string">&quot;config.cfg&quot;</span>).<span class="ident">unwrap</span>())
+            <span class="macro">println!</span>(<span class="string">&quot;Using standard configuration (config.json)&quot;</span>);
+            <span class="ident">parse_config</span>(<span class="ident">std::fs::read_to_string</span>(<span class="string">&quot;config.json&quot;</span>).<span class="ident">unwrap</span>())
         }
     };
 

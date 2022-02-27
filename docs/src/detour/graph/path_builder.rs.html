@@ -454,7 +454,7 @@
             <span class="self">self</span>.<span class="ident">path</span>.<span class="ident">push</span>(<span class="ident">PathElement::Stop</span>(<span class="self">self</span>.<span class="ident">bbox</span>.<span class="ident">unwrap</span>()));
         }
         <span class="self">self</span>.<span class="ident">path</span>.<span class="ident">rm_single_points</span>();
-        <span class="self">self</span>.<span class="ident">path</span>.<span class="ident">simplify_trjs</span>();
+        <span class="comment">//self.path.simplify_trjs();</span>
         <span class="self">self</span>.<span class="ident">path</span>.<span class="ident">merge_nodes</span>();
         <span class="self">self</span>.<span class="ident">path</span>.<span class="ident">verify</span>();
     }
