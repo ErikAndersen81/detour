@@ -21,13 +21,13 @@ struct TimePairs {
 pub struct DetourGraph {
     graph: StableDiGraph<Bbox, Vec<[f64; 3]>>,
     roots: Vec<NodeIndex>,
-    outliers: StableDiGraph<Bbox, Vec<[f64; 3]>>,
+    outliers: StableDiGraph<(usize, Bbox), Vec<[f64; 3]>>,
 }
 
 impl DetourGraph {
     pub fn new() -> DetourGraph {
         let graph: StableDiGraph<Bbox, Vec<[f64; 3]>> = StableDiGraph::new();
-        let outliers: StableDiGraph<Bbox, Vec<[f64; 3]>> = StableDiGraph::new();
+        let outliers: StableDiGraph<(usize, Bbox), Vec<[f64; 3]>> = StableDiGraph::new();
         DetourGraph {
             graph,
             roots: vec![],
@@ -52,7 +52,10 @@ impl DetourGraph {
         &self.graph
     }
 
-    pub fn set_outlier_graph(&mut self, outlier_graph: StableDiGraph<Bbox, Vec<[f64; 3]>>) {
+    pub fn set_outlier_graph(
+        &mut self,
+        outlier_graph: StableDiGraph<(usize, Bbox), Vec<[f64; 3]>>,
+    ) {
         self.outliers = outlier_graph;
     }
 
@@ -131,7 +134,7 @@ impl DetourGraph {
         let nodes = self
             .outliers
             .node_indices()
-            .map(|nx| format!("{},{}", nx.index(), self.outliers[nx]))
+            .map(|nx| format!("{},{}", nx.index(), self.outliers[nx].1))
             .join("");
         let nodes = format!("label,x1,y1,t1,x2,y2,t2\n{}", nodes);
         let f = File::create("outlier_nodes.csv")?;

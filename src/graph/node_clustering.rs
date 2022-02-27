@@ -12,7 +12,10 @@ use std::collections::HashMap;
 /// Returns clustering and outlier graph
 pub fn spatially_cluster_nodes(
     graph: &mut DetourGraph,
-) -> (Vec<Vec<NodeIndex>>, StableDiGraph<Bbox, Vec<[f64; 3]>>) {
+) -> (
+    Vec<Vec<NodeIndex>>,
+    StableDiGraph<(usize, Bbox), Vec<[f64; 3]>>,
+) {
     let mut clustering = get_spatial_clustering(graph);
     let outliers = remove_outliers(graph, &mut clustering);
     let bboxs: Vec<(usize, Bbox)> = clustering
@@ -128,7 +131,7 @@ fn resize_bboxs(graph: &mut DetourGraph, bbox: Bbox, cluster: &[NodeIndex]) {
 fn remove_outliers(
     graph: &mut DetourGraph,
     clustering: &mut Vec<Vec<NodeIndex>>,
-) -> StableDiGraph<Bbox, Vec<[f64; 3]>> {
+) -> StableDiGraph<(usize, Bbox), Vec<[f64; 3]>> {
     // Initially, identify less frequently visited nodes and remove them from `clustering`
     let mut rm_clusters = vec![];
     for (cluster_idx, cluster) in clustering.iter().enumerate() {
@@ -148,14 +151,14 @@ fn remove_outliers(
     // Construct the outlier graph
     // we include some nodes that are not outliers
     // s.t. we can store the edges leading to/from the outlier nodes.
-    let mut outlier_graph: StableDiGraph<Bbox, Vec<[f64; 3]>> = StableDiGraph::new();
+    let mut outlier_graph: StableDiGraph<(usize, Bbox), Vec<[f64; 3]>> = StableDiGraph::new();
     // We use a mapping to keep track of inserted nodes and avoid duplicate inserts.
     let mut nx_map: HashMap<NodeIndex, NodeIndex> = HashMap::new();
     let old_graph = graph.get_graph();
     for nx in outlier_nodes.iter() {
         let nx = if !nx_map.contains_key(nx) {
             let bbox = old_graph[*nx];
-            let new_nx = outlier_graph.add_node(bbox);
+            let new_nx = outlier_graph.add_node((0, bbox));
             nx_map.insert(*nx, new_nx);
             new_nx
         } else {
@@ -166,7 +169,7 @@ fn remove_outliers(
             let trj = edge.weight().clone();
             let source = if !nx_map.contains_key(&edge.source()) {
                 let bbox = old_graph[edge.source()];
-                let new_nx = outlier_graph.add_node(bbox);
+                let new_nx = outlier_graph.add_node((1, bbox));
                 nx_map.insert(edge.source(), new_nx);
                 new_nx
             } else {
@@ -179,7 +182,7 @@ fn remove_outliers(
             let trj = edge.weight().clone();
             let target = if !nx_map.contains_key(&edge.target()) {
                 let bbox = old_graph[edge.target()];
-                let new_nx = outlier_graph.add_node(bbox);
+                let new_nx = outlier_graph.add_node((1, bbox));
                 nx_map.insert(edge.target(), new_nx);
                 new_nx
             } else {
