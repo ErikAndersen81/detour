@@ -149,10 +149,58 @@ pub fn parse_ais(content: String) -> Vec<Vec<[f64; 3]>> {
     trjs
 }
 
-/// Determines if content is GPX or PLT and parses content.
-/// Specifically, if the first line is 'Geolife trajectory'
-/// (casing ignored), it is assumed to be PLT otherwise
-/// it's considered to be GPX.
+/// Parses synthetic data from [https://github.com/NicklasXYZ/rtdm]
+/// The original data is located in `RealtimeTrajectoryDataMining/rtdm/scripts/data`
+/// It is originally in json, but we have extracted trajectories into separate csv-files before parsing.
+pub fn parse_synthetic(content: String) -> Vec<Vec<[f64; 3]>> {
+    println!("Parsing Synthetic Data");
+    let mut trjs: Vec<Vec<[f64; 3]>> = Vec::new();
+    let mut trj: Vec<[f64; 3]> = Vec::new();
+    let mut last_day = -1;
+    let lines = content.lines();
+    for line in lines {
+        let mut fields = line.split(',');
+        let mut coord: [f64; 3] = [f64::NAN, f64::NAN, f64::NAN];
+
+        if let Some(time) = fields.next() {
+            if let Ok(time) = NaiveDateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S") {
+                let day = time.num_days_from_ce();
+                if day != last_day {
+                    last_day = day;
+                    if !trj.is_empty() {
+                        trjs.push(trj);
+                        trj = vec![];
+                    }
+                }
+                coord[2] = (time.num_seconds_from_midnight() as f64) * 1000.0;
+            }
+        };
+        if let Some(lat) = fields.next() {
+            if let Ok(lat) = lat.parse::<f64>() {
+                coord[0] = lat;
+            }
+        };
+
+        if let Some(lon) = fields.next() {
+            if let Ok(lon) = lon.parse::<f64>() {
+                coord[1] = lon;
+            }
+        };
+
+        if coord[0].is_finite() & coord[1].is_finite() & coord[2].is_finite() {
+            let coord = crate::from_epsg_4326_to_3857(&coord);
+            trj.push(coord);
+        }
+    }
+    trjs
+}
+
+/// Determines if content type and parses accordingly.
+/// Specifically, the first line(casing ignored) determines content type:
+/// - "geolife trajectory" => PLT
+/// - "mmsi_number,time,longitude,latitude,heading,speed,cog,rot,shipcode" => AIS
+/// - ",latitude,longitude,uid,anom_start" => synthetic data [info](parse_synthetic)
+/// - Otherwise => GPX
 pub fn parse(content: String) -> Vec<Vec<[f64; 3]>> {
     let line = content.lines().next();
     if let Some(line) = line {
@@ -162,6 +210,7 @@ pub fn parse(content: String) -> Vec<Vec<[f64; 3]>> {
             "mmsi_number,time,longitude,latitude,heading,speed,cog,rot,shipcode" => {
                 parse_ais(content)
             }
+            ",latitude,longitude,uid,anom_start" => parse_synthetic(content),
             _ => parse_gpx(content),
         }
     } else {
