@@ -77,7 +77,6 @@ pub fn spatially_cluster_nodes(
 
 /// Determines the minimal bbox s.t. endpoints of all connected trjs fits inside
 fn get_minimal_bbox(graph: &mut DetourGraph, cluster: &[NodeIndex]) -> Bbox {
-    println!("endpoints\n");
     let bbox = graph.get_node_weight(cluster[0]);
     // Handle ingoing edges
     let bbox = cluster.iter().fold(bbox, |mut bbox, nx| {
@@ -86,25 +85,16 @@ fn get_minimal_bbox(graph: &mut DetourGraph, cluster: &[NodeIndex]) -> Bbox {
             let trj = graph.edge_weight_mut(ex);
             let last_idx = trj.len() - 1;
             let point = trj[last_idx];
-            println!(
-                "nan,{},{},nan,{},{},nan",
-                point[0], point[1], point[0], point[1]
-            );
             bbox.insert_point(&point);
         }
         bbox
     });
-    println!();
     // Handle outgoing edges
     let bbox = cluster.iter().fold(bbox, |mut bbox, nx| {
         let edges = graph.edges_directed(*nx, EdgeDirection::Outgoing);
         for ex in edges {
             let trj = graph.edge_weight_mut(ex);
             let point = trj[0];
-            println!(
-                "nan,{},{},nan,{},{},nan",
-                point[0], point[1], point[0], point[1]
-            );
             bbox.insert_point(&point);
         }
         bbox
