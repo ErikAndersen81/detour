@@ -256,6 +256,5 @@ fn get_temporal_splits(trjs: Vec<Vec<[f64; 3]>>) -> Vec<f64> {
         }
         last_visited = Some(t + 1.0);
     }
-    println!("{:?}", splits);
     splits
 }
