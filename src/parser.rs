@@ -37,6 +37,9 @@ pub fn parse_gpx(gpx: String) -> Vec<Vec<[f64; 3]>> {
         let c = crate::from_epsg_4326_to_3857(&[lat, lon, time]);
         trj.push(c);
     }
+    if !trj.is_empty() {
+        trjs.push(trj);
+    }
     trjs
 }
 
@@ -97,6 +100,9 @@ pub fn parse_plt(plt: String) -> Vec<Vec<[f64; 3]>> {
             trj.push(coord);
         }
     }
+    if !trj.is_empty() {
+        trjs.push(trj);
+    }
     trjs
 }
 
@@ -146,6 +152,9 @@ pub fn parse_ais(content: String) -> Vec<Vec<[f64; 3]>> {
             trj.push(coord);
         }
     }
+    if !trj.is_empty() {
+        trjs.push(trj);
+    }
     trjs
 }
 
@@ -191,6 +200,9 @@ pub fn parse_synthetic(content: String) -> Vec<Vec<[f64; 3]>> {
             let coord = crate::from_epsg_4326_to_3857(&coord);
             trj.push(coord);
         }
+    }
+    if !trj.is_empty() {
+        trjs.push(trj);
     }
     trjs
 }
