@@ -163,7 +163,7 @@ pub fn parse_synthetic(content: String) -> Vec<Vec<[f64; 3]>> {
         let mut coord: [f64; 3] = [f64::NAN, f64::NAN, f64::NAN];
 
         if let Some(time) = fields.next() {
-            if let Ok(time) = NaiveDateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S") {
+            if let Ok(time) = NaiveDateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S%.f") {
                 let day = time.num_days_from_ce();
                 if day != last_day {
                     last_day = day;
@@ -172,7 +172,8 @@ pub fn parse_synthetic(content: String) -> Vec<Vec<[f64; 3]>> {
                         trj = vec![];
                     }
                 }
-                coord[2] = (time.num_seconds_from_midnight() as f64) * 1000.0;
+                coord[2] = (time.num_seconds_from_midnight() as f64) * 1000.0
+                    + (time.timestamp_subsec_millis() as f64);
             }
         };
         if let Some(lat) = fields.next() {
@@ -186,7 +187,6 @@ pub fn parse_synthetic(content: String) -> Vec<Vec<[f64; 3]>> {
                 coord[1] = lon;
             }
         };
-
         if coord[0].is_finite() & coord[1].is_finite() & coord[2].is_finite() {
             let coord = crate::from_epsg_4326_to_3857(&coord);
             trj.push(coord);
