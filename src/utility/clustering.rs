@@ -11,7 +11,14 @@ pub struct Clustering {
 
 impl Clustering {
     pub fn new(distance_matrix: Vec<Vec<f64>>, threshold: f64) -> Self {
-        let clusters: Vec<HashSet<MatrixIdx>> = vec![];
+        // Initially each index belongs to its own cluster
+        // we then merge clusters bottom up
+        let mut clusters: Vec<HashSet<MatrixIdx>> = vec![];
+        for (idx, _) in distance_matrix.iter().enumerate() {
+            let mut set = HashSet::new();
+            set.insert(idx as MatrixIdx);
+            clusters.push(set);
+        }
         let mut c = Clustering {
             distance_matrix,
             clusters,
@@ -35,30 +42,14 @@ impl Clustering {
         }
     }
 
+    /// Returns index of cluster containing `distance_matrix` index.
     fn get_cluster_idx(&mut self, value: MatrixIdx) -> ClusterIdx {
-        // If the value is not in any cluster a new one is created
         for (idx, cluster) in self.clusters.iter().enumerate() {
             if cluster.contains(&value) {
                 return idx;
             }
         }
-        self.add_to_cluster(&[value], None);
-        self.clusters.len() - 1
-    }
-
-    fn add_to_cluster(&mut self, values: &[usize], cluster: Option<ClusterIdx>) {
-        let mut set: HashSet<usize> = HashSet::new();
-        for value in values {
-            set.insert(*value);
-        }
-        if let Some(cluster) = cluster {
-            self.clusters[cluster] = self.clusters[cluster]
-                .union(&set)
-                .copied()
-                .collect::<HashSet<usize>>();
-        } else {
-            self.clusters.push(set);
-        }
+        panic!("Should already have its own cluster!!");
     }
 
     fn merge_clusters(&mut self, a: ClusterIdx, b: ClusterIdx) {
