@@ -50,27 +50,21 @@ impl Path {
     /// i.e. we select the point from either the ingoing route or the outgoing route
     /// which minimizes the expansion.
     /// A stop cannot expand `backwards` to the extend that it overlaps the previous stop.
+    /// In the event that the bbox contains only a single point we expand it to 2m x 2m
     pub fn expand_stops(&mut self) {
         let last_idx = self.path.len() - 1;
         for (i, bbox) in self.path.clone().into_iter().enumerate() {
+            let mut bbox = bbox.copy_bbox();
             if i == 0 {
                 let trjs = vec![self.path[1].copy_trj().unwrap()];
                 let t2 = self.path[2].copy_bbox().unwrap().t1;
-                let bbox = bbox
-                    .copy_bbox()
-                    .unwrap()
-                    .expand_along_trjs(trjs, None, Some(t2));
-                self.path[i] = PathElement::Stop(bbox);
+                bbox = Some(bbox.unwrap().expand_along_trjs(trjs, None, Some(t2)));
             } else if i == last_idx {
                 let mut trj = self.path[i - 1].copy_trj().unwrap();
                 trj.reverse();
                 let trjs = vec![trj];
                 let t1 = self.path[i - 2].copy_bbox().unwrap().t2;
-                let bbox = bbox
-                    .copy_bbox()
-                    .unwrap()
-                    .expand_along_trjs(trjs, Some(t1), None);
-                self.path[i] = PathElement::Stop(bbox);
+                bbox = Some(bbox.unwrap().expand_along_trjs(trjs, Some(t1), None));
             } else if i % 2 == 0 {
                 let mut trj = self.path[i - 1].copy_trj().unwrap();
                 trj.reverse();
@@ -78,10 +72,15 @@ impl Path {
                 let trjs = vec![trj, trj_2];
                 let t1 = self.path[i - 2].copy_bbox().unwrap().t2;
                 let t2 = self.path[i + 2].copy_bbox().unwrap().t1;
-                let bbox = bbox
-                    .copy_bbox()
-                    .unwrap()
-                    .expand_along_trjs(trjs, Some(t1), Some(t2));
+                bbox = Some(bbox.unwrap().expand_along_trjs(trjs, Some(t1), Some(t2)));
+            }
+            if let Some(mut bbox) = bbox {
+                if (bbox.x2 - bbox.x1) + (bbox.y2 - bbox.y1) < 0.1 {
+                    bbox.x1 -= 1.0;
+                    bbox.x2 += 1.0;
+                    bbox.y1 -= 1.0;
+                    bbox.y2 += 1.0;
+                }
                 self.path[i] = PathElement::Stop(bbox);
             }
         }
