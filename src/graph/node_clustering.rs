@@ -7,17 +7,9 @@ use petgraph::EdgeDirection;
 use std::collections::HashMap;
 
 /// Cluster nodes if they are spatially overlapping.
-/// Clusters of size < 3 are put in an `outlier` graph
-/// Outlier nodes and related edges are removed from `graph`
-/// Returns clustering and outlier graph
-pub fn spatially_cluster_nodes(
-    graph: &mut DetourGraph,
-) -> (
-    Vec<Vec<NodeIndex>>,
-    StableDiGraph<(usize, Bbox), Vec<[f64; 3]>>,
-) {
-    let mut clustering = get_spatial_clustering(graph);
-    let outliers = remove_outliers(graph, &mut clustering);
+/// Returns clustering
+pub fn spatially_cluster_nodes(graph: &mut DetourGraph) -> Vec<Vec<NodeIndex>> {
+    let clustering = get_spatial_clustering(graph);
     let bboxs: Vec<(usize, Bbox)> = clustering
         .iter()
         .map(|cluster| get_minimal_bbox(graph, cluster))
@@ -72,17 +64,17 @@ pub fn spatially_cluster_nodes(
         );
         resize_bboxs(graph, bbox, &clustering[idx]);
     }
-    (clustering, outliers)
+    clustering
 }
 
 /// Determines the minimal bbox s.t. endpoints of all connected trjs fits inside
 fn get_minimal_bbox(graph: &mut DetourGraph, cluster: &[NodeIndex]) -> Bbox {
-    let bbox = graph.get_node_weight(cluster[0]);
+    let bbox = graph.get_node_bbox(cluster[0]);
     // Handle ingoing edges
     let bbox = cluster.iter().fold(bbox, |mut bbox, nx| {
         let edges = graph.edges_directed(*nx, EdgeDirection::Incoming);
         for ex in edges {
-            let trj = graph.edge_weight_mut(ex);
+            let trj = graph.edge_trj_mut(ex);
             let last_idx = trj.len() - 1;
             let point = trj[last_idx];
             bbox.insert_point(&point);
@@ -93,7 +85,7 @@ fn get_minimal_bbox(graph: &mut DetourGraph, cluster: &[NodeIndex]) -> Bbox {
     let bbox = cluster.iter().fold(bbox, |mut bbox, nx| {
         let edges = graph.edges_directed(*nx, EdgeDirection::Outgoing);
         for ex in edges {
-            let trj = graph.edge_weight_mut(ex);
+            let trj = graph.edge_trj_mut(ex);
             let point = trj[0];
             bbox.insert_point(&point);
         }
@@ -104,91 +96,13 @@ fn get_minimal_bbox(graph: &mut DetourGraph, cluster: &[NodeIndex]) -> Bbox {
 
 fn resize_bboxs(graph: &mut DetourGraph, bbox: Bbox, cluster: &[NodeIndex]) {
     for nx in cluster {
-        let mut bbox_new = graph.get_node_weight(*nx);
+        let mut bbox_new = graph.get_node_bbox(*nx);
         bbox_new.x1 = bbox.x1;
         bbox_new.y1 = bbox.y1;
         bbox_new.x2 = bbox.x2;
         bbox_new.y2 = bbox.y2;
-        graph.set_node_weight(*nx, bbox_new);
+        graph.set_node_bbox(*nx, bbox_new);
     }
-}
-
-/// Constructs a graph of non-frequently visitied nodes, i.e. small clusters of size < 3.
-/// Removes the nodes in the small clusters from `graph` and stores them and their edges
-/// in an outlier list.
-/// Removes the small clusters from `clustering`.
-/// Returns a list of 'outlier'-nodes and edges.
-fn remove_outliers(
-    graph: &mut DetourGraph,
-    clustering: &mut Vec<Vec<NodeIndex>>,
-) -> StableDiGraph<(usize, Bbox), Vec<[f64; 3]>> {
-    // Initially, identify less frequently visited nodes and remove them from `clustering`
-    let mut rm_clusters = vec![];
-    for (cluster_idx, cluster) in clustering.iter().enumerate() {
-        if cluster.len() < 3 {
-            rm_clusters.push(cluster_idx);
-        }
-    }
-    rm_clusters.reverse();
-    let mut outlier_nodes = vec![];
-    for cluster_idx in rm_clusters {
-        for nx in clustering[cluster_idx].iter() {
-            outlier_nodes.push(*nx);
-        }
-        clustering.remove(cluster_idx);
-    }
-
-    // Construct the outlier graph
-    // we include some nodes that are not outliers
-    // s.t. we can store the edges leading to/from the outlier nodes.
-    let mut outlier_graph: StableDiGraph<(usize, Bbox), Vec<[f64; 3]>> = StableDiGraph::new();
-    // We use a mapping to keep track of inserted nodes and avoid duplicate inserts.
-    let mut nx_map: HashMap<NodeIndex, NodeIndex> = HashMap::new();
-    let old_graph = graph.get_graph();
-    for nx in outlier_nodes.iter() {
-        let nx = if !nx_map.contains_key(nx) {
-            let bbox = old_graph[*nx];
-            let new_nx = outlier_graph.add_node((0, bbox));
-            nx_map.insert(*nx, new_nx);
-            new_nx
-        } else {
-            *nx_map.get(nx).unwrap()
-        };
-        // Insert incoming edges
-        for edge in old_graph.edges_directed(nx, EdgeDirection::Incoming) {
-            let trj = edge.weight().clone();
-            let source = if !nx_map.contains_key(&edge.source()) {
-                let bbox = old_graph[edge.source()];
-                let new_nx = outlier_graph.add_node((1, bbox));
-                nx_map.insert(edge.source(), new_nx);
-                new_nx
-            } else {
-                *nx_map.get(&edge.source()).unwrap()
-            };
-            outlier_graph.add_edge(source, nx, trj);
-        }
-        // Insert outgoing edges
-        for edge in old_graph.edges_directed(nx, EdgeDirection::Outgoing) {
-            let trj = edge.weight().clone();
-            let target = if !nx_map.contains_key(&edge.target()) {
-                let bbox = old_graph[edge.target()];
-                let new_nx = outlier_graph.add_node((1, bbox));
-                nx_map.insert(edge.target(), new_nx);
-                new_nx
-            } else {
-                *nx_map.get(&edge.target()).unwrap()
-            };
-            outlier_graph.add_edge(nx, target, trj);
-        }
-    }
-
-    // Remove outliers from the old graph.
-    for nx in outlier_nodes {
-        graph.remove_node(nx);
-    }
-    // Update STATS. TODO: Should also include amount of outliers.
-    STATS.lock().unwrap().spatial_clusters = clustering.len();
-    outlier_graph
 }
 
 /// Cluster nodes spatially
@@ -199,7 +113,7 @@ pub fn get_spatial_clustering(graph: &DetourGraph) -> Vec<Vec<NodeIndex>> {
     // If two boxes overlaps their union form the representative for the new cluster.
     let mut clustering: Vec<(Vec<NodeIndex>, Bbox)> = graph
         .node_indices()
-        .map(|nx| (vec![nx], graph.get_node_weight(nx)))
+        .map(|nx| (vec![nx], graph.get_node_bbox(nx)))
         .collect();
     let mut clusters_merged = true;
     while clusters_merged {

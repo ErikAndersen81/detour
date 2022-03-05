@@ -19,33 +19,41 @@ pub fn get_graph(streams: Vec<Vec<[f64; 3]>>) -> DetourGraph {
         .flat_map(|stream| get_paths(stream, &mut path_stats))
         .filter(|path| path.len() > 1)
         .for_each(|path| graph.add_path(path));
+    println!(
+        "\nTotal edges in graph before merge: {}",
+        graph.edge_weights().len()
+    );
     merge_nodes(&mut graph);
+    println!(
+        "\nTotal edges in graph after merge: {}",
+        graph.edge_weights().len()
+    );
     merge_edges(graph.get_mut_graph());
     println!("Path builder stats:\n{}", path_stats);
     graph
 }
 
 fn merge_nodes(graph: &mut DetourGraph) {
-    let (node_clustering, outlier_graph) = spatially_cluster_nodes(graph);
-    graph.set_outlier_graph(outlier_graph);
+    let node_clustering = spatially_cluster_nodes(graph);
     // calculate a cluster representative for each cluster
-    let representatives: Vec<Bbox> = node_clustering
+    let representatives: Vec<(u32, Bbox)> = node_clustering
         .iter()
         .map(|cluster| {
-            let bbox = graph.get_graph()[cluster[0]];
-            Bbox {
+            let (weight, bbox) = (cluster.len() as u32, graph.get_graph()[cluster[0]].1);
+            let bbox = Bbox {
                 x1: bbox.x1,
                 x2: bbox.x2,
                 y1: bbox.y1,
                 y2: bbox.y2,
                 t1: 0.0,                          // Time starts at 0.0
                 t2: (24 * 60 * 60 * 1000) as f64, // We always have 24*60*60*1000 ms in a 24 hour span
-            }
+            };
+            (weight, bbox)
         })
         .collect();
 
     // Construct a new graph with cluster representatives.
-    let mut new_graph: StableDiGraph<Bbox, Vec<[f64; 3]>> = StableDiGraph::new();
+    let mut new_graph: StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)> = StableDiGraph::new();
     let representatives: Vec<NodeIndex> = representatives
         .iter()
         .map(|bbox| new_graph.add_node(*bbox))
@@ -53,22 +61,24 @@ fn merge_nodes(graph: &mut DetourGraph) {
 
     // Add edges to the cluster representatives
     graph.edge_weights().into_iter().for_each(|edge| {
-        let start_point = edge[0];
-        let end_point = edge[edge.len() - 1];
+        let start_point = edge.1[0];
+        let end_point = edge.1[edge.1.len() - 1];
         let mut start_node = None;
         let mut end_node = None;
         for nx in representatives.iter() {
-            if new_graph[*nx].contains_point(&start_point) {
-                start_node = Some(*nx)
+            if new_graph[*nx].1.contains_point(&start_point) {
+                start_node = Some(*nx);
+                break;
             }
         }
         for nx in representatives.iter() {
-            if new_graph[*nx].contains_point(&end_point) {
-                end_node = Some(*nx)
+            if new_graph[*nx].1.contains_point(&end_point) {
+                end_node = Some(*nx);
+                break;
             }
         }
         if let (Some(a), Some(b)) = (start_node, end_node) {
-            new_graph.add_edge(a, b, edge.clone());
+            new_graph.add_edge(a, b, (1, edge.1.clone()));
         }
     });
 
@@ -78,25 +88,24 @@ fn merge_nodes(graph: &mut DetourGraph) {
 
     for nx in new_graph.node_indices() {
         // calculate required splits
-        let mut edges: Vec<Vec<[f64; 3]>> = new_graph
+        let mut edges: Vec<(u32, Vec<[f64; 3]>)> = new_graph
             .edges_directed(nx, EdgeDirection::Incoming)
             .map(|edge| edge.weight().clone())
             .collect();
-        let mut outgoing: Vec<Vec<[f64; 3]>> = new_graph
+        let mut outgoing: Vec<(u32, Vec<[f64; 3]>)> = new_graph
             .edges_directed(nx, EdgeDirection::Outgoing)
             .map(|edge| edge.weight().clone())
             .collect();
         edges.append(&mut outgoing);
         let splits = get_temporal_splits(edges);
-        // MAYBE TODO! use `original` splits i.e. given by bboxs of the cluster, instead
         required_splits.push((nx, splits));
     }
 
     for (split_node, splits) in required_splits {
         // Split bbox at splits and add the new nodes
-        let nodes: Vec<NodeIndex> = split_bbox(new_graph[split_node], &splits)
+        let nodes: Vec<NodeIndex> = split_bbox(new_graph[split_node].1, &splits)
             .into_iter()
-            .map(|bbox| new_graph.add_node(bbox))
+            .map(|bbox| new_graph.add_node((new_graph[split_node].0, bbox)))
             .collect();
         reassign_edges(&mut new_graph, split_node, &nodes, EdgeDirection::Outgoing);
         reassign_edges(&mut new_graph, split_node, &nodes, EdgeDirection::Incoming);
@@ -140,25 +149,27 @@ fn merge_nodes(graph: &mut DetourGraph) {
 }
 
 fn reassign_edges(
-    graph: &mut StableDiGraph<Bbox, Vec<[f64; 3]>>,
+    graph: &mut StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>,
     split_node: NodeIndex,
     nodes: &[NodeIndex],
     direction: EdgeDirection,
 ) {
+    let mut rm_edge_idx = vec![];
     let edges = match direction {
         EdgeDirection::Outgoing => {
             let mut edges = vec![];
             for edge in graph.edges_directed(split_node, direction) {
+                rm_edge_idx.push(edge.id());
                 let trj = edge.weight().clone();
-                let start_point = trj[0];
+                let start_point = trj.1[0];
                 let target = if edge.target() != split_node {
                     edge.target()
                 } else {
                     // The edge goes from split_node to split node, so we need to handle this
                     let mut target = None;
-                    let end_point = trj[trj.len() - 1];
+                    let end_point = trj.1[trj.1.len() - 1];
                     for node in nodes {
-                        if graph[*node].is_in_temporal(&end_point) {
+                        if graph[*node].1.is_in_temporal(&end_point) {
                             target = Some(*node);
                         }
                     }
@@ -169,7 +180,7 @@ fn reassign_edges(
                     }
                 };
                 for node in nodes {
-                    if graph[*node].is_in_temporal(&start_point) {
+                    if graph[*node].1.is_in_temporal(&start_point) {
                         edges.push((*node, target, trj));
                         break;
                     }
@@ -180,16 +191,17 @@ fn reassign_edges(
         EdgeDirection::Incoming => {
             let mut edges = vec![];
             for edge in graph.edges_directed(split_node, direction) {
+                rm_edge_idx.push(edge.id());
                 let trj = edge.weight().clone();
-                let end_point = trj[trj.len() - 1];
+                let end_point = trj.1[trj.1.len() - 1];
                 let source = if edge.source() != split_node {
                     edge.source()
                 } else {
                     // edge from split_node to split_node
                     let mut source = None;
-                    let start_point = trj[0];
+                    let start_point = trj.1[0];
                     for node in nodes {
-                        if graph[*node].is_in_temporal(&start_point) {
+                        if graph[*node].1.is_in_temporal(&start_point) {
                             source = Some(*node);
                         }
                     }
@@ -200,7 +212,7 @@ fn reassign_edges(
                     }
                 };
                 for node in nodes {
-                    if graph[*node].is_in_temporal(&end_point) {
+                    if graph[*node].1.is_in_temporal(&end_point) {
                         edges.push((source, *node, trj));
                         break;
                     }
@@ -211,6 +223,9 @@ fn reassign_edges(
     };
     for (source, target, trj) in edges.into_iter() {
         graph.add_edge(source, target, trj);
+    }
+    for ex in rm_edge_idx {
+        graph.remove_edge(ex);
     }
 }
 
@@ -227,10 +242,10 @@ fn split_bbox(bbox: Bbox, splits: &[f64]) -> Vec<Bbox> {
 }
 
 /// Determines where the cluster representative bbox should split
-fn get_temporal_splits(trjs: Vec<Vec<[f64; 3]>>) -> Vec<f64> {
+fn get_temporal_splits(trjs: Vec<(u32, Vec<[f64; 3]>)>) -> Vec<f64> {
     let mut splits = vec![];
     let mut timestamps = vec![];
-    for (idx, trj) in trjs.iter().enumerate() {
+    for (idx, trj) in trjs.iter().map(|trj| trj.1.clone()).enumerate() {
         let (t1, t2) = (trj[0][2], trj[trj.len() - 1][2]);
         timestamps.push((idx, t1));
         timestamps.push((idx, t2));
