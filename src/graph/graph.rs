@@ -19,44 +19,34 @@ struct TimePairs {
 
 #[derive(Clone)]
 pub struct DetourGraph {
-    graph: StableDiGraph<Bbox, Vec<[f64; 3]>>,
+    graph: StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>,
     roots: Vec<NodeIndex>,
-    outliers: StableDiGraph<(usize, Bbox), Vec<[f64; 3]>>,
 }
 
 impl DetourGraph {
     pub fn new() -> DetourGraph {
-        let graph: StableDiGraph<Bbox, Vec<[f64; 3]>> = StableDiGraph::new();
-        let outliers: StableDiGraph<(usize, Bbox), Vec<[f64; 3]>> = StableDiGraph::new();
+        let graph: StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)> = StableDiGraph::new();
         DetourGraph {
             graph,
             roots: vec![],
-            outliers,
         }
     }
 
     pub fn set_graph(
         &mut self,
-        new_graph: StableDiGraph<Bbox, Vec<[f64; 3]>>,
+        new_graph: StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>,
         root_nodes: Vec<NodeIndex>,
     ) {
         self.roots = root_nodes;
         self.graph = new_graph;
     }
 
-    pub fn get_mut_graph(&mut self) -> &mut StableDiGraph<Bbox, Vec<[f64; 3]>> {
+    pub fn get_mut_graph(&mut self) -> &mut StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)> {
         &mut self.graph
     }
 
-    pub fn get_graph(&self) -> &StableDiGraph<Bbox, Vec<[f64; 3]>> {
+    pub fn get_graph(&self) -> &StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)> {
         &self.graph
-    }
-
-    pub fn set_outlier_graph(
-        &mut self,
-        outlier_graph: StableDiGraph<(usize, Bbox), Vec<[f64; 3]>>,
-    ) {
-        self.outliers = outlier_graph;
     }
 
     /// Writes the graph to the output folder.
@@ -87,65 +77,23 @@ impl DetourGraph {
         let mut f = File::create("graph.json")?;
         f.write_all(serialized.as_bytes())?;
 
-        // Store the outlier graph in graphviz format
-        let dot = Dot::with_config(
-            &self.outliers,
-            &[
-                petgraph::dot::Config::NodeIndexLabel,
-                petgraph::dot::Config::EdgeIndexLabel,
-            ],
-        );
-        let f = File::create("outlier_graph.dot")?;
-        let mut f = BufWriter::new(f);
-        writeln!(f, "{:?}", dot)?;
-
-        // Write the outlier graph in json format
-        let serialized = serde_json::to_string(&self.outliers)?;
-        let mut f = File::create("outlier_graph.json")?;
-        f.write_all(serialized.as_bytes())?;
-
         // Write a single csv file with bounding boxes
         let nodes = self
             .graph
             .node_indices()
-            .map(|nx| format!("{},{}", nx.index(), self.graph[nx]))
+            .map(|nx| format!("{},{},{}", nx.index(), self.graph[nx].0, self.graph[nx].1))
             .join("");
-        let nodes = format!("label,x1,y1,t1,x2,y2,t2\n{}", nodes);
+        let nodes = format!("label,weight,x1,y1,t1,x2,y2,t2\n{}", nodes);
         let f = File::create("nodes.csv")?;
         let mut f = BufWriter::new(f);
         writeln!(f, "{}", nodes)?;
 
         // Write each trajectory to a separate csv file.
         for (i, edge) in self.graph.edge_references().enumerate() {
-            let f = File::create(format!("edge_{}.csv", i))?;
+            let f = File::create(format!("edge_{}_{}.csv", i, edge.weight().0))?;
             let trj = edge
                 .weight()
-                .iter()
-                .map(|[x, y, t]| {
-                    let [x, y, t] = crate::from_epsg_3857_to_4326(&[*x, *y, *t]);
-                    format!("{},{},{}", x, y, t)
-                })
-                .join("\n");
-            let mut f = BufWriter::new(f);
-            write!(f, "x,y,t\n{}", trj)?;
-        }
-
-        // Write a single csv file with outlier bounding boxes
-        let nodes = self
-            .outliers
-            .node_indices()
-            .map(|nx| format!("{},{}", nx.index(), self.outliers[nx].1))
-            .join("");
-        let nodes = format!("label,x1,y1,t1,x2,y2,t2\n{}", nodes);
-        let f = File::create("outlier_nodes.csv")?;
-        let mut f = BufWriter::new(f);
-        writeln!(f, "{}", nodes)?;
-
-        // Write each outlier trajectory to a separate csv file.
-        for (i, edge) in self.outliers.edge_references().enumerate() {
-            let f = File::create(format!("outlier_edge_{}.csv", i))?;
-            let trj = edge
-                .weight()
+                .1
                 .iter()
                 .map(|[x, y, t]| {
                     let [x, y, t] = crate::from_epsg_3857_to_4326(&[*x, *y, *t]);
@@ -197,21 +145,31 @@ impl DetourGraph {
     }
 
     /// Allows iteration over nodes.
-    pub fn node_indices(&self) -> petgraph::stable_graph::NodeIndices<Bbox> {
+    pub fn node_indices(&self) -> petgraph::stable_graph::NodeIndices<(u32, Bbox)> {
         self.graph.node_indices()
     }
 
     /// Allows iteration over edge weights.
-    pub fn edge_weights(&self) -> Vec<&Vec<[f64; 3]>> {
-        self.graph.edge_weights().collect::<Vec<&Vec<[f64; 3]>>>()
+    pub fn edge_weights(&self) -> Vec<&(u32, Vec<[f64; 3]>)> {
+        self.graph
+            .edge_weights()
+            .collect::<Vec<&(u32, Vec<[f64; 3]>)>>()
     }
 
-    pub fn get_node_weight(&self, nx: NodeIndex) -> Bbox {
-        self.graph[nx]
+    pub fn get_node_bbox(&self, nx: NodeIndex) -> Bbox {
+        self.graph[nx].1
     }
 
-    pub fn set_node_weight(&mut self, nx: NodeIndex, bbox: Bbox) {
-        self.graph[nx] = bbox;
+    pub fn get_node_weight(&self, nx: NodeIndex) -> u32 {
+        self.graph[nx].0
+    }
+
+    pub fn set_node_bbox(&mut self, nx: NodeIndex, bbox: Bbox) {
+        self.graph[nx].1 = bbox;
+    }
+
+    pub fn set_node_weight(&mut self, nx: NodeIndex, weight: u32) {
+        self.graph[nx].0 = weight;
     }
 
     pub fn edges_directed(&self, nx: NodeIndex, dir: EdgeDirection) -> Vec<EdgeIndex> {
@@ -221,8 +179,12 @@ impl DetourGraph {
             .collect_vec()
     }
 
-    pub fn edge_weight_mut(&mut self, ex: EdgeIndex) -> &mut Vec<[f64; 3]> {
-        self.graph.edge_weight_mut(ex).unwrap()
+    pub fn edge_trj_mut(&mut self, ex: EdgeIndex) -> &mut Vec<[f64; 3]> {
+        &mut self.graph.edge_weight_mut(ex).unwrap().1
+    }
+
+    pub fn set_edge_weight(&mut self, ex: EdgeIndex, weight: u32) {
+        self.graph.edge_weight_mut(ex).unwrap().0 = weight;
     }
 
     fn verify_constraints(&self) -> bool {
@@ -278,12 +240,12 @@ impl DetourGraph {
     fn verify_temporal_monotonicity(&self) -> bool {
         depth_first_search(&self.graph, self.roots.clone(), |event| match event {
             DfsEvent::TreeEdge(a, b) => {
-                let b_start_time = self.graph[b].t1;
+                let b_start_time = self.graph[b].1.t1;
                 let edges_starting_after_b = self
                     .graph
                     .edges_directed(a, EdgeDirection::Outgoing)
                     .filter(|edge| edge.target() == b)
-                    .map(|edge| edge.weight()[0][2])
+                    .map(|edge| edge.weight().1[0][2])
                     .filter(|t| *t >= b_start_time)
                     .count();
 
@@ -303,7 +265,7 @@ impl DetourGraph {
 
     fn root_reachable(&self, target: NodeIndex) -> bool {
         let roots = self.roots.clone();
-        let bbox = &self.graph[target];
+        let bbox = &self.graph[target].1;
         let result = depth_first_search(&self.graph, roots, |event| match event {
             DfsEvent::Discover(nx, _) => {
                 if target == nx {
@@ -313,7 +275,7 @@ impl DetourGraph {
                 }
             }
             DfsEvent::TreeEdge(_, nx) => {
-                if bbox.is_before(&self.graph[nx]) {
+                if bbox.is_before(&self.graph[nx].1) {
                     Control::Prune
                 } else {
                     Control::Continue
@@ -326,11 +288,11 @@ impl DetourGraph {
 
     pub fn add_path(&mut self, mut path: Path) {
         let bbox = path.remove_first().copy_bbox().unwrap();
-        let mut a: NodeIndex = self.graph.add_node(bbox);
+        let mut a: NodeIndex = self.graph.add_node((1, bbox));
         self.roots.push(a);
         while let Some((trj, bbox)) = path.next_trj_stop() {
-            let b = self.graph.add_node(bbox);
-            self.graph.add_edge(a, b, trj);
+            let b = self.graph.add_node((1, bbox));
+            self.graph.add_edge(a, b, (1, trj));
             a = b;
         }
         assert!(self.verify_constraints(), "Invalid graph structure!");
