@@ -50,6 +50,7 @@ pub fn merge(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> Vec<[f64; 3]> {
     let (trj_a, trj_b) = align_start_time(trj_a, trj_b);
     let (trj_a, trj_b) = morph_to_fit(&trj_a, &trj_b);
     let trj = average(&trj_a, &trj_b);
+    assert!(trj.is_monotone());
     visvalingam(&trj, CONFIG.visvalingam_threshold)
 }
 
@@ -157,11 +158,11 @@ fn morph_to_fit(trj_a: &[[f64; 3]], trj_b: &[[f64; 3]]) -> (Vec<[f64; 3]>, Vec<[
     let factor_b = delta_b / (delta_a + dt);
     let trj_a = trj_a
         .iter()
-        .map(|[x, y, t]| [*x, *y, (*t - trj_a[0][2]) / factor_a])
+        .map(|[x, y, t]| [*x, *y, ((*t - trj_a[0][2]) / factor_a) + trj_a[0][2]])
         .collect::<Vec<[f64; 3]>>();
     let trj_b = trj_b
         .iter()
-        .map(|[x, y, t]| [*x, *y, (*t - trj_b[0][2]) / factor_b])
+        .map(|[x, y, t]| [*x, *y, ((*t - trj_b[0][2]) / factor_b) + trj_b[0][2]])
         .collect::<Vec<[f64; 3]>>();
     // Ensure timespans end at exactly the same timestamp
     let (idx_a, idx_b) = (trj_a.len() - 1, trj_b.len() - 1);

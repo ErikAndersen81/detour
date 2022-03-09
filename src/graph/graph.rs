@@ -17,35 +17,33 @@ struct TimePairs {
     b: bool,
 }
 
+type Graph = StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>;
+
 #[derive(Clone)]
 pub struct DetourGraph {
-    graph: StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>,
+    graph: Graph,
     roots: Vec<NodeIndex>,
 }
 
 impl DetourGraph {
     pub fn new() -> DetourGraph {
-        let graph: StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)> = StableDiGraph::new();
+        let graph: Graph = StableDiGraph::new();
         DetourGraph {
             graph,
             roots: vec![],
         }
     }
 
-    pub fn set_graph(
-        &mut self,
-        new_graph: StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>,
-        root_nodes: Vec<NodeIndex>,
-    ) {
+    pub fn set_graph(&mut self, new_graph: Graph, root_nodes: Vec<NodeIndex>) {
         self.roots = root_nodes;
         self.graph = new_graph;
     }
 
-    pub fn get_mut_graph(&mut self) -> &mut StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)> {
+    pub fn get_mut_graph(&mut self) -> &mut Graph {
         &mut self.graph
     }
 
-    pub fn get_graph(&self) -> &StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)> {
+    pub fn get_graph(&self) -> &Graph {
         &self.graph
     }
 
@@ -59,35 +57,35 @@ impl DetourGraph {
     /// - Information about splits and merges of nodes/edges are stored in `STATS`.
     /// - Configuration is written to `config` for reference purposes.
     pub fn to_csv(&self) -> Result<()> {
-        println!("Writing data...");
-        // Store the graph in graphviz format
-        let dot = Dot::with_config(
-            &self.graph,
-            &[
-                petgraph::dot::Config::NodeIndexLabel,
-                petgraph::dot::Config::EdgeIndexLabel,
-            ],
-        );
-        let f = File::create("graph.dot")?;
-        let mut f = BufWriter::new(f);
-        writeln!(f, "{:?}", dot)?;
+        // //println!("Writing data...");
+        // // Store the graph in graphviz format
+        // let dot = Dot::with_config(
+        //     &self.graph,
+        //     &[
+        //         petgraph::dot::Config::NodeIndexLabel,
+        //         petgraph::dot::Config::EdgeIndexLabel,
+        //     ],
+        // );
+        // let f = File::create("graph.dot")?;
+        // let mut f = BufWriter::new(f);
+        // writeln!(f, "{:?}", dot)?;
 
         // Store the graph in json format
         let serialized = serde_json::to_string(&self.graph)?;
         let mut f = File::create("graph.json")?;
         f.write_all(serialized.as_bytes())?;
 
-        // Write a single csv file with bounding boxes
-        let nodes = self
-            .graph
-            .node_indices()
-            .map(|nx| format!("{},{},{}", nx.index(), self.graph[nx].0, self.graph[nx].1))
-            .join("");
-        let nodes = format!("label,weight,x1,y1,t1,x2,y2,t2\n{}", nodes);
-        let f = File::create("nodes.csv")?;
-        let mut f = BufWriter::new(f);
-        writeln!(f, "{}", nodes)?;
-
+        // // Write a single csv file with bounding boxes
+        // let nodes = self
+        //     .graph
+        //     .node_indices()
+        //     .map(|nx| format!("{},{},{}", nx.index(), self.graph[nx].0, self.graph[nx].1))
+        //     .join("");
+        // let nodes = format!("label,weight,x1,y1,t1,x2,y2,t2\n{}", nodes);
+        // let f = File::create("nodes.csv")?;
+        // let mut f = BufWriter::new(f);
+        // writeln!(f, "{}", nodes)?;
+        println!("Writing {} edges", self.graph.edge_count());
         // Write each trajectory to a separate csv file.
         for (i, edge) in self.graph.edge_references().enumerate() {
             let f = File::create(format!("edge_{}_{}.csv", i, edge.weight().0))?;
@@ -104,26 +102,26 @@ impl DetourGraph {
             write!(f, "x,y,t\n{}", trj)?;
         }
 
-        // Write indices of root nodes.
-        let roots = self
-            .roots
-            .iter()
-            .map(|nx| format!("{}", nx.index()))
-            .join(",");
-        let f = File::create("roots.csv")?;
-        let mut f = BufWriter::new(f);
-        write!(f, "{}", roots)?;
+        // // Write indices of root nodes.
+        // let roots = self
+        //     .roots
+        //     .iter()
+        //     .map(|nx| format!("{}", nx.index()))
+        //     .join(",");
+        // let f = File::create("roots.csv")?;
+        // let mut f = BufWriter::new(f);
+        // write!(f, "{}", roots)?;
 
-        // Write Statistics
-        println!("Storing stats:\n{:?}", *STATS.lock().unwrap());
-        let f = File::create("stats")?;
-        let mut f = BufWriter::new(f);
-        write!(f, "{:?}", *STATS)?;
+        // // Write Statistics
+        // println!("Storing stats:\n{:?}", *STATS.lock().unwrap());
+        // let f = File::create("stats")?;
+        // let mut f = BufWriter::new(f);
+        // write!(f, "{:?}", *STATS)?;
 
-        // Write Configuration
-        let f = File::create("config")?;
-        let mut f = BufWriter::new(f);
-        write!(f, "{}", *CONFIG)?;
+        // // Write Configuration
+        // let f = File::create("config")?;
+        // let mut f = BufWriter::new(f);
+        // write!(f, "{}", *CONFIG)?;
         Ok(())
     }
 
@@ -291,6 +289,9 @@ impl DetourGraph {
         let mut a: NodeIndex = self.graph.add_node((1, bbox));
         self.roots.push(a);
         while let Some((trj, bbox)) = path.next_trj_stop() {
+            if trj[0][0].eq(&0.0) {
+                println!("add_path: trj with first point at t:{}", trj[0][0]);
+            }
             let b = self.graph.add_node((1, bbox));
             self.graph.add_edge(a, b, (1, trj));
             a = b;

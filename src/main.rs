@@ -58,7 +58,7 @@ fn main() {
     buf_reader
         .read_to_string(&mut contents)
         .expect("can't read from stdin");
-    println!("Parsing input...");
+    //println!("Parsing input...");
     let daily_streams: Vec<Vec<[f64; 3]>> = parser::parse(contents)
         .into_iter()
         .filter(|day| !day.is_empty())
@@ -67,7 +67,7 @@ fn main() {
             CHFilter::new(CONFIG.window_size, stream.into_iter()).collect::<Vec<[f64; 3]>>()
         })
         .collect();
-    println!("Constructing graph...");
+    //println!("Constructing graph...");
     let graph = get_graph(daily_streams);
     graph.to_csv().expect("Could not write output.");
 }

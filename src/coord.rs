@@ -24,5 +24,6 @@ pub fn from_epsg_3857_to_4326(pt: &[f64; 3]) -> [f64; 3] {
     let d = -pt[1] / RADIUS;
     let lat = PI / 2.0 - 2.0 * (E.powf(d)).atan();
     let lon = pt[0] / RADIUS;
-    [lat * DEG, lon * DEG, pt[2]]
+    let t = pt[2];
+    [lat * DEG, lon * DEG, t]
 }

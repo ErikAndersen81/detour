@@ -1,13 +1,14 @@
-use petgraph::visit::EdgeRef;
-
 use super::{merge_edges, path_builder::get_paths, DetourGraph, PathBuilderStats};
 use crate::graph::node_clustering::spatially_cluster_nodes;
 use crate::utility::Bbox;
 use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
+use petgraph::visit::EdgeRef;
 use petgraph::EdgeDirection;
 use std::collections::HashSet;
+
+type Graph = StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>;
 
 /// Constructs the graph
 /// Handles spatial node clustering, edge clustering and detecting less frequently visited places.
@@ -19,17 +20,8 @@ pub fn get_graph(streams: Vec<Vec<[f64; 3]>>) -> DetourGraph {
         .flat_map(|stream| get_paths(stream, &mut path_stats))
         .filter(|path| path.len() > 1)
         .for_each(|path| graph.add_path(path));
-    println!(
-        "\nTotal edges in graph before merge: {}",
-        graph.edge_weights().len()
-    );
     merge_nodes(&mut graph);
-    println!(
-        "\nTotal edges in graph after merge: {}",
-        graph.edge_weights().len()
-    );
     merge_edges(graph.get_mut_graph());
-    println!("Path builder stats:\n{}", path_stats);
     graph
 }
 
@@ -53,7 +45,7 @@ fn merge_nodes(graph: &mut DetourGraph) {
         .collect();
 
     // Construct a new graph with cluster representatives.
-    let mut new_graph: StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)> = StableDiGraph::new();
+    let mut new_graph: Graph = StableDiGraph::new();
     let representatives: Vec<NodeIndex> = representatives
         .iter()
         .map(|bbox| new_graph.add_node(*bbox))
@@ -82,10 +74,11 @@ fn merge_nodes(graph: &mut DetourGraph) {
         }
     });
 
+    //merge_edges(&mut new_graph);
+
     // Try to find suitable temporal split values for each node cluster
     // based on start and end times of trajectories connecting them.
     let mut required_splits = vec![];
-
     for nx in new_graph.node_indices() {
         // calculate required splits
         let mut edges: Vec<(u32, Vec<[f64; 3]>)> = new_graph
@@ -100,7 +93,6 @@ fn merge_nodes(graph: &mut DetourGraph) {
         let splits = get_temporal_splits(edges);
         required_splits.push((nx, splits));
     }
-
     for (split_node, splits) in required_splits {
         // Split bbox at splits and add the new nodes
         let nodes: Vec<NodeIndex> = split_bbox(new_graph[split_node].1, &splits)
@@ -149,7 +141,7 @@ fn merge_nodes(graph: &mut DetourGraph) {
 }
 
 fn reassign_edges(
-    graph: &mut StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>,
+    graph: &mut Graph,
     split_node: NodeIndex,
     nodes: &[NodeIndex],
     direction: EdgeDirection,
