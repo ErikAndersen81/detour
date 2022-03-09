@@ -10,9 +10,11 @@ pub struct Clustering {
 }
 
 impl Clustering {
+    /// Agglomerative clustering
+    /// The cluster distance is determined by the minimum distance of two elements from separate clusters.
+    /// Initially, each element is considered a cluster containing only the element.
+    /// Clusters are merged bottom up until the distance of all clusters exceeds the `threshold`.
     pub fn new(distance_matrix: Vec<Vec<f64>>, threshold: f64) -> Self {
-        // Initially each index belongs to its own cluster
-        // we then merge clusters bottom up
         let mut clusters: Vec<HashSet<MatrixIdx>> = vec![];
         for (idx, _) in distance_matrix.iter().enumerate() {
             let mut set = HashSet::new();
@@ -24,32 +26,48 @@ impl Clustering {
             clusters,
             threshold,
         };
+        c.prep_distance_matrix();
         c.partition();
         c
     }
 
-    fn partition(&mut self) {
-        let n: MatrixIdx = self.distance_matrix.len();
-        for a in 0..n {
-            for b in (a + 1)..n {
-                let dist = self.distance_matrix[a][b];
-                let a: ClusterIdx = self.get_cluster_idx(a);
-                let b: ClusterIdx = self.get_cluster_idx(b);
-                if dist < self.threshold {
-                    self.merge_clusters(a, b);
-                }
+    fn cluster_distance(&self, a: ClusterIdx, b: ClusterIdx) -> f64 {
+        let elements_a: Vec<MatrixIdx> = self.clusters[a].iter().copied().collect();
+        let elements_b: Vec<MatrixIdx> = self.clusters[b].iter().copied().collect();
+        let mut dist = f64::INFINITY;
+        for a in elements_a {
+            for b in elements_b.iter() {
+                dist = dist.min(self.distance_matrix[a][*b]);
             }
+        }
+        dist
+    }
+
+    /// We don't want to merge clusters with themselves, so we set internal distance to infinite.
+    fn prep_distance_matrix(&mut self) {
+        let n: MatrixIdx = self.distance_matrix.len();
+        for i in 0..n {
+            self.distance_matrix[i][i] = f64::INFINITY;
         }
     }
 
-    /// Returns index of cluster containing `distance_matrix` index.
-    fn get_cluster_idx(&mut self, value: MatrixIdx) -> ClusterIdx {
-        for (idx, cluster) in self.clusters.iter().enumerate() {
-            if cluster.contains(&value) {
-                return idx;
+    fn partition(&mut self) {
+        let mut merging = true;
+        while merging {
+            merging = false;
+            let n: MatrixIdx = self.clusters.len();
+            'outer: for a in 0..n {
+                for b in (a + 1)..n {
+                    let dist = self.cluster_distance(a, b);
+                    if dist < self.threshold {
+                        self.merge_clusters(a, b);
+
+                        merging = true;
+                        break 'outer;
+                    }
+                }
             }
         }
-        panic!("Should already have its own cluster!!");
     }
 
     fn merge_clusters(&mut self, a: ClusterIdx, b: ClusterIdx) {

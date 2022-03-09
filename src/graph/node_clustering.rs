@@ -28,17 +28,17 @@ pub fn spatially_cluster_nodes(graph: &mut DetourGraph) -> Vec<Vec<NodeIndex>> {
             cluster, start, end, dim, coord, size,
         )
     }
-    println!(
-        "{}",
-        format_cluster(
-            "Cluster",
-            "Start",
-            "End",
-            "Dimensions",
-            "Coordinate",
-            "Size"
-        )
-    );
+    // println!(
+    //     "{}",
+    //     format_cluster(
+    //         "Cluster",
+    //         "Start",
+    //         "End",
+    //         "Dimensions",
+    //         "Coordinate",
+    //         "Size"
+    //     )
+    // );
     for (idx, bbox) in bboxs {
         let start_h: i32 = (bbox.t1 / (1000.0 * 60.0 * 60.0)).floor() as i32;
         let start_m: i32 = ((bbox.t1 % (1000.0 * 60.0 * 60.0)) / (1000.0 * 60.0)).floor() as i32;
@@ -51,17 +51,17 @@ pub fn spatially_cluster_nodes(graph: &mut DetourGraph) -> Vec<Vec<NodeIndex>> {
         let endtime = format!("{:02}:{:02}:{:02}", end_h, end_m, end_s);
         let dimensions = format!("{:.2}m x {:.2}m", bbox.x2 - bbox.x1, bbox.y2 - bbox.y1);
         let coord = format!("{:.7},{:.7}", coord[0], coord[1]);
-        println!(
-            "{}",
-            format_cluster(
-                (idx + 1).to_string().as_str(),
-                &starttime,
-                &endtime,
-                &dimensions,
-                &coord,
-                (&clustering[idx].len()).to_string().as_str()
-            )
-        );
+        // println!(
+        //     "{}",
+        //     format_cluster(
+        //         (idx + 1).to_string().as_str(),
+        //         &starttime,
+        //         &endtime,
+        //         &dimensions,
+        //         &coord,
+        //         (&clustering[idx].len()).to_string().as_str()
+        //     )
+        // );
         resize_bboxs(graph, bbox, &clustering[idx]);
     }
     clustering

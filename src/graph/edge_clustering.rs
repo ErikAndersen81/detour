@@ -13,21 +13,14 @@ use trajectory_similarity::hausdorff;
 type EdgeClusters = Vec<Vec<EdgeIndex>>;
 
 pub fn merge_edges(graph: &mut StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>) {
-    println!("Total edge before: {}", graph.edge_count());
     let groups: Vec<((NodeIndex, NodeIndex), EdgeClusters)> = get_edge_groups(graph)
         .iter()
         .map(|((source, target), group)| {
             ((*source, *target), get_edge_group_clusters(graph, group))
         })
-        .filter(|(_, clustering)| clustering.len() > 1)
         .collect();
     for ((source, target), clustering) in groups {
         for cluster in clustering {
-            if cluster.len() < 2 {
-                println!("Cluster len < 2 (edge_clustering l 26)");
-                continue;
-            }
-            println!("edge clustering size: {}", cluster.len());
             let mut trjs: Vec<(u32, Vec<[f64; 3]>)> = cluster
                 .iter()
                 .map(|ex| graph.edge_weight(*ex).unwrap().clone())
@@ -57,10 +50,11 @@ fn get_edge_group_clusters(
         }
     }
     let clusters = Clustering::new(dists, CONFIG.max_hausdorff_meters).clusters;
-    clusters
+    let clusters = clusters
         .iter()
         .map(|c| c.iter().map(|idx| group[*idx]).collect::<Vec<EdgeIndex>>())
-        .collect::<EdgeClusters>()
+        .collect::<EdgeClusters>();
+    clusters
 }
 
 fn get_edge_groups(
@@ -80,12 +74,12 @@ fn get_edge_groups(
             });
     }
     let mut total = 0;
-    print!("group sizes: ");
     for group in groups.clone() {
-        print!("{}, ", group.1.len());
         total += group.1.len() as u32;
+        println!("group len: {}", group.1.len());
     }
-    println!("\nTotal: {}", total);
+    println!("Number of groups: {}", groups.len());
+    println!("Total edges in groups: {}", total);
     groups
 }
 
@@ -96,12 +90,9 @@ fn replace_edges(
     group: &[EdgeIndex],
     trj: (u32, Vec<[f64; 3]>),
 ) {
-    print!("Removing edges: ");
     group.iter().for_each(|ex| {
-        print!("{}, ", ex.index());
         graph.remove_edge(*ex);
     });
-    println!();
     // Simplify the trajectory to avoid an excessive amount of points.
     let simplified = crate::visvalingam(&trj.1, CONFIG.visvalingam_threshold);
     graph.add_edge(source, target, (trj.0, simplified));
