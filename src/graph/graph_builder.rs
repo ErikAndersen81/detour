@@ -1,3 +1,4 @@
+use super::set_edges_mediod_trjs;
 use super::{merge_edges, path_builder::get_paths, DetourGraph, PathBuilderStats};
 use crate::graph::node_clustering::spatially_cluster_nodes;
 use crate::utility::Bbox;
@@ -21,7 +22,8 @@ pub fn get_graph(streams: Vec<Vec<[f64; 3]>>) -> DetourGraph {
         .filter(|path| path.len() > 1)
         .for_each(|path| graph.add_path(path));
     merge_nodes(&mut graph);
-    merge_edges(graph.get_mut_graph());
+    //merge_edges(graph.get_mut_graph());
+    set_edges_mediod_trjs(graph.get_mut_graph());
     graph
 }
 
@@ -74,6 +76,7 @@ fn merge_nodes(graph: &mut DetourGraph) {
         }
     });
 
+    // We could try to move merge edges here instead of after merge_node
     //merge_edges(&mut new_graph);
 
     // Try to find suitable temporal split values for each node cluster

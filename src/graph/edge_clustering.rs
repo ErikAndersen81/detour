@@ -10,8 +10,37 @@ use petgraph::EdgeDirection;
 use std::collections::HashMap;
 use trajectory_similarity::hausdorff;
 
+use super::{get_mediod_trj, Graph};
+
 type EdgeClusters = Vec<Vec<EdgeIndex>>;
 
+/// Cluster the edges using Hausdorff similarity and insert a representative(mediod)
+/// trajectory for each cluster instead of the all of the original trajectories.
+pub fn set_edges_mediod_trjs(graph: &mut Graph) {
+    let groups: Vec<((NodeIndex, NodeIndex), EdgeClusters)> = get_edge_groups(graph)
+        .iter()
+        .map(|((source, target), group)| {
+            ((*source, *target), get_edge_group_clusters(graph, group))
+        })
+        .collect();
+    for ((source, target), clustering) in groups {
+        for cluster in clustering {
+            let weight = cluster.len() as u32;
+            let trj: Vec<[f64; 3]>;
+            {
+                let graph: &Graph = graph;
+                let mediod = get_mediod_trj(graph, &cluster);
+                let (_, mediod) = graph.edge_weight(mediod).unwrap();
+                trj = mediod.clone();
+            }
+            replace_edges(graph, source, target, &cluster, (weight, trj));
+        }
+    }
+}
+
+/// Merges the edges using interpolation.
+/// I.e. the average/mean position of the moving object at a given time
+/// according to the two trajectories.
 pub fn merge_edges(graph: &mut StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>) {
     let groups: Vec<((NodeIndex, NodeIndex), EdgeClusters)> = get_edge_groups(graph)
         .iter()
@@ -76,10 +105,7 @@ fn get_edge_groups(
     let mut total = 0;
     for group in groups.clone() {
         total += group.1.len() as u32;
-        println!("group len: {}", group.1.len());
     }
-    println!("Number of groups: {}", groups.len());
-    println!("Total edges in groups: {}", total);
     groups
 }
 
