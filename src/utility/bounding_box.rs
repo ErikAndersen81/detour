@@ -157,8 +157,8 @@ impl Bbox {
     }
 
     /// Returns the squared diameter of the bbox.
-    pub fn get_diameter(&self) -> f64 {
-        (self.x1 - self.x2).powi(2) + (self.y1 - self.y2).powi(2)
+    pub fn longest_side(&self) -> f64 {
+        (self.x1 - self.x2).max(self.y1 - self.y2)
     }
 
     /// Splits Bbox temporally at `t`.
@@ -250,8 +250,8 @@ impl Bbox {
                     (idx, expanded)
                 })
                 .min_by(|a, b| {
-                    a.1.get_diameter()
-                        .partial_cmp(&(b.1.get_diameter()))
+                    a.1.longest_side()
+                        .partial_cmp(&(b.1.longest_side()))
                         .unwrap()
                 })
             {
@@ -270,8 +270,10 @@ impl Bbox {
 
 impl Display for Bbox {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let [x1, y1, t1] = crate::from_epsg_3857_to_4326(&[self.x1, self.y1, self.t1]);
-        let [x2, y2, t2] = crate::from_epsg_3857_to_4326(&[self.x2, self.y2, self.t2]);
-        writeln!(f, "{},{},{},{},{},{}", x1, y1, t1, x2, y2, t2)
+        writeln!(
+            f,
+            "{},{},{},{},{},{}",
+            self.x1, self.y1, self.t1, self.x2, self.y2, self.t2
+        )
     }
 }

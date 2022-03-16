@@ -21,6 +21,7 @@ extern crate lazy_static;
 
 pub mod arguments;
 pub mod config;
+use arguments::Output;
 pub use config::Config;
 use std::{
     io::{BufReader, Read},
@@ -35,6 +36,10 @@ use crate::{graph::get_graph, utility::visvalingam};
 pub use coord::{from_epsg_3857_to_4326, from_epsg_4326_to_3857};
 lazy_static! {
     pub static ref CONFIG: Config = arguments::parse_arguments();
+}
+
+lazy_static! {
+    pub static ref OUTPUT: Mutex<Output> = Mutex::new(Output::default());
 }
 
 #[derive(Debug, Default, Clone)]
