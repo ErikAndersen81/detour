@@ -1,6 +1,7 @@
 use super::Path;
+use crate::utility::trajectory::Monotone;
 use crate::utility::Bbox;
-use crate::{CONFIG, STATS};
+use crate::{CONFIG, OUTPUT, STATS};
 use itertools::Itertools;
 use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
@@ -17,7 +18,7 @@ struct TimePairs {
     b: bool,
 }
 
-type Graph = StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>;
+pub type Graph = StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>;
 
 #[derive(Clone)]
 pub struct DetourGraph {
@@ -48,69 +49,61 @@ impl DetourGraph {
     }
 
     /// Writes the graph to the output folder.
-
-    /// The coordinates of node and edge weights, i.e., bounding boxes and trajectories respectively,
-    /// are stored in Web Mercator format.
-    ///
-    /// - A Visual representation are stored in `graph.dot` and `outlier_graph.dot` for the *regular graph* and the *outlier graph*, respectively.
-    /// - The regular graph is stored in `graph.json` and the outlier graph is stored in `outlier_graph.json`
-    /// - Information about splits and merges of nodes/edges are stored in `STATS`.
-    /// - Configuration is written to `config` for reference purposes.
+    /// Command line arguments specifies the type of output.
+    /// Coordinates are written in Web Mercator (EPSG 3857) Projection.
     pub fn to_csv(&self) -> Result<()> {
         // //println!("Writing data...");
-        // // Store the graph in graphviz format
-        // let dot = Dot::with_config(
-        //     &self.graph,
-        //     &[
-        //         petgraph::dot::Config::NodeIndexLabel,
-        //         petgraph::dot::Config::EdgeIndexLabel,
-        //     ],
-        // );
-        // let f = File::create("graph.dot")?;
-        // let mut f = BufWriter::new(f);
-        // writeln!(f, "{:?}", dot)?;
+        let output = OUTPUT.lock().unwrap();
 
-        // Store the graph in json format
-        let serialized = serde_json::to_string(&self.graph)?;
-        let mut f = File::create("graph.json")?;
-        f.write_all(serialized.as_bytes())?;
-
-        // // Write a single csv file with bounding boxes
-        // let nodes = self
-        //     .graph
-        //     .node_indices()
-        //     .map(|nx| format!("{},{},{}", nx.index(), self.graph[nx].0, self.graph[nx].1))
-        //     .join("");
-        // let nodes = format!("label,weight,x1,y1,t1,x2,y2,t2\n{}", nodes);
-        // let f = File::create("nodes.csv")?;
-        // let mut f = BufWriter::new(f);
-        // writeln!(f, "{}", nodes)?;
-        println!("Writing {} edges", self.graph.edge_count());
-        // Write each trajectory to a separate csv file.
-        for (i, edge) in self.graph.edge_references().enumerate() {
-            let f = File::create(format!("edge_{}_{}.csv", i, edge.weight().0))?;
-            let trj = edge
-                .weight()
-                .1
-                .iter()
-                .map(|[x, y, t]| {
-                    let [x, y, t] = crate::from_epsg_3857_to_4326(&[*x, *y, *t]);
-                    format!("{},{},{}", x, y, t)
-                })
-                .join("\n");
+        if output.graph_dot {
+            // Store the graph in graphviz format
+            let dot = Dot::with_config(
+                &self.graph,
+                &[
+                    petgraph::dot::Config::NodeIndexLabel,
+                    petgraph::dot::Config::EdgeIndexLabel,
+                ],
+            );
+            let f = File::create("graph.dot")?;
             let mut f = BufWriter::new(f);
-            write!(f, "x,y,t\n{}", trj)?;
+            writeln!(f, "{:?}", dot)?;
         }
 
-        // // Write indices of root nodes.
-        // let roots = self
-        //     .roots
-        //     .iter()
-        //     .map(|nx| format!("{}", nx.index()))
-        //     .join(",");
-        // let f = File::create("roots.csv")?;
-        // let mut f = BufWriter::new(f);
-        // write!(f, "{}", roots)?;
+        if output.graph_json {
+            // Store the graph in json format
+            let serialized = serde_json::to_string(&self.graph)?;
+            let mut f = File::create("graph.json")?;
+            f.write_all(serialized.as_bytes())?;
+        }
+
+        if output.nodes_csv {
+            // Write a single csv file with bounding boxes
+            let nodes = self
+                .graph
+                .node_indices()
+                .map(|nx| format!("{},{},{}", nx.index(), self.graph[nx].0, self.graph[nx].1))
+                .join("");
+            let nodes = format!("label,weight,x1,y1,t1,x2,y2,t2\n{}", nodes);
+            let f = File::create("nodes.csv")?;
+            let mut f = BufWriter::new(f);
+            writeln!(f, "{}", nodes)?;
+        }
+
+        if output.edges_csv {
+            println!("Writing {} edges", self.graph.edge_count());
+            // Write each trajectory to a separate csv file.
+            for (i, edge) in self.graph.edge_references().enumerate() {
+                let f = File::create(format!("edge_{}_{}.csv", i, edge.weight().0))?;
+                let trj = edge
+                    .weight()
+                    .1
+                    .iter()
+                    .map(|[x, y, t]| format!("{},{},{}", x, y, t))
+                    .join("\n");
+                let mut f = BufWriter::new(f);
+                write!(f, "x,y,t\n{}", trj)?;
+            }
+        }
 
         // // Write Statistics
         // println!("Storing stats:\n{:?}", *STATS.lock().unwrap());
@@ -289,9 +282,6 @@ impl DetourGraph {
         let mut a: NodeIndex = self.graph.add_node((1, bbox));
         self.roots.push(a);
         while let Some((trj, bbox)) = path.next_trj_stop() {
-            if trj[0][0].eq(&0.0) {
-                println!("add_path: trj with first point at t:{}", trj[0][0]);
-            }
             let b = self.graph.add_node((1, bbox));
             self.graph.add_edge(a, b, (1, trj));
             a = b;

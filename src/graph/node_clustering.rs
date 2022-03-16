@@ -68,6 +68,8 @@ pub fn spatially_cluster_nodes(graph: &mut DetourGraph) -> Vec<Vec<NodeIndex>> {
 }
 
 /// Determines the minimal bbox s.t. endpoints of all connected trjs fits inside
+/// The Bbox should be at least 20m x 20m
+/// NOTE: LOOK AT THE BBOXES; THEY ARE NOT SIMILAR IN THE PIC!!
 fn get_minimal_bbox(graph: &mut DetourGraph, cluster: &[NodeIndex]) -> Bbox {
     let bbox = graph.get_node_bbox(cluster[0]);
     // Handle ingoing edges
@@ -82,7 +84,7 @@ fn get_minimal_bbox(graph: &mut DetourGraph, cluster: &[NodeIndex]) -> Bbox {
         bbox
     });
     // Handle outgoing edges
-    let bbox = cluster.iter().fold(bbox, |mut bbox, nx| {
+    let mut bbox = cluster.iter().fold(bbox, |mut bbox, nx| {
         let edges = graph.edges_directed(*nx, EdgeDirection::Outgoing);
         for ex in edges {
             let trj = graph.edge_trj_mut(ex);
@@ -91,6 +93,12 @@ fn get_minimal_bbox(graph: &mut DetourGraph, cluster: &[NodeIndex]) -> Bbox {
         }
         bbox
     });
+    println!("{:.0} x {:.0}", bbox.x2 - bbox.x1, bbox.y2 - bbox.y1);
+    // add padding of 1 meter
+    bbox.x1 -= 1.0;
+    bbox.x2 += 1.0;
+    bbox.y1 -= 1.0;
+    bbox.y2 += 1.0;
     bbox
 }
 

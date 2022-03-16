@@ -1,4 +1,7 @@
-use crate::config::{parse_config, Config};
+use crate::{
+    config::{parse_config, Config},
+    OUTPUT,
+};
 use clap::{App, Arg};
 use std::{env, fs, path::Path};
 
@@ -21,6 +24,34 @@ pub fn parse_arguments() -> Config {
                 .takes_value(true)
                 .help("Configuration file"),
         )
+        .arg(
+            Arg::new("edges")
+                .short('e')
+                .long("edges")
+                .takes_value(false)
+                .help("Write edges to csv"),
+        )
+        .arg(
+            Arg::new("nodes")
+                .short('n')
+                .long("nodes")
+                .takes_value(false)
+                .help("Write nodes to csv"),
+        )
+        .arg(
+            Arg::new("graph_dot")
+                .short('d')
+                .long("graph")
+                .takes_value(false)
+                .help("Write graph to dot"),
+        )
+        .arg(
+            Arg::new("graph_json")
+                .short('j')
+                .long("json")
+                .takes_value(false)
+                .help("Write graph to json"),
+        )
         .get_matches();
 
     let config = match matches.value_of("config_file") {
@@ -34,6 +65,23 @@ pub fn parse_arguments() -> Config {
         }
     };
 
+    if matches.is_present("edges") {
+        let mut output = OUTPUT.lock().unwrap();
+        output.edges_csv = true;
+    }
+    if matches.is_present("nodes") {
+        let mut output = OUTPUT.lock().unwrap();
+        output.nodes_csv = true;
+    }
+    if matches.is_present("graph_dot") {
+        let mut output = OUTPUT.lock().unwrap();
+        output.graph_dot = true;
+    }
+    if matches.is_present("graph_json") {
+        let mut output = OUTPUT.lock().unwrap();
+        output.graph_json = true;
+    }
+
     // NOTE: We set the working path here!
     if let Some(out_path) = matches.value_of("out_path") {
         fs::create_dir_all(&out_path).expect("Cant write to specified output folder");
@@ -45,4 +93,22 @@ pub fn parse_arguments() -> Config {
         assert!(env::set_current_dir(&out_path).is_ok());
     }
     config
+}
+
+pub struct Output {
+    pub edges_csv: bool,
+    pub nodes_csv: bool,
+    pub graph_json: bool,
+    pub graph_dot: bool,
+}
+
+impl Default for Output {
+    fn default() -> Self {
+        Output {
+            edges_csv: false,
+            nodes_csv: false,
+            graph_json: false,
+            graph_dot: false,
+        }
+    }
 }
