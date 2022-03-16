@@ -1,14 +1,16 @@
 mod edge_clustering;
 mod graph;
 mod graph_builder;
+mod median_trajectory;
 mod node_clustering;
 mod path;
 mod path_builder;
 mod path_builder_stats;
 mod path_element;
-pub use edge_clustering::merge_edges;
-pub use graph::DetourGraph;
+pub use edge_clustering::{merge_edges, set_edges_mediod_trjs};
+pub use graph::{DetourGraph, Graph};
 pub use graph_builder::get_graph;
+pub use median_trajectory::get_mediod_trj;
 pub use node_clustering::spatially_cluster_nodes;
 pub use path::Path;
 pub use path_builder_stats::PathBuilderStats;
