@@ -1,7 +1,12 @@
+use itertools::Itertools;
+
 use super::PathElement;
 use std::fmt::Display;
 
-use crate::{utility::Bbox, STATS};
+use crate::{
+    utility::{trajectory::Trajectory, Bbox},
+    STATS,
+};
 
 #[derive(Debug, Clone)]
 pub struct Path {
@@ -173,7 +178,7 @@ impl Path {
         self.path.pop().unwrap()
     }
 
-    pub fn next_trj_stop(&mut self) -> Option<(Vec<[f64; 3]>, Bbox)> {
+    pub fn next_trj_stop(&mut self) -> Option<(Trajectory, Bbox)> {
         if self.is_empty() {
             None
         } else {
@@ -181,5 +186,9 @@ impl Path {
             let bbox = self.path.remove(0).copy_bbox().unwrap();
             Some((trj, bbox))
         }
+    }
+
+    pub fn get_trjs(&self) -> Vec<Trajectory> {
+        self.path.iter().flat_map(|pe| pe.copy_trj()).collect_vec()
     }
 }

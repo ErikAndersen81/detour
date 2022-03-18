@@ -23,6 +23,7 @@ pub mod arguments;
 pub mod config;
 use arguments::Output;
 pub use config::Config;
+use graph::{get_graph_v2, Writable};
 use std::{
     io::{BufReader, Read},
     sync::Mutex,
@@ -73,6 +74,6 @@ fn main() {
         })
         .collect();
     //println!("Constructing graph...");
-    let graph = get_graph(daily_streams);
+    let graph = get_graph_v2(daily_streams);
     graph.to_csv().expect("Could not write output.");
 }

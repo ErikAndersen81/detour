@@ -70,6 +70,7 @@ impl Bbox {
             t1 = t.min(t1);
             t2 = t.max(t2);
         }
+
         Bbox {
             x1,
             x2,

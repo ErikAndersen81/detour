@@ -50,7 +50,8 @@ fn build_path(stream: Vec<[f64; 3]>) -> Path {
     path
 }
 
-fn split_stream_on_timeout(
+/// Splits the stream if more than `CONFIG.connection_timeout` ms has passed
+pub fn split_stream_on_timeout(
     stream: &[[f64; 3]],
     stats: &mut PathBuilderStats,
 ) -> Vec<Vec<[f64; 3]>> {

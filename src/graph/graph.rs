@@ -26,6 +26,66 @@ pub struct DetourGraph {
     roots: Vec<NodeIndex>,
 }
 
+pub trait Writable {
+    fn to_csv(&self) -> Result<()>;
+}
+
+impl Writable for Graph {
+    fn to_csv(&self) -> Result<()> {
+        let output = OUTPUT.lock().unwrap();
+
+        if output.graph_dot {
+            // Store the graph in graphviz format
+            let dot = Dot::with_config(
+                &self,
+                &[
+                    petgraph::dot::Config::NodeIndexLabel,
+                    petgraph::dot::Config::EdgeIndexLabel,
+                ],
+            );
+            let f = File::create("graph.dot")?;
+            let mut f = BufWriter::new(f);
+            writeln!(f, "{:?}", dot)?;
+        }
+
+        if output.graph_json {
+            // Store the graph in json format
+            let serialized = serde_json::to_string(self)?;
+            let mut f = File::create("graph.json")?;
+            f.write_all(serialized.as_bytes())?;
+        }
+
+        if output.nodes_csv {
+            // Write a single csv file with bounding boxes
+            let nodes = self
+                .node_indices()
+                .map(|nx| format!("{},{},{}", nx.index(), self[nx].0, self[nx].1))
+                .join("");
+            let nodes = format!("label,weight,x1,y1,t1,x2,y2,t2\n{}", nodes);
+            let f = File::create("nodes.csv")?;
+            let mut f = BufWriter::new(f);
+            writeln!(f, "{}", nodes)?;
+        }
+
+        if output.edges_csv {
+            println!("Writing {} edges", self.edge_count());
+            // Write each trajectory to a separate csv file.
+            for (i, edge) in self.edge_references().enumerate() {
+                let f = File::create(format!("edge_{}_{}.csv", i, edge.weight().0))?;
+                let trj = edge
+                    .weight()
+                    .1
+                    .iter()
+                    .map(|[x, y, t]| format!("{},{},{}", x, y, t))
+                    .join("\n");
+                let mut f = BufWriter::new(f);
+                write!(f, "x,y,t\n{}", trj)?;
+            }
+        }
+        Ok(())
+    }
+}
+
 impl DetourGraph {
     pub fn new() -> DetourGraph {
         let graph: Graph = StableDiGraph::new();
