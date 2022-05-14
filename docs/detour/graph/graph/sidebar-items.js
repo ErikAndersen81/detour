@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["DetourGraph",""],["TimePairs",""]]});
+initSidebarItems({"struct":[["DetourGraph",""],["TimePairs",""]],"trait":[["Writable",""]],"type":[["Graph",""]]});

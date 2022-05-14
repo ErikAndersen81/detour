@@ -259,17 +259,28 @@
 <span id="259">259</span>
 <span id="260">260</span>
 <span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
 </pre><pre class="rust">
-<span class="kw">use</span> <span class="ident">petgraph::visit::EdgeRef</span>;
-
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">merge_edges</span>, <span class="ident">path_builder::get_paths</span>, <span class="ident">DetourGraph</span>, <span class="ident">PathBuilderStats</span>};
+<span class="kw">use</span> <span class="kw">super</span><span class="ident">::set_edges_mediod_trjs</span>;
+<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">path_builder::get_paths</span>, <span class="ident">set_edges_centroid_trjs</span>, <span class="ident">DetourGraph</span>, <span class="ident">PathBuilderStats</span>};
 <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::graph::node_clustering::spatially_cluster_nodes</span>;
 <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::utility::Bbox</span>;
 <span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">petgraph::graph::NodeIndex</span>;
 <span class="kw">use</span> <span class="ident">petgraph::stable_graph::StableDiGraph</span>;
+<span class="kw">use</span> <span class="ident">petgraph::visit::EdgeRef</span>;
 <span class="kw">use</span> <span class="ident">petgraph::EdgeDirection</span>;
 <span class="kw">use</span> <span class="ident">std::collections::HashSet</span>;
+
+<span class="kw">type</span> <span class="ident">Graph</span> <span class="op">=</span> <span class="ident">StableDiGraph</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">Bbox</span>), (<span class="ident">u32</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span>)<span class="op">&gt;</span>;
 
 <span class="doccomment">/// Constructs the graph</span>
 <span class="doccomment">/// Handles spatial node clustering, edge clustering and detecting less frequently visited places.</span>
@@ -282,32 +293,32 @@
         .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">path</span><span class="op">|</span> <span class="ident">path</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">1</span>)
         .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">path</span><span class="op">|</span> <span class="ident">graph</span>.<span class="ident">add_path</span>(<span class="ident">path</span>));
     <span class="ident">merge_nodes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">graph</span>);
-    <span class="ident">merge_edges</span>(<span class="ident">graph</span>.<span class="ident">get_mut_graph</span>());
-    <span class="macro">println!</span>(<span class="string">&quot;Path builder stats:\n{}&quot;</span>, <span class="ident">path_stats</span>);
+    <span class="comment">//merge_edges(graph.get_mut_graph());</span>
+    <span class="ident">set_edges_mediod_trjs</span>(<span class="ident">graph</span>.<span class="ident">get_mut_graph</span>());
     <span class="ident">graph</span>
 }
 
 <span class="kw">fn</span> <span class="ident">merge_nodes</span>(<span class="ident">graph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">DetourGraph</span>) {
-    <span class="kw">let</span> (<span class="ident">node_clustering</span>, <span class="ident">outlier_graph</span>) <span class="op">=</span> <span class="ident">spatially_cluster_nodes</span>(<span class="ident">graph</span>);
-    <span class="ident">graph</span>.<span class="ident">set_outlier_graph</span>(<span class="ident">outlier_graph</span>);
+    <span class="kw">let</span> <span class="ident">node_clustering</span> <span class="op">=</span> <span class="ident">spatially_cluster_nodes</span>(<span class="ident">graph</span>);
     <span class="comment">// calculate a cluster representative for each cluster</span>
-    <span class="kw">let</span> <span class="ident">representatives</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Bbox</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">node_clustering</span>
+    <span class="kw">let</span> <span class="ident">representatives</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">Bbox</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">node_clustering</span>
         .<span class="ident">iter</span>()
         .<span class="ident">map</span>(<span class="op">|</span><span class="ident">cluster</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">bbox</span> <span class="op">=</span> <span class="ident">graph</span>.<span class="ident">get_graph</span>()[<span class="ident">cluster</span>[<span class="number">0</span>]];
-            <span class="ident">Bbox</span> {
+            <span class="kw">let</span> (<span class="ident">weight</span>, <span class="ident">bbox</span>) <span class="op">=</span> (<span class="ident">cluster</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>, <span class="ident">graph</span>.<span class="ident">get_graph</span>()[<span class="ident">cluster</span>[<span class="number">0</span>]].<span class="number">1</span>);
+            <span class="kw">let</span> <span class="ident">bbox</span> <span class="op">=</span> <span class="ident">Bbox</span> {
                 <span class="ident">x1</span>: <span class="ident">bbox</span>.<span class="ident">x1</span>,
                 <span class="ident">x2</span>: <span class="ident">bbox</span>.<span class="ident">x2</span>,
                 <span class="ident">y1</span>: <span class="ident">bbox</span>.<span class="ident">y1</span>,
                 <span class="ident">y2</span>: <span class="ident">bbox</span>.<span class="ident">y2</span>,
                 <span class="ident">t1</span>: <span class="number">0.0</span>,                          <span class="comment">// Time starts at 0.0</span>
                 <span class="ident">t2</span>: (<span class="number">24</span> <span class="op">*</span> <span class="number">60</span> <span class="op">*</span> <span class="number">60</span> <span class="op">*</span> <span class="number">1000</span>) <span class="kw">as</span> <span class="ident">f64</span>, <span class="comment">// We always have 24*60*60*1000 ms in a 24 hour span</span>
-            }
+            };
+            (<span class="ident">weight</span>, <span class="ident">bbox</span>)
         })
         .<span class="ident">collect</span>();
 
     <span class="comment">// Construct a new graph with cluster representatives.</span>
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_graph</span>: <span class="ident">StableDiGraph</span><span class="op">&lt;</span><span class="ident">Bbox</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">StableDiGraph::new</span>();
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_graph</span>: <span class="ident">Graph</span> <span class="op">=</span> <span class="ident">StableDiGraph::new</span>();
     <span class="kw">let</span> <span class="ident">representatives</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">NodeIndex</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">representatives</span>
         .<span class="ident">iter</span>()
         .<span class="ident">map</span>(<span class="op">|</span><span class="ident">bbox</span><span class="op">|</span> <span class="ident">new_graph</span>.<span class="ident">add_node</span>(<span class="kw-2">*</span><span class="ident">bbox</span>))
@@ -315,50 +326,52 @@
 
     <span class="comment">// Add edges to the cluster representatives</span>
     <span class="ident">graph</span>.<span class="ident">edge_weights</span>().<span class="ident">into_iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">edge</span><span class="op">|</span> {
-        <span class="kw">let</span> <span class="ident">start_point</span> <span class="op">=</span> <span class="ident">edge</span>[<span class="number">0</span>];
-        <span class="kw">let</span> <span class="ident">end_point</span> <span class="op">=</span> <span class="ident">edge</span>[<span class="ident">edge</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>];
+        <span class="kw">let</span> <span class="ident">start_point</span> <span class="op">=</span> <span class="ident">edge</span>.<span class="number">1</span>[<span class="number">0</span>];
+        <span class="kw">let</span> <span class="ident">end_point</span> <span class="op">=</span> <span class="ident">edge</span>.<span class="number">1</span>[<span class="ident">edge</span>.<span class="number">1</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>];
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">start_node</span> <span class="op">=</span> <span class="prelude-val">None</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">end_node</span> <span class="op">=</span> <span class="prelude-val">None</span>;
         <span class="kw">for</span> <span class="ident">nx</span> <span class="kw">in</span> <span class="ident">representatives</span>.<span class="ident">iter</span>() {
-            <span class="kw">if</span> <span class="ident">new_graph</span>[<span class="kw-2">*</span><span class="ident">nx</span>].<span class="ident">contains_point</span>(<span class="kw-2">&amp;</span><span class="ident">start_point</span>) {
-                <span class="ident">start_node</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">nx</span>)
+            <span class="kw">if</span> <span class="ident">new_graph</span>[<span class="kw-2">*</span><span class="ident">nx</span>].<span class="number">1</span>.<span class="ident">contains_point</span>(<span class="kw-2">&amp;</span><span class="ident">start_point</span>) {
+                <span class="ident">start_node</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">nx</span>);
+                <span class="kw">break</span>;
             }
         }
         <span class="kw">for</span> <span class="ident">nx</span> <span class="kw">in</span> <span class="ident">representatives</span>.<span class="ident">iter</span>() {
-            <span class="kw">if</span> <span class="ident">new_graph</span>[<span class="kw-2">*</span><span class="ident">nx</span>].<span class="ident">contains_point</span>(<span class="kw-2">&amp;</span><span class="ident">end_point</span>) {
-                <span class="ident">end_node</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">nx</span>)
+            <span class="kw">if</span> <span class="ident">new_graph</span>[<span class="kw-2">*</span><span class="ident">nx</span>].<span class="number">1</span>.<span class="ident">contains_point</span>(<span class="kw-2">&amp;</span><span class="ident">end_point</span>) {
+                <span class="ident">end_node</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">nx</span>);
+                <span class="kw">break</span>;
             }
         }
         <span class="kw">if</span> <span class="kw">let</span> (<span class="prelude-val">Some</span>(<span class="ident">a</span>), <span class="prelude-val">Some</span>(<span class="ident">b</span>)) <span class="op">=</span> (<span class="ident">start_node</span>, <span class="ident">end_node</span>) {
-            <span class="ident">new_graph</span>.<span class="ident">add_edge</span>(<span class="ident">a</span>, <span class="ident">b</span>, <span class="ident">edge</span>.<span class="ident">clone</span>());
+            <span class="ident">new_graph</span>.<span class="ident">add_edge</span>(<span class="ident">a</span>, <span class="ident">b</span>, (<span class="number">1</span>, <span class="ident">edge</span>.<span class="number">1</span>.<span class="ident">clone</span>()));
         }
     });
+
+    <span class="comment">// We could try to move merge edges here instead of after merge_node</span>
+    <span class="comment">//merge_edges(&amp;mut new_graph);</span>
 
     <span class="comment">// Try to find suitable temporal split values for each node cluster</span>
     <span class="comment">// based on start and end times of trajectories connecting them.</span>
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">required_splits</span> <span class="op">=</span> <span class="macro">vec!</span>[];
-
     <span class="kw">for</span> <span class="ident">nx</span> <span class="kw">in</span> <span class="ident">new_graph</span>.<span class="ident">node_indices</span>() {
         <span class="comment">// calculate required splits</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">edges</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">new_graph</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">edges</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">new_graph</span>
             .<span class="ident">edges_directed</span>(<span class="ident">nx</span>, <span class="ident">EdgeDirection::Incoming</span>)
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">edge</span><span class="op">|</span> <span class="ident">edge</span>.<span class="ident">weight</span>().<span class="ident">clone</span>())
             .<span class="ident">collect</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">outgoing</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">new_graph</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">outgoing</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">new_graph</span>
             .<span class="ident">edges_directed</span>(<span class="ident">nx</span>, <span class="ident">EdgeDirection::Outgoing</span>)
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">edge</span><span class="op">|</span> <span class="ident">edge</span>.<span class="ident">weight</span>().<span class="ident">clone</span>())
             .<span class="ident">collect</span>();
         <span class="ident">edges</span>.<span class="ident">append</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">outgoing</span>);
         <span class="kw">let</span> <span class="ident">splits</span> <span class="op">=</span> <span class="ident">get_temporal_splits</span>(<span class="ident">edges</span>);
-        <span class="comment">// MAYBE TODO! use `original` splits i.e. given by bboxs of the cluster, instead</span>
         <span class="ident">required_splits</span>.<span class="ident">push</span>((<span class="ident">nx</span>, <span class="ident">splits</span>));
     }
-
     <span class="kw">for</span> (<span class="ident">split_node</span>, <span class="ident">splits</span>) <span class="kw">in</span> <span class="ident">required_splits</span> {
         <span class="comment">// Split bbox at splits and add the new nodes</span>
-        <span class="kw">let</span> <span class="ident">nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">NodeIndex</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">split_bbox</span>(<span class="ident">new_graph</span>[<span class="ident">split_node</span>], <span class="kw-2">&amp;</span><span class="ident">splits</span>)
+        <span class="kw">let</span> <span class="ident">nodes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">NodeIndex</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">split_bbox</span>(<span class="ident">new_graph</span>[<span class="ident">split_node</span>].<span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">splits</span>)
             .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">bbox</span><span class="op">|</span> <span class="ident">new_graph</span>.<span class="ident">add_node</span>(<span class="ident">bbox</span>))
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">bbox</span><span class="op">|</span> <span class="ident">new_graph</span>.<span class="ident">add_node</span>((<span class="ident">new_graph</span>[<span class="ident">split_node</span>].<span class="number">0</span>, <span class="ident">bbox</span>)))
             .<span class="ident">collect</span>();
         <span class="ident">reassign_edges</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">new_graph</span>, <span class="ident">split_node</span>, <span class="kw-2">&amp;</span><span class="ident">nodes</span>, <span class="ident">EdgeDirection::Outgoing</span>);
         <span class="ident">reassign_edges</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">new_graph</span>, <span class="ident">split_node</span>, <span class="kw-2">&amp;</span><span class="ident">nodes</span>, <span class="ident">EdgeDirection::Incoming</span>);
@@ -402,25 +415,27 @@
 }
 
 <span class="kw">fn</span> <span class="ident">reassign_edges</span>(
-    <span class="ident">graph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">StableDiGraph</span><span class="op">&lt;</span><span class="ident">Bbox</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">graph</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Graph</span>,
     <span class="ident">split_node</span>: <span class="ident">NodeIndex</span>,
     <span class="ident">nodes</span>: <span class="kw-2">&amp;</span>[<span class="ident">NodeIndex</span>],
     <span class="ident">direction</span>: <span class="ident">EdgeDirection</span>,
 ) {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rm_edge_idx</span> <span class="op">=</span> <span class="macro">vec!</span>[];
     <span class="kw">let</span> <span class="ident">edges</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">direction</span> {
         <span class="ident">EdgeDirection::Outgoing</span> <span class="op">=</span><span class="op">&gt;</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">edges</span> <span class="op">=</span> <span class="macro">vec!</span>[];
             <span class="kw">for</span> <span class="ident">edge</span> <span class="kw">in</span> <span class="ident">graph</span>.<span class="ident">edges_directed</span>(<span class="ident">split_node</span>, <span class="ident">direction</span>) {
+                <span class="ident">rm_edge_idx</span>.<span class="ident">push</span>(<span class="ident">edge</span>.<span class="ident">id</span>());
                 <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">edge</span>.<span class="ident">weight</span>().<span class="ident">clone</span>();
-                <span class="kw">let</span> <span class="ident">start_point</span> <span class="op">=</span> <span class="ident">trj</span>[<span class="number">0</span>];
+                <span class="kw">let</span> <span class="ident">start_point</span> <span class="op">=</span> <span class="ident">trj</span>.<span class="number">1</span>[<span class="number">0</span>];
                 <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">edge</span>.<span class="ident">target</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">split_node</span> {
                     <span class="ident">edge</span>.<span class="ident">target</span>()
                 } <span class="kw">else</span> {
                     <span class="comment">// The edge goes from split_node to split node, so we need to handle this</span>
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">target</span> <span class="op">=</span> <span class="prelude-val">None</span>;
-                    <span class="kw">let</span> <span class="ident">end_point</span> <span class="op">=</span> <span class="ident">trj</span>[<span class="ident">trj</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>];
+                    <span class="kw">let</span> <span class="ident">end_point</span> <span class="op">=</span> <span class="ident">trj</span>.<span class="number">1</span>[<span class="ident">trj</span>.<span class="number">1</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>];
                     <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">nodes</span> {
-                        <span class="kw">if</span> <span class="ident">graph</span>[<span class="kw-2">*</span><span class="ident">node</span>].<span class="ident">is_in_temporal</span>(<span class="kw-2">&amp;</span><span class="ident">end_point</span>) {
+                        <span class="kw">if</span> <span class="ident">graph</span>[<span class="kw-2">*</span><span class="ident">node</span>].<span class="number">1</span>.<span class="ident">is_in_temporal</span>(<span class="kw-2">&amp;</span><span class="ident">end_point</span>) {
                             <span class="ident">target</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">node</span>);
                         }
                     }
@@ -431,7 +446,7 @@
                     }
                 };
                 <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">nodes</span> {
-                    <span class="kw">if</span> <span class="ident">graph</span>[<span class="kw-2">*</span><span class="ident">node</span>].<span class="ident">is_in_temporal</span>(<span class="kw-2">&amp;</span><span class="ident">start_point</span>) {
+                    <span class="kw">if</span> <span class="ident">graph</span>[<span class="kw-2">*</span><span class="ident">node</span>].<span class="number">1</span>.<span class="ident">is_in_temporal</span>(<span class="kw-2">&amp;</span><span class="ident">start_point</span>) {
                         <span class="ident">edges</span>.<span class="ident">push</span>((<span class="kw-2">*</span><span class="ident">node</span>, <span class="ident">target</span>, <span class="ident">trj</span>));
                         <span class="kw">break</span>;
                     }
@@ -442,16 +457,17 @@
         <span class="ident">EdgeDirection::Incoming</span> <span class="op">=</span><span class="op">&gt;</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">edges</span> <span class="op">=</span> <span class="macro">vec!</span>[];
             <span class="kw">for</span> <span class="ident">edge</span> <span class="kw">in</span> <span class="ident">graph</span>.<span class="ident">edges_directed</span>(<span class="ident">split_node</span>, <span class="ident">direction</span>) {
+                <span class="ident">rm_edge_idx</span>.<span class="ident">push</span>(<span class="ident">edge</span>.<span class="ident">id</span>());
                 <span class="kw">let</span> <span class="ident">trj</span> <span class="op">=</span> <span class="ident">edge</span>.<span class="ident">weight</span>().<span class="ident">clone</span>();
-                <span class="kw">let</span> <span class="ident">end_point</span> <span class="op">=</span> <span class="ident">trj</span>[<span class="ident">trj</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>];
+                <span class="kw">let</span> <span class="ident">end_point</span> <span class="op">=</span> <span class="ident">trj</span>.<span class="number">1</span>[<span class="ident">trj</span>.<span class="number">1</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>];
                 <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">edge</span>.<span class="ident">source</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">split_node</span> {
                     <span class="ident">edge</span>.<span class="ident">source</span>()
                 } <span class="kw">else</span> {
                     <span class="comment">// edge from split_node to split_node</span>
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">source</span> <span class="op">=</span> <span class="prelude-val">None</span>;
-                    <span class="kw">let</span> <span class="ident">start_point</span> <span class="op">=</span> <span class="ident">trj</span>[<span class="number">0</span>];
+                    <span class="kw">let</span> <span class="ident">start_point</span> <span class="op">=</span> <span class="ident">trj</span>.<span class="number">1</span>[<span class="number">0</span>];
                     <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">nodes</span> {
-                        <span class="kw">if</span> <span class="ident">graph</span>[<span class="kw-2">*</span><span class="ident">node</span>].<span class="ident">is_in_temporal</span>(<span class="kw-2">&amp;</span><span class="ident">start_point</span>) {
+                        <span class="kw">if</span> <span class="ident">graph</span>[<span class="kw-2">*</span><span class="ident">node</span>].<span class="number">1</span>.<span class="ident">is_in_temporal</span>(<span class="kw-2">&amp;</span><span class="ident">start_point</span>) {
                             <span class="ident">source</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">node</span>);
                         }
                     }
@@ -462,7 +478,7 @@
                     }
                 };
                 <span class="kw">for</span> <span class="ident">node</span> <span class="kw">in</span> <span class="ident">nodes</span> {
-                    <span class="kw">if</span> <span class="ident">graph</span>[<span class="kw-2">*</span><span class="ident">node</span>].<span class="ident">is_in_temporal</span>(<span class="kw-2">&amp;</span><span class="ident">end_point</span>) {
+                    <span class="kw">if</span> <span class="ident">graph</span>[<span class="kw-2">*</span><span class="ident">node</span>].<span class="number">1</span>.<span class="ident">is_in_temporal</span>(<span class="kw-2">&amp;</span><span class="ident">end_point</span>) {
                         <span class="ident">edges</span>.<span class="ident">push</span>((<span class="ident">source</span>, <span class="kw-2">*</span><span class="ident">node</span>, <span class="ident">trj</span>));
                         <span class="kw">break</span>;
                     }
@@ -473,6 +489,9 @@
     };
     <span class="kw">for</span> (<span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">trj</span>) <span class="kw">in</span> <span class="ident">edges</span>.<span class="ident">into_iter</span>() {
         <span class="ident">graph</span>.<span class="ident">add_edge</span>(<span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">trj</span>);
+    }
+    <span class="kw">for</span> <span class="ident">ex</span> <span class="kw">in</span> <span class="ident">rm_edge_idx</span> {
+        <span class="ident">graph</span>.<span class="ident">remove_edge</span>(<span class="ident">ex</span>);
     }
 }
 
@@ -489,10 +508,10 @@
 }
 
 <span class="doccomment">/// Determines where the cluster representative bbox should split</span>
-<span class="kw">fn</span> <span class="ident">get_temporal_splits</span>(<span class="ident">trjs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">f64</span><span class="op">&gt;</span> {
+<span class="kw">fn</span> <span class="ident">get_temporal_splits</span>(<span class="ident">trjs</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">Vec</span><span class="op">&lt;</span>[<span class="ident">f64</span>; <span class="number">3</span>]<span class="op">&gt;</span>)<span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">f64</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">splits</span> <span class="op">=</span> <span class="macro">vec!</span>[];
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">timestamps</span> <span class="op">=</span> <span class="macro">vec!</span>[];
-    <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">trj</span>) <span class="kw">in</span> <span class="ident">trjs</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
+    <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">trj</span>) <span class="kw">in</span> <span class="ident">trjs</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">trj</span><span class="op">|</span> <span class="ident">trj</span>.<span class="number">1</span>.<span class="ident">clone</span>()).<span class="ident">enumerate</span>() {
         <span class="kw">let</span> (<span class="ident">t1</span>, <span class="ident">t2</span>) <span class="op">=</span> (<span class="ident">trj</span>[<span class="number">0</span>][<span class="number">2</span>], <span class="ident">trj</span>[<span class="ident">trj</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>][<span class="number">2</span>]);
         <span class="ident">timestamps</span>.<span class="ident">push</span>((<span class="ident">idx</span>, <span class="ident">t1</span>));
         <span class="ident">timestamps</span>.<span class="ident">push</span>((<span class="ident">idx</span>, <span class="ident">t2</span>));
@@ -518,7 +537,6 @@
         }
         <span class="ident">last_visited</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">t</span> <span class="op">+</span> <span class="number">1.0</span>);
     }
-    <span class="macro">println!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">splits</span>);
     <span class="ident">splits</span>
 }
 </pre></div>

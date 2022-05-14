@@ -9,7 +9,7 @@ mod path_builder;
 mod path_builder_stats;
 mod path_element;
 mod temporal_splitting;
-pub use edge_clustering::{merge_edges, set_edges_mediod_trjs};
+pub use edge_clustering::{set_edges_centroid_trjs, set_edges_mediod_trjs};
 pub use graph::{DetourGraph, Graph, Writable};
 pub use graph_builder::get_graph;
 pub use graph_builder_v2::get_graph_v2;

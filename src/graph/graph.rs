@@ -68,7 +68,7 @@ impl Writable for Graph {
         }
 
         if output.edges_csv {
-            println!("Writing {} edges", self.edge_count());
+            //println!("Writing {} edges", self.edge_count());
             // Write each trajectory to a separate csv file.
             for (i, edge) in self.edge_references().enumerate() {
                 let f = File::create(format!("edge_{}_{}.csv", i, edge.weight().0))?;

@@ -41,7 +41,7 @@ pub fn set_edges_mediod_trjs(graph: &mut Graph) {
 /// Merges the edges using interpolation.
 /// I.e. the average/mean position of the moving object at a given time
 /// according to the two trajectories.
-pub fn merge_edges(graph: &mut StableDiGraph<(u32, Bbox), (u32, Vec<[f64; 3]>)>) {
+pub fn set_edges_centroid_trjs(graph: &mut Graph) {
     let groups: Vec<((NodeIndex, NodeIndex), EdgeClusters)> = get_edge_groups(graph)
         .iter()
         .map(|((source, target), group)| {

@@ -162,7 +162,7 @@ pub fn parse_ais(content: String) -> Vec<Vec<[f64; 3]>> {
 /// The original data is located in `RealtimeTrajectoryDataMining/rtdm/scripts/data`
 /// It is originally in json, but we have extracted trajectories into separate csv-files before parsing.
 pub fn parse_synthetic(content: String) -> Vec<Vec<[f64; 3]>> {
-    println!("Parsing Synthetic Data");
+    //println!("Parsing Synthetic Data");
     let mut trjs: Vec<Vec<[f64; 3]>> = Vec::new();
     let mut trj: Vec<[f64; 3]> = Vec::new();
     let mut last_day = -1;

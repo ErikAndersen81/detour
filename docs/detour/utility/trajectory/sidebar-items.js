@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["align_start_time",""],["average",""],["mean_point",""],["merge",""],["morph_to_fit",""]],"struct":[["Interpolator",""]],"trait":[["Monotone",""]]});
+initSidebarItems({"fn":[["align_start_time",""],["average",""],["interpolate",""],["mean_point",""],["merge",""],["morph_to_fit",""]],"struct":[["Interpolator",""]],"trait":[["Monotone",""],["Timespan",""]],"type":[["Trajectory",""]]});

@@ -1,5 +1,5 @@
 use super::set_edges_mediod_trjs;
-use super::{merge_edges, path_builder::get_paths, DetourGraph, PathBuilderStats};
+use super::{path_builder::get_paths, set_edges_centroid_trjs, DetourGraph, PathBuilderStats};
 use crate::graph::node_clustering::spatially_cluster_nodes;
 use crate::utility::Bbox;
 use itertools::Itertools;

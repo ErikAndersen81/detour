@@ -21,7 +21,7 @@ extern crate lazy_static;
 
 pub mod arguments;
 pub mod config;
-use arguments::Output;
+use arguments::{ClusteringArgs, Output};
 pub use config::Config;
 use graph::{get_graph_v2, Writable};
 use std::{
@@ -43,6 +43,10 @@ lazy_static! {
     pub static ref OUTPUT: Mutex<Output> = Mutex::new(Output::default());
 }
 
+lazy_static! {
+    pub static ref CLUSTERINGARGS: Mutex<ClusteringArgs> = Mutex::new(ClusteringArgs::default());
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct Statistics {
     pub node_merges: usize,
@@ -59,6 +63,10 @@ lazy_static! {
 }
 
 fn main() {
+    if (CONFIG.window_size == 0_usize) | (CONFIG.window_size != 0_usize) {
+        // This bogus test ensures we parse arguments before trying to read from stdin
+        // s.t. the user can get a helpful message
+    }
     let mut buf_reader = BufReader::new(std::io::stdin());
     let mut contents = String::new();
     buf_reader
@@ -69,9 +77,9 @@ fn main() {
         .into_iter()
         .filter(|day| !day.is_empty())
         .map(time_guard::clean_stream)
-        .map(|stream| {
-            CHFilter::new(CONFIG.window_size, stream.into_iter()).collect::<Vec<[f64; 3]>>()
-        })
+        //.map(|stream| {
+        //    CHFilter::new(CONFIG.window_size, stream.into_iter()).collect::<Vec<[f64; 3]>>()
+        //})
         .collect();
     //println!("Constructing graph...");
     let graph = get_graph_v2(daily_streams);

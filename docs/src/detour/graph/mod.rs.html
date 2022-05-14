@@ -13,18 +13,28 @@
 <span id="13">13</span>
 <span id="14">14</span>
 <span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
 </pre><pre class="rust">
 <span class="kw">mod</span> <span class="ident">edge_clustering</span>;
 <span class="kw">mod</span> <span class="ident">graph</span>;
 <span class="kw">mod</span> <span class="ident">graph_builder</span>;
+<span class="kw">mod</span> <span class="ident">graph_builder_v2</span>;
+<span class="kw">mod</span> <span class="ident">median_trajectory</span>;
 <span class="kw">mod</span> <span class="ident">node_clustering</span>;
 <span class="kw">mod</span> <span class="ident">path</span>;
 <span class="kw">mod</span> <span class="ident">path_builder</span>;
 <span class="kw">mod</span> <span class="ident">path_builder_stats</span>;
 <span class="kw">mod</span> <span class="ident">path_element</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">edge_clustering::merge_edges</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">graph::DetourGraph</span>;
+<span class="kw">mod</span> <span class="ident">temporal_splitting</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">edge_clustering</span>::{<span class="ident">set_edges_centroid_trjs</span>, <span class="ident">set_edges_mediod_trjs</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">graph</span>::{<span class="ident">DetourGraph</span>, <span class="ident">Graph</span>, <span class="ident">Writable</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">graph_builder::get_graph</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">graph_builder_v2::get_graph_v2</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">median_trajectory::get_mediod_trj</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">node_clustering::spatially_cluster_nodes</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">path::Path</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">path_builder_stats::PathBuilderStats</span>;

@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["build_path","Classify stops and routes of a stream"],["get_paths","Returns a vector of paths given a stream"],["split_stream_on_timeout",""]],"struct":[["PathBuilder",""]]});
+initSidebarItems({"fn":[["build_path","Classify stops and routes of a stream"],["get_paths","Returns a vector of paths given a stream"],["split_stream_on_timeout","Splits the stream if more than `CONFIG.connection_timeout` ms has passed"]],"struct":[["PathBuilder",""]]});
